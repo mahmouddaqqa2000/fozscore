@@ -2,6 +2,9 @@
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/helpers.php';
 
+$settings = get_site_settings($pdo);
+$favicon = $settings['favicon'];
+
 // التأكد من وجود جدول الدوريات
 $pdo->exec("CREATE TABLE IF NOT EXISTS leagues (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -34,7 +37,8 @@ $all_leagues = $stmt->fetchAll(PDO::FETCH_ASSOC);
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>الدوريات</title>
+    <title>الدوريات - <?php echo htmlspecialchars($settings['site_name']); ?></title>
+    <?php if ($favicon): ?><link rel="icon" href="<?php echo htmlspecialchars($favicon); ?>"><?php endif; ?>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
         :root { --primary: #1e293b; --secondary: #2563eb; --bg: #f8fafc; --card: #ffffff; --text: #0f172a; --border: #e2e8f0; }

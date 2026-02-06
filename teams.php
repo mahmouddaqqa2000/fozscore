@@ -2,6 +2,9 @@
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/helpers.php';
 
+$settings = get_site_settings($pdo);
+$favicon = $settings['favicon'];
+
 // 1. تنظيف الفرق التي باللغة الإنجليزية (حذفها)
 $stmt = $pdo->query("SELECT id, name FROM teams");
 while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
@@ -45,6 +48,7 @@ $all_teams = $stmt->fetchAll(PDO::FETCH_ASSOC);
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>الفرق - FozScore</title>
+    <?php if ($favicon): ?><link rel="icon" href="<?php echo htmlspecialchars($favicon); ?>"><?php endif; ?>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
     <style>
         :root { --primary: #1e293b; --secondary: #2563eb; --bg: #f8fafc; --card: #ffffff; --text: #0f172a; --border: #e2e8f0; }

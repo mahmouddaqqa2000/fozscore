@@ -1,7 +1,16 @@
 <?php
 // header.php - شريط تنقل مشترك
+if (!isset($settings) && isset($pdo) && function_exists('get_site_settings')) {
+    $settings = get_site_settings($pdo);
+}
+
+$header_site_name = $settings['site_name'] ?? 'FozScore';
+$primary_color = $settings['primary_color'] ?? '#1e293b';
 ?>
 <style>
+    :root {
+        --primary: <?php echo htmlspecialchars($primary_color); ?> !important;
+    }
     .navbar {
         background-color: #ffffff;
         color: #000;
@@ -160,7 +169,12 @@
 </style>
 
 <div class="navbar">
-    <a class="brand" href="index.php">FozScore</a>
+    <a class="brand" href="index.php">
+        <?php if (!empty($settings['favicon'])): ?>
+            <img src="<?php echo htmlspecialchars($settings['favicon']); ?>" alt="Logo" style="height: 45px; width: auto; vertical-align: middle; margin-left: 8px;">
+        <?php endif; ?>
+        <?php echo htmlspecialchars($header_site_name); ?>
+    </a>
     <button class="menu-toggle" aria-label="قائمة" aria-expanded="false">☰</button>
     <nav class="nav-links" role="navigation">
         <a href="index.php">مباريات اليوم</a>

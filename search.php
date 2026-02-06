@@ -2,6 +2,9 @@
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/helpers.php';
 
+$settings = get_site_settings($pdo);
+$favicon = $settings['favicon'];
+
 $query = isset($_GET['q']) ? trim($_GET['q']) : '';
 $matches = [];
 $news_results = [];
@@ -26,6 +29,7 @@ if (!empty($query)) {
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>بحث <?php echo $query ? '- ' . htmlspecialchars($query) : ''; ?> - FozScore</title>
+    <?php if ($favicon): ?><link rel="icon" href="<?php echo htmlspecialchars($favicon); ?>"><?php endif; ?>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
     <style>
         :root {

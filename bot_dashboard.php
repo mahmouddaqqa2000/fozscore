@@ -8,6 +8,10 @@ if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
 
 // جلب اتصال قاعدة البيانات
 require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/helpers.php';
+
+$settings = get_site_settings($pdo);
+$favicon = $settings['favicon'];
 ?>
 <!doctype html>
 <html lang="ar" dir="rtl">
@@ -15,6 +19,7 @@ require_once __DIR__ . '/db.php';
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>إدارة البوت - FozScore</title>
+    <?php if ($favicon): ?><link rel="icon" href="<?php echo htmlspecialchars($favicon); ?>"><?php endif; ?>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -151,6 +156,8 @@ require_once __DIR__ . '/db.php';
         <div class="nav-links">
             <a href="dashboard.php">المباريات</a>
             <a href="news_dashboard.php">الأخبار</a>
+            <a href="admin_messages.php">📩 الرسائل</a>
+            <a href="settings.php">⚙️ الإعدادات</a>
             <a href="index.php">عرض الموقع</a>
         </div>
     </div>

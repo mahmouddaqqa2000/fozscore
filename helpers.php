@@ -539,7 +539,13 @@ function get_site_settings($pdo) {
 
     $defaults = [
         'site_name' => 'FozScore',
-        'favicon' => ''
+        'favicon' => '',
+        'primary_color' => '#1e293b',
+        'site_description' => 'موقع رياضي شامل يقدم لك أحدث نتائج المباريات، أخبار الكرة العالمية والمحلية، وجداول الترتيب لحظة بلحظة.',
+        'social_twitter' => '#',
+        'social_facebook' => '#',
+        'social_youtube' => '#',
+        'social_instagram' => '#'
     ];
 
     return array_merge($defaults, $db_settings);

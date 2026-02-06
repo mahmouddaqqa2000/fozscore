@@ -265,6 +265,8 @@ $total_pages = ceil($total_matches / $perPage);
         <div class="nav-links">
             <a href="news_dashboard.php">📰 الأخبار</a>
             <a href="bot_dashboard.php">🤖 البوت الآلي</a>
+            <a href="admin_messages.php">📩 الرسائل</a>
+            <a href="settings.php">⚙️ الإعدادات</a>
             <a href="index.php">عرض الموقع</a>
             <a href="logout.php">تسجيل الخروج</a>
         </div>
