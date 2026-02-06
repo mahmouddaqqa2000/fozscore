@@ -41,6 +41,10 @@ if (!$match) {
     $player_stats_home = !empty($match['player_stats_home']) ? preg_split('/\r\n|\r|\n/', $match['player_stats_home']) : [];
     $player_stats_away = !empty($match['player_stats_away']) ? preg_split('/\r\n|\r|\n/', $match['player_stats_away']) : [];
     
+    // جلب آخر 3 أخبار عامة
+    $stmt_news = $pdo->query("SELECT * FROM news ORDER BY created_at DESC LIMIT 3");
+    $latest_news = $stmt_news->fetchAll(PDO::FETCH_ASSOC);
+    
     // جعل تبويب البث المباشر هو النشط افتراضياً إذا كان متوفراً
     $active_tab = 'lineup';
 }
@@ -662,6 +666,37 @@ if (!$match) {
         body.dark-mode .timeline-card { background: var(--card); border-color: var(--border); color: var(--text); }
         body.dark-mode .news-item { border-bottom-color: var(--border); }
         body.dark-mode .news-text { color: var(--text); }
+        
+        /* News Section in Match View */
+        .news-grid-match {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-top: 10px;
+        }
+        .news-card-match {
+            background: var(--card);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            border: 1px solid var(--border);
+            text-decoration: none;
+            color: inherit;
+            display: flex;
+            flex-direction: column;
+            transition: transform 0.2s;
+        }
+        .news-card-match:hover { transform: translateY(-3px); }
+        .news-img-match { width: 100%; height: 140px; object-fit: cover; }
+        .news-img-placeholder { width: 100%; height: 140px; background: #f1f5f9; display: flex; align-items: center; justify-content: center; color: #94a3b8; font-size: 0.8rem; }
+        .news-body-match { padding: 12px; flex: 1; display: flex; flex-direction: column; }
+        .news-title-match { font-size: 0.9rem; font-weight: 700; margin: 0 0 5px 0; line-height: 1.4; color: var(--primary); flex: 1; }
+        .news-date-match { font-size: 0.75rem; color: var(--text-light); margin-top: auto; }
+        
+        body.dark-mode .news-card-match { background: var(--card); border-color: var(--border); }
+        body.dark-mode .news-title-match { color: var(--text); }
+        body.dark-mode .news-img-placeholder { background: #334155; color: #cbd5e1; }
+        
         body.dark-mode header, body.dark-mode .site-header, body.dark-mode .navbar {
             background-color: #1e293b !important;
             color: #f1f5f9 !important;
@@ -1120,11 +1155,34 @@ if (!$match) {
             </div>
             <?php endif; ?>
 
+            <!-- Latest News Section -->
+            <?php if (!empty($latest_news)): ?>
+            <div class="stream-section">
+                <div class="stream-title">📰 آخر الأخبار</div>
+                <div class="news-grid-match">
+                    <?php foreach ($latest_news as $news): ?>
+                        <a href="view_news.php?id=<?php echo $news['id']; ?>" class="news-card-match">
+                            <?php if ($news['image_url']): ?>
+                                <img src="<?php echo htmlspecialchars($news['image_url']); ?>" alt="صورة الخبر" class="news-img-match">
+                            <?php else: ?>
+                                <div class="news-img-placeholder">لا توجد صورة</div>
+                            <?php endif; ?>
+                            <div class="news-body-match">
+                                <h3 class="news-title-match"><?php echo htmlspecialchars($news['title']); ?></h3>
+                                <div class="news-date-match"><?php echo date('Y/m/d', strtotime($news['created_at'])); ?></div>
+                            </div>
+                        </a>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+            <?php endif; ?>
+
             <div style="text-align: center;">
                 <a href="javascript:history.back()" class="back-link">العودة للخلف</a>
             </div>
         <?php endif; ?>
     </div>
+    <?php include __DIR__ . '/footer.php'; ?>
 </body>
 </html>
 <script>
