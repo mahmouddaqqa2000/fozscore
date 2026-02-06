@@ -137,6 +137,26 @@
         body.dark-mode .nav-links a { color: #f1f5f9; border-bottom-color: #334155; }
         body.dark-mode .nav-links a:hover { background: #2d3748; }
     }
+
+    /* Search Icon Style */
+    .search-trigger {
+        background: none;
+        border: none;
+        cursor: pointer;
+        color: inherit;
+        padding: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        transition: background-color 0.2s;
+    }
+    .search-trigger:hover { background-color: rgba(0,0,0,0.05); }
+    .search-trigger svg { width: 22px; height: 22px; fill: currentColor; }
+    
+    @media (max-width: 820px) {
+        .search-trigger { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); }
+    }
 </style>
 
 <div class="navbar">
@@ -148,6 +168,9 @@
         <a href="teams.php">الفرق</a>
         <a href="leagues.php">الدوري</a>
     </nav>
+    <a href="search.php" class="search-trigger" aria-label="بحث">
+        <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+    </a>
     <div class="nav-overlay" aria-hidden="true"></div>
 </div>
 
