@@ -205,13 +205,13 @@ require_once __DIR__ . '/db.php';
                         <span>سحب أحداث المباريات (أهداف/بطاقات)</span>
                         <span class="icon">⚽</span>
                     </a>
-                    <a href="scrape_lineups_today.php" class="btn-bot bg-sky">
-                        <span>سحب تشكيلات مباريات اليوم الجارية</span>
+                    <a href="scrape_lineups_today.php" class="btn-bot bg-sky" title="هذه الميزة معطلة حالياً لأنها تتطلب Node.js">
+                        <span style="text-decoration: line-through; opacity: 0.7;">سحب تشكيلات مباريات اليوم</span>
                         <span class="icon">👕</span>
                     </a>
                     <a href="scrape_lineups_yesterday.php" class="btn-bot bg-indigo">
-                        <span>تجربة سحب تشكيلات الأمس</span>
-                        <span class="icon">🧪</span>
+                        <span>تحديث إحصائيات الأمس</span>
+                        <span class="icon">📊</span>
                     </a>
                     <a href="scraper_laliga_teams.php" class="btn-bot bg-amber">
                         <span>سحب فرق وشعارات الدوري الإسباني</span>

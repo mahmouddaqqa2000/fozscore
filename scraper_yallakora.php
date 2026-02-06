@@ -116,6 +116,12 @@ foreach ($leagues as $leagueNode) {
         $matchTimeStr = trim($xpath->query(".//div[contains(@class, 'MResult')]//span[contains(@class, 'time')]", $matchNode)->item(0)->nodeValue ?? '');
         $scoreStr = trim($xpath->query(".//div[contains(@class, 'MResult')]//div[contains(@class, 'score')]", $matchNode)->item(0)->textContent ?? '');
         
+        // محاولة بديلة لاستخراج النتيجة إذا كانت الطريقة الأولى فارغة
+        if (empty($scoreStr)) {
+            $scoreSpans = $xpath->query(".//div[contains(@class, 'MResult')]//span[contains(@class, 'score')]", $matchNode);
+            if ($scoreSpans->length >= 2) $scoreStr = $scoreSpans->item(0)->textContent . ' - ' . $scoreSpans->item(1)->textContent;
+        }
+        
         // القناة
         $channel = trim($xpath->query(".//div[contains(@class, 'channel')]", $matchNode)->item(0)->nodeValue ?? '');
         
@@ -135,14 +141,14 @@ foreach ($leagues as $leagueNode) {
         $scoreStr = trim(preg_replace('/[^\d\-\–\—]/u', ' ', $scoreStr));
         if (!empty($scoreStr)) {
             // محاولة 1: البحث عن نمط "رقم - رقم"
-            if (preg_match('/(\d+)\s*[-–—]\s*(\d+)/u', $scoreStr, $matches)) {
-                $scoreHome = (int)$matches[1];
-                $scoreAway = (int)$matches[2];
-            } elseif (preg_match_all('/\d+/', $scoreStr, $matches)) {
+            if (preg_match('/(\d+)\s*[-–—]\s*(\d+)/u', $scoreStr, $m)) {
+                $scoreHome = (int)$m[1];
+                $scoreAway = (int)$m[2];
+            } elseif (preg_match_all('/\d+/', $scoreStr, $m)) {
                 // محاولة 2: البحث عن أي رقمين (احتياطي)
-                if (count($matches[0]) >= 2) {
-                    $scoreHome = (int)$matches[0][0];
-                    $scoreAway = (int)$matches[0][1];
+                if (count($m[0]) >= 2) {
+                    $scoreHome = (int)$m[0][0];
+                    $scoreAway = (int)$m[0][1];
                 }
             }
         }
@@ -163,6 +169,8 @@ foreach ($leagues as $leagueNode) {
         $coachAway = null;
         $streamUrl = null;
         $matchEvents = null;
+        $matchStats = null;
+        $details = []; // تهيئة المصفوفة لتجنب الأخطاء
 
         // جلب التشكيلة فقط إذا كانت المباراة موجودة ولكن ليس لها تشكيلة، أو إذا كانت جديدة
         // تفعيل السحب التلقائي للتشكيلة والإحصائيات إذا كانت ناقصة
