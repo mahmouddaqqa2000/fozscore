@@ -274,6 +274,10 @@ $favicon = $settings['favicon'];
                         <span>اختبار تنبيهات تيليجرام</span>
                         <span class="icon">✈️</span>
                     </a>
+                    <a href="get_chat_id.php" class="btn-bot bg-indigo">
+                        <span>جلب معرف المجموعة (Chat ID)</span>
+                        <span class="icon">🆔</span>
+                    </a>
                     <a href="send_daily_summary.php" class="btn-bot bg-green">
                         <span>إرسال ملخص اليوم (تيليجرام)</span>
                         <span class="icon">📝</span>

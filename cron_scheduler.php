@@ -2,6 +2,7 @@
 // cron_scheduler.php - المجدول الذكي لتحديث النتائج
 // يتم تشغيله كل دقيقة عبر Cron Job
 require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/helpers.php'; // لاستخدام دالة إرسال تيليجرام
 
 // ضبط التوقيت (مهم جداً أن يطابق توقيت المباريات في الموقع)
 date_default_timezone_set('Africa/Cairo'); 
@@ -10,6 +11,9 @@ set_time_limit(300); // 5 دقائق كحد أقصى
 $now = time();
 $today = date('Y-m-d');
 $yesterday = date('Y-m-d', strtotime('-1 day'));
+
+// جلب إعدادات الموقع (مهم للروابط والإعدادات الأخرى)
+$settings = get_site_settings($pdo);
 
 echo "--- Cron Scheduler Started at " . date('Y-m-d H:i:s') . " ---\n";
 
@@ -22,7 +26,7 @@ $missing_scores_yesterday = $stmt->fetchColumn();
 
 if ($missing_scores_yesterday > 0) {
     echo "Found $missing_scores_yesterday matches from yesterday without scores. Updating YESTERDAY ($yesterday)...\n";
-    perform_scrape($pdo, $yesterday);
+    perform_scrape($pdo, $yesterday, $settings);
 }
 
 // ============================================================
@@ -32,6 +36,11 @@ if ($missing_scores_yesterday > 0) {
 $stmt = $pdo->prepare("SELECT * FROM matches WHERE match_date = ?");
 $stmt->execute([$today]);
 $today_matches = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// ملف لتخزين الإشعارات المرسلة لتجنب التكرار
+$sent_file = __DIR__ . '/sent_notifications_' . date('Y-m-d') . '.json';
+$sent_notifications = file_exists($sent_file) ? json_decode(file_get_contents($sent_file), true) : [];
+if (!is_array($sent_notifications)) $sent_notifications = [];
 
 $should_update_today = false;
 
@@ -44,6 +53,37 @@ foreach ($today_matches as $match) {
     
     if ($matchTimestamp === false) continue;
 
+    $match_url = rtrim($settings['site_url'], '/') . '/view_match.php?id=' . $match['id'];
+
+    // إرسال إشعار بداية المباراة (إذا حان وقتها ولم يرسل من قبل)
+    // نتحقق مما إذا كان الوقت الحالي قد تجاوز وقت المباراة بحد أقصى 5 دقائق
+    if ($now >= $matchTimestamp && $now <= ($matchTimestamp + 300) && !isset($sent_notifications[$match['id']]['start'])) {
+        $msg = "🔔 <b>بداية المباراة الآن</b>\n\n";
+        $msg .= "⚽ {$match['team_home']} 🆚 {$match['team_away']}\n";
+        if (!empty($match['championship'])) $msg .= "🏆 <i>{$match['championship']}</i>\n\n";
+        $msg .= "<a href=\"$match_url\">تابع المباراة مباشرة</a>";
+        
+        send_telegram_msg($pdo, $msg);
+        
+        $sent_notifications[$match['id']]['start'] = true;
+        file_put_contents($sent_file, json_encode($sent_notifications));
+        echo "Sent start notification for {$match['team_home']} vs {$match['team_away']}\n";
+    }
+
+    // إرسال إشعار نهاية المباراة (إذا انتهت ولديها نتيجة ولم يرسل من قبل)
+    $status = get_match_status($match);
+    if ($status['key'] === 'finished' && isset($match['score_home']) && !isset($sent_notifications[$match['id']]['finished'])) {
+        $msg = "🏁 <b>نهاية المباراة</b>\n\n";
+        $msg .= "{$match['team_home']} <b>{$match['score_home']} - {$match['score_away']}</b> {$match['team_away']}\n";
+        if (!empty($match['championship'])) $msg .= "🏆 <i>{$match['championship']}</i>\n\n";
+        $msg .= "<a href=\"$match_url\">عرض التفاصيل والإحصائيات</a>";
+        send_telegram_msg($pdo, $msg);
+
+        $sent_notifications[$match['id']]['finished'] = true;
+        file_put_contents($sent_file, json_encode($sent_notifications));
+        echo "Sent finish notification for {$match['team_home']} vs {$match['team_away']}\n";
+    }
+
     // الشرط: الوقت الحالي أكبر من وقت المباراة بـ 0 دقيقة وأقل من وقت المباراة بـ 150 دقيقة (ساعتين ونصف)
     // أو الوقت الحالي قبل المباراة بـ 10 دقائق (للتأكد من التحديث عند البداية)
     if ($now >= ($matchTimestamp - 600) && $now <= ($matchTimestamp + 150 * 60)) {
@@ -55,7 +95,7 @@ foreach ($today_matches as $match) {
 
 if ($should_update_today) {
     echo "Triggering update for TODAY ($today)...\n";
-    perform_scrape($pdo, $today);
+    perform_scrape($pdo, $today, $settings);
 } else {
     echo "No active matches right now. Sleeping...\n";
 }
@@ -63,7 +103,7 @@ if ($should_update_today) {
 // ============================================================
 // دالة السحب والتحديث (مدمجة لضمان السرعة وعدم الاعتماد على ملفات خارجية)
 // ============================================================
-function perform_scrape($pdo, $dateStr) {
+function perform_scrape($pdo, $dateStr, $settings) {
     $url = "https://www.yallakora.com/match-center/?date=$dateStr";
     
     $ch = curl_init();
@@ -104,6 +144,8 @@ function perform_scrape($pdo, $dateStr) {
     $updated_count = 0;
 
     foreach ($leagues as $leagueNode) {
+        // استخراج اسم البطولة للإشعار
+        $championship = trim($xpath->query(".//div[contains(@class, 'title')]//h2", $leagueNode)->item(0)->nodeValue ?? '');
         $matches = $xpath->query(".//div[contains(@class, 'item')]", $leagueNode);
         foreach ($matches as $matchNode) {
             $teamHome = trim($xpath->query(".//div[contains(@class, 'teamA')]//p", $matchNode)->item(0)->nodeValue ?? '');
@@ -133,13 +175,28 @@ function perform_scrape($pdo, $dateStr) {
                 }
             }
 
-            if ($scoreHome !== null && $scoreAway !== null) {
-                // تحديث النتيجة في قاعدة البيانات
-                $stmt = $pdo->prepare("UPDATE matches SET score_home = ?, score_away = ? WHERE match_date = ? AND team_home = ? AND team_away = ?");
-                $stmt->execute([$scoreHome, $scoreAway, $dateStr, $teamHome, $teamAway]);
-                if ($stmt->rowCount() > 0) {
+            // البحث عن المباراة في قاعدة البيانات للحصول على ID والنتيجة الحالية
+            $stmt_find = $pdo->prepare("SELECT id, score_home, score_away FROM matches WHERE match_date = ? AND team_home = ? AND team_away = ?");
+            $stmt_find->execute([$dateStr, $teamHome, $teamAway]);
+            $db_match = $stmt_find->fetch(PDO::FETCH_ASSOC);
+
+            if ($db_match && $scoreHome !== null && $scoreAway !== null) {
+                // التحقق مما إذا كانت النتيجة قد تغيرت بالفعل
+                if ($db_match['score_home'] != $scoreHome || $db_match['score_away'] != $scoreAway) {
+                    // تحديث النتيجة
+                    $stmt_update = $pdo->prepare("UPDATE matches SET score_home = ?, score_away = ? WHERE id = ?");
+                    $stmt_update->execute([$scoreHome, $scoreAway, $db_match['id']]);
+                
                     $updated_count++;
                     echo "Updated: $teamHome vs $teamAway ($scoreHome-$scoreAway)\n";
+                    
+                    // إرسال إشعار تيليجرام بالتحديث
+                    $match_url = rtrim($settings['site_url'], '/') . '/view_match.php?id=' . $db_match['id'];
+                    $msg = "⚽ <b>تحديث مباشر (هدف!)</b>\n\n";
+                    $msg .= "$teamHome <b>$scoreHome</b> - <b>$scoreAway</b> $teamAway\n";
+                    if ($championship) $msg .= "🏆 <i>$championship</i>\n\n";
+                    $msg .= "<a href=\"$match_url\">عرض التفاصيل</a>";
+                    send_telegram_msg($pdo, $msg);
                 }
             }
         }

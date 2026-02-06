@@ -1,10 +1,12 @@
 <?php
 require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/helpers.php';
 header('Content-Type: text/html; charset=utf-8');
 
-// إعدادات تيليجرام
-$botToken = '8042622774:AAHsri8itQqddhC_NeuP7EKBSoMcZYzIi64';
-$chatId = '1783801547';
+// جلب إعدادات تيليجرام من قاعدة البيانات
+$settings = get_site_settings($pdo);
+$botToken = $settings['telegram_bot_token'];
+$chatId = $settings['telegram_chat_id'];
 
 // ضبط التوقيت
 date_default_timezone_set('Asia/Riyadh');
@@ -17,6 +19,10 @@ $matches = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 if (empty($matches)) {
     die("<div style='text-align:center; padding:20px; font-family:sans-serif;'>لا توجد مباريات مسجلة في قاعدة البيانات لهذا اليوم ($today).<br>يرجى سحب المباريات أولاً.<br><br><a href='bot_dashboard.php'>العودة</a></div>");
+}
+
+if (empty($botToken) || empty($chatId)) {
+    die("<div style='text-align:center; padding:20px; color:red;'>يرجى إعداد توكن البوت ومعرف المجموعة في صفحة الإعدادات أولاً.</div>");
 }
 
 // بناء الرسالة
@@ -48,8 +54,6 @@ foreach ($matches as $match) {
     $message .= "\n➖➖➖➖➖➖➖➖\n";
 }
 
-$message .= "\n🤖 _مرسل من بوت FozScore_";
-
 // إرسال الرسالة
 $url = "https://api.telegram.org/bot$botToken/sendMessage";
 $data = [
@@ -67,7 +71,7 @@ curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
 
 $response = curl_exec($ch);
 $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-curl_close($ch);
+// curl_close($ch);
 
 if ($httpCode == 200) {
     echo "<div style='color:green; font-weight:bold; padding:20px; text-align:center; font-family:sans-serif; border:1px solid green; background:#f0fff0; border-radius:8px; margin:20px;'>✅ تم إرسال الملخص بنجاح إلى تيليجرام!</div>";

@@ -1,84 +1,121 @@
 <?php
-// test_telegram.php
-header('Content-Type: text/html; charset=utf-8');
+session_start();
+if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
+    header('Location: login.php');
+    exit;
+}
+require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/helpers.php';
 
-// الإعدادات من المدخلات السابقة
-$botToken = '8042622774:AAHsri8itQqddhC_NeuP7EKBSoMcZYzIi64';
-$chatId = '1783801547';
+$settings = get_site_settings($pdo);
+$favicon = $settings['favicon'];
+$token = $settings['telegram_bot_token'];
+$chatId = $settings['telegram_chat_id'];
+$site_url = $settings['site_url'];
 
-$result = '';
+$message = '';
+$status = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $message = "👋 *تجربة بوت FozScore (تلقائي)*\n\nهذه رسالة تجريبية تلقائية للتأكد من أن إعدادات تيليجرام تعمل بنجاح!\n🕒 الوقت: " . date('Y-m-d H:i:s');
-    
-    $url = "https://api.telegram.org/bot$botToken/sendMessage";
-    $data = [
-        'chat_id' => $chatId,
-        'text' => $message,
-        'parse_mode' => 'Markdown'
-    ];
-    
-    $ch = curl_init();
-    curl_setopt($ch, CURLOPT_URL, $url);
-    curl_setopt($ch, CURLOPT_POST, 1);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-    
-    $response = curl_exec($ch);
-    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    $curlError = curl_error($ch);
-    curl_close($ch);
-    
-    if ($httpCode == 200) {
-        $result = "<div style='color:green; padding:15px; border:1px solid green; background:#f0fff0; border-radius:8px; margin-bottom:20px;'><strong>✅ تم الإرسال بنجاح!</strong><br>يرجى التحقق من تطبيق تيليجرام الآن.</div>";
+    if (empty($token) || empty($chatId)) {
+        $message = 'يرجى إعداد توكن البوت ومعرف المجموعة في صفحة الإعدادات أولاً.';
+        $status = 'error';
     } else {
-        $result = "<div style='color:red; padding:15px; border:1px solid red; background:#fff0f0; border-radius:8px; margin-bottom:20px;'><strong>❌ فشل الإرسال!</strong><br>رمز الخطأ: $httpCode<br>رد الخادم: " . htmlspecialchars($response) . "<br>خطأ Curl: $curlError</div>";
+        $type = $_POST['type'] ?? 'generic';
+        $test_msg = "";
+
+        // بيانات وهمية للتجربة
+        $teamHome = "ريال مدريد";
+        $teamAway = "برشلونة";
+        $championship = "الدوري الإسباني";
+        $match_url = rtrim($site_url, '/') . '/index.php'; // رابط تجريبي
+
+        if ($type === 'start') {
+            $test_msg = "🔔 <b>بداية المباراة الآن (تجربة)</b>\n\n";
+            $test_msg .= "⚽ $teamHome 🆚 $teamAway\n";
+            $test_msg .= "🏆 <i>$championship</i>\n\n";
+            $test_msg .= "<a href=\"$match_url\">تابع المباراة مباشرة</a>";
+        } elseif ($type === 'goal') {
+            $test_msg = "⚽ <b>تحديث مباشر (هدف!) (تجربة)</b>\n\n";
+            $test_msg .= "$teamHome <b>1</b> - <b>0</b> $teamAway\n";
+            $test_msg .= "🏆 <i>$championship</i>\n\n";
+            $test_msg .= "<a href=\"$match_url\">عرض التفاصيل</a>";
+        } elseif ($type === 'finish') {
+            $test_msg = "🏁 <b>نهاية المباراة (تجربة)</b>\n\n";
+            $test_msg .= "$teamHome <b>2</b> - <b>1</b> $teamAway\n";
+            $test_msg .= "🏆 <i>$championship</i>\n\n";
+            $test_msg .= "<a href=\"$match_url\">عرض التفاصيل والإحصائيات</a>";
+        } else {
+            $test_msg = "🔔 <b>رسالة تجريبية من FozScore</b>\n\nتم ربط البوت بنجاح! ✅\nالوقت: " . date('Y-m-d H:i:s');
+        }
+        
+        $response = send_telegram_msg($pdo, $test_msg);
+        $result = json_decode($response, true);
+        
+        if ($result && isset($result['ok']) && $result['ok']) {
+            $message = 'تم إرسال الرسالة التجريبية بنجاح! تحقق من مجموعتك في تيليجرام.';
+            $status = 'success';
+        } else {
+            $error_desc = $result['description'] ?? 'خطأ غير معروف';
+            $message = 'فشل الإرسال. رد تيليجرام: ' . $error_desc;
+            $status = 'error';
+        }
     }
 }
 ?>
-<!DOCTYPE html>
-<html dir="rtl">
+<!doctype html>
+<html lang="ar" dir="rtl">
 <head>
-    <meta charset="UTF-8">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>اختبار تيليجرام - FozScore</title>
+    <?php if ($favicon): ?><link rel="icon" href="<?php echo htmlspecialchars($favicon); ?>"><?php endif; ?>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f8fafc; padding: 40px; text-align: center; }
-        .container { max-width: 500px; margin: 0 auto; background: white; padding: 30px; border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
-        h2 { color: #1e293b; margin-top: 0; }
-        .btn { display: inline-block; padding: 12px 24px; background: #2563eb; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; text-decoration: none; transition: background 0.2s; }
+        body { font-family: 'Tajawal', sans-serif; background: #f8fafc; padding: 2rem; direction: rtl; }
+        .container { max-width: 600px; margin: 0 auto; background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); text-align: center; }
+        h2 { margin-top: 0; color: #1e293b; }
+        .status-icon { font-size: 4rem; margin-bottom: 1rem; display: block; }
+        .alert { padding: 15px; border-radius: 8px; margin-bottom: 20px; text-align: right; }
+        .alert-success { background: #dcfce7; color: #166534; }
+        .alert-error { background: #fee2e2; color: #991b1b; }
+        .btn { display: inline-block; padding: 10px 20px; background: #2563eb; color: white; text-decoration: none; border-radius: 6px; margin-top: 10px; border: none; cursor: pointer; font-size: 1rem; font-family: inherit; }
         .btn:hover { background: #1d4ed8; }
-        .back-link { display: block; margin-top: 20px; color: #64748b; text-decoration: none; }
-        .back-link:hover { color: #1e293b; }
+        .btn-secondary { background: #64748b; }
+        .settings-info { background: #f1f5f9; padding: 15px; border-radius: 8px; margin-bottom: 20px; text-align: right; font-size: 0.9rem; }
+        .settings-info div { margin-bottom: 5px; }
+        .settings-info strong { color: #334155; }
+        .test-options { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h2>📡 اختبار تنبيهات تيليجرام</h2>
-        <p style="color:#64748b; margin-bottom:20px;">سيتم إرسال رسالة تجريبية إلى:<br><code style="background:#f1f5f9; padding:2px 6px; border-radius:4px;"><?php echo $chatId; ?></code></p>
+        <h2>✈️ اختبار اتصال تيليجرام</h2>
         
-        <?php echo $result; ?>
-        
-        <?php if (empty($result)): ?>
-        <div id="countdown" style="margin-bottom: 15px; color: #d97706; font-weight: bold;">سيتم الإرسال تلقائياً خلال <span id="timer">3</span> ثواني...</div>
-        <script>
-            var seconds = 3;
-            var interval = setInterval(function() {
-                seconds--;
-                document.getElementById('timer').innerText = seconds;
-                if (seconds <= 0) {
-                    clearInterval(interval);
-                    document.querySelector('form button').click();
-                }
-            }, 1000);
-        </script>
+        <?php if ($message): ?>
+            <div class="alert alert-<?php echo $status; ?>">
+                <?php echo htmlspecialchars($message); ?>
+            </div>
         <?php endif; ?>
-        
+
+        <div class="settings-info">
+            <div><strong>حالة الإعدادات:</strong></div>
+            <div>توكن البوت: <?php echo $token ? '<span style="color:green">موجود ✅</span>' : '<span style="color:red">مفقود ❌</span>'; ?></div>
+            <div>معرف المجموعة: <?php echo $chatId ? '<span style="color:green">موجود ✅</span> (' . htmlspecialchars($chatId) . ')' : '<span style="color:red">مفقود ❌</span>'; ?></div>
+        </div>
+
         <form method="post">
-            <button type="submit" class="btn">إرسال رسالة تجريبية الآن</button>
+            <div class="test-options">
+                <button type="submit" name="type" value="generic" class="btn" style="background:#64748b;">رسالة ربط عادية</button>
+                <button type="submit" name="type" value="start" class="btn" style="background:#0ea5e9;">🔔 بداية مباراة</button>
+                <button type="submit" name="type" value="goal" class="btn" style="background:#22c55e;">⚽ تسجيل هدف</button>
+                <button type="submit" name="type" value="finish" class="btn" style="background:#ef4444;">🏁 نهاية مباراة</button>
+            </div>
         </form>
         
-        <a href="bot_dashboard.php" class="back-link">العودة للوحة التحكم</a>
+        <br>
+        <a href="bot_dashboard.php" class="btn btn-secondary">العودة للوحة التحكم</a>
+        <a href="settings.php" class="btn btn-secondary">تعديل الإعدادات</a>
     </div>
 </body>
 </html>
