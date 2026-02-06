@@ -55,6 +55,26 @@ foreach ($today_matches as $match) {
 
     $match_url = rtrim($settings['site_url'], '/') . '/view_match.php?id=' . $match['id'];
 
+    // --- إرسال استفتاء للمباريات الكبيرة (قبل 4 ساعات من البداية) ---
+    // قائمة الكلمات المفتاحية للبطولات المهمة
+    $major_keywords = ['أبطال أوروبا', 'الإنجليزي', 'الإسباني', 'الإيطالي', 'الألماني', 'الفرنسي', 'السعودي', 'المصري', 'أبطال أفريقيا', 'أبطال آسيا', 'كأس العالم', 'كأس أمم'];
+    $is_major = false;
+    foreach ($major_keywords as $k) {
+        if (strpos($match['championship'], $k) !== false) { $is_major = true; break; }
+    }
+
+    // الشرط: مباراة مهمة، الوقت الحالي قبل المباراة بأقل من 4 ساعات (14400 ثانية)، ولم يتم إرسال الاستفتاء
+    if ($is_major && $now < $matchTimestamp && $now >= ($matchTimestamp - 14400) && !isset($sent_notifications[$match['id']]['poll'])) {
+        $question = "🗳️ توقعاتكم لمباراة القمة:\n" . $match['team_home'] . " 🆚 " . $match['team_away'];
+        $options = ["فوز " . $match['team_home'], "تعادل", "فوز " . $match['team_away']];
+        
+        send_telegram_poll($pdo, $question, $options, $match['championship']);
+        
+        $sent_notifications[$match['id']]['poll'] = true;
+        file_put_contents($sent_file, json_encode($sent_notifications));
+        echo "Sent poll for {$match['team_home']} vs {$match['team_away']}\n";
+    }
+
     // إرسال إشعار بداية المباراة (إذا حان وقتها ولم يرسل من قبل)
     // نتحقق مما إذا كان الوقت الحالي قد تجاوز وقت المباراة بحد أقصى 5 دقائق
     // تم زيادة النافذة إلى 30 دقيقة (1800 ثانية) لضمان عدم تفويت الإشعار حتى لو تأخر الكرون
@@ -65,6 +85,7 @@ foreach ($today_matches as $match) {
         $msg .= "<a href=\"$match_url\">تابع المباراة مباشرة</a>";
         
         send_telegram_msg($pdo, $msg);
+        send_twitter_tweet($pdo, $msg, $match['championship']);
         
         $sent_notifications[$match['id']]['start'] = true;
         file_put_contents($sent_file, json_encode($sent_notifications));
@@ -82,6 +103,7 @@ foreach ($today_matches as $match) {
         if (!empty($match['championship'])) $msg .= "🏆 <i>{$match['championship']}</i>\n\n";
         $msg .= "<a href=\"$match_url\">عرض التفاصيل والإحصائيات</a>";
         send_telegram_msg($pdo, $msg);
+        send_twitter_tweet($pdo, $msg, $match['championship']);
 
         $sent_notifications[$match['id']]['finished'] = true;
         file_put_contents($sent_file, json_encode($sent_notifications));
@@ -147,6 +169,11 @@ function perform_scrape($pdo, $dateStr, $settings) {
     $leagues = $xpath->query("//div[contains(@class, 'matchCard')]");
     $updated_count = 0;
 
+    // تحميل ملف الإشعارات داخل الدالة لضمان التحديث
+    $sent_file = __DIR__ . '/sent_notifications_' . date('Y-m-d') . '.json';
+    $sent_notifications = file_exists($sent_file) ? json_decode(file_get_contents($sent_file), true) : [];
+    if (!is_array($sent_notifications)) $sent_notifications = [];
+
     foreach ($leagues as $leagueNode) {
         // استخراج اسم البطولة للإشعار
         $championship = trim($xpath->query(".//div[contains(@class, 'title')]//h2", $leagueNode)->item(0)->nodeValue ?? '');
@@ -185,6 +212,35 @@ function perform_scrape($pdo, $dateStr, $settings) {
             $db_match = $stmt_find->fetch(PDO::FETCH_ASSOC);
 
             if ($db_match && $scoreHome !== null && $scoreAway !== null) {
+                $match_id = $db_match['id'];
+                $match_url = rtrim($settings['site_url'], '/') . '/view_match.php?id=' . $match_id;
+
+                // --- إشعار نهاية الشوط الأول ---
+                if (strpos($matchTimeStr, 'استراحة') !== false && !isset($sent_notifications[$match_id]['ht'])) {
+                    $msg = "⏸ <b>نهاية الشوط الأول</b>\n\n";
+                    $msg .= "$teamHome <b>$scoreHome</b> - <b>$scoreAway</b> $teamAway\n";
+                    if ($championship) $msg .= "🏆 <i>$championship</i>\n\n";
+                    $msg .= "<a href=\"$match_url\">تابع التفاصيل</a>";
+                    
+                    send_telegram_msg($pdo, $msg);
+                    send_twitter_tweet($pdo, $msg, $championship);
+                    $sent_notifications[$match_id]['ht'] = true;
+                    file_put_contents($sent_file, json_encode($sent_notifications));
+                }
+
+                // --- إشعار بداية الشوط الثاني ---
+                if (strpos($matchTimeStr, 'الشوط الثاني') !== false && !isset($sent_notifications[$match_id]['2nd_half'])) {
+                    $msg = "▶️ <b>بداية الشوط الثاني</b>\n\n";
+                    $msg .= "$teamHome <b>$scoreHome</b> - <b>$scoreAway</b> $teamAway\n";
+                    if ($championship) $msg .= "🏆 <i>$championship</i>\n\n";
+                    $msg .= "<a href=\"$match_url\">تابع المباشر</a>";
+                    
+                    send_telegram_msg($pdo, $msg);
+                    send_twitter_tweet($pdo, $msg, $championship);
+                    $sent_notifications[$match_id]['2nd_half'] = true;
+                    file_put_contents($sent_file, json_encode($sent_notifications));
+                }
+
                 // التحقق مما إذا كانت النتيجة قد تغيرت بالفعل
                 // استخدام !== للمقارنة الصارمة لأن NULL == 0 في PHP، وهذا يمنع تحديث النتيجة عند بداية المباراة (0-0)
                 if ($db_match['score_home'] !== $scoreHome || $db_match['score_away'] !== $scoreAway) {
@@ -199,7 +255,6 @@ function perform_scrape($pdo, $dateStr, $settings) {
                     // لا نرسل إشعار "هدف" إذا كانت النتيجة 0-0 وكانت سابقاً غير موجودة (بداية المباراة)
                     // لأن إشعار البداية يكفي، أو سيتم إرساله في الدورة القادمة
                     $is_start_0_0 = ($db_match['score_home'] === null && $scoreHome === 0 && $scoreAway === 0);
-                    
                     // التحقق من أن المباراة جارية حالياً (اليوم + ضمن وقت اللعب)
                     // نتأكد أن التاريخ هو اليوم، وأن الوقت لم يتجاوز 3 ساعات (180 دقيقة) من البداية لضمان أنها مباشرة
                     $is_live_now = false;
@@ -213,12 +268,12 @@ function perform_scrape($pdo, $dateStr, $settings) {
                     }
 
                     if (!$is_start_0_0 && $is_live_now) {
-                        $match_url = rtrim($settings['site_url'], '/') . '/view_match.php?id=' . $db_match['id'];
                         $msg = "⚽ <b>تحديث مباشر (هدف!)</b>\n\n";
                         $msg .= "$teamHome <b>$scoreHome</b> - <b>$scoreAway</b> $teamAway\n";
                         if ($championship) $msg .= "🏆 <i>$championship</i>\n\n";
                         $msg .= "<a href=\"$match_url\">عرض التفاصيل</a>";
                         send_telegram_msg($pdo, $msg);
+                        send_twitter_tweet($pdo, $msg, $championship);
                     }
                 }
             }

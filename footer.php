@@ -157,8 +157,100 @@ $social_instagram = $settings['social_instagram'] ?? '';
             <?php endif; ?>
         </div>
 
+        <!-- Timezone Selector -->
+        <div class="timezone-container" style="margin-top: 1.5rem; width: 100%; text-align: center; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 1.5rem;">
+            <label for="timezone-select" style="color: #94a3b8; font-size: 0.85rem; margin-left: 8px;">توقيت المباريات:</label>
+            <select id="timezone-select" style="background: rgba(255,255,255,0.05); color: #cbd5e1; border: 1px solid rgba(255,255,255,0.1); padding: 6px 10px; border-radius: 6px; font-family: inherit; font-size: 0.85rem; outline: none; cursor: pointer;">
+                <option value="auto">🕒 تلقائي (حسب جهازك)</option>
+                <option value="Africa/Cairo">🇪🇬 مصر (القاهرة)</option>
+                <option value="Asia/Riyadh">🇸🇦 السعودية (الرياض)</option>
+                <option value="Asia/Dubai">🇦🇪 الإمارات (دبي)</option>
+                <option value="Africa/Casablanca">🇲🇦 المغرب</option>
+                <option value="Africa/Algiers">🇩🇿 الجزائر</option>
+                <option value="Africa/Tunis">🇹🇳 تونس</option>
+                <option value="Asia/Amman">🇯🇴 الأردن</option>
+                <option value="Asia/Baghdad">🇮🇶 العراق</option>
+                <option value="Asia/Kuwait">🇰🇼 الكويت</option>
+                <option value="Asia/Qatar">🇶🇦 قطر</option>
+                <option value="Asia/Muscat">🇴🇲 عمان</option>
+                <option value="Asia/Bahrain">🇧🇭 البحرين</option>
+                <option value="Asia/Damascus">🇸🇾 سوريا</option>
+                <option value="Asia/Beirut">🇱🇧 لبنان</option>
+                <option value="Asia/Jerusalem">🇵🇸 فلسطين</option>
+                <option value="Africa/Tripoli">🇱🇾 ليبيا</option>
+                <option value="Africa/Khartoum">🇸🇩 السودان</option>
+                <option value="Asia/Aden">🇾🇪 اليمن</option>
+                <option value="UTC">🌍 توقيت جرينتش (GMT)</option>
+            </select>
+        </div>
+
         <div class="copyright">
             <p style="margin: 0;">&copy; <?php echo date('Y'); ?> <?php echo htmlspecialchars($footer_site_name); ?>. جميع الحقوق محفوظة.</p>
         </div>
     </div>
+    <script>
+        // تحويل التوقيت حسب المنطقة الزمنية للمستخدم
+        document.addEventListener('DOMContentLoaded', function() {
+            const timezoneSelect = document.getElementById('timezone-select');
+            const storedTimezone = localStorage.getItem('user_timezone');
+
+            if (storedTimezone && timezoneSelect) {
+                timezoneSelect.value = storedTimezone;
+            }
+
+            function updateTimes() {
+                const selectedTz = timezoneSelect ? timezoneSelect.value : 'auto';
+            const times = document.querySelectorAll('.local-time');
+                
+            times.forEach(el => {
+                const ts = el.getAttribute('data-timestamp');
+                if (!ts) return;
+                const date = new Date(ts);
+                if (isNaN(date.getTime())) return;
+                
+                    let timeString;
+
+                    if (selectedTz === 'auto') {
+                let hours = date.getHours();
+                const minutes = date.getMinutes().toString().padStart(2, '0');
+                const ampm = hours >= 12 ? 'م' : 'ص';
+                hours = hours % 12;
+                hours = hours ? hours : 12; 
+                
+                        timeString = `${hours}:${minutes} ${ampm}`;
+                    } else {
+                        try {
+                            const options = {
+                                hour: 'numeric',
+                                minute: '2-digit',
+                                hour12: true,
+                                timeZone: selectedTz
+                            };
+                            timeString = new Intl.DateTimeFormat('ar-EG', options).format(date);
+                        } catch (e) {
+                            console.error(e);
+                            // Fallback
+                            let hours = date.getHours();
+                            const minutes = date.getMinutes().toString().padStart(2, '0');
+                            const ampm = hours >= 12 ? 'م' : 'ص';
+                            hours = hours % 12;
+                            hours = hours ? hours : 12;
+                            timeString = `${hours}:${minutes} ${ampm}`;
+                        }
+                    }
+
+                    el.textContent = timeString;
+            });
+            }
+
+            if (timezoneSelect) {
+                timezoneSelect.addEventListener('change', function() {
+                    localStorage.setItem('user_timezone', this.value);
+                    updateTimes();
+                });
+            }
+
+            updateTimes();
+        });
+    </script>
 </footer>

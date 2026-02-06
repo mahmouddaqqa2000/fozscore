@@ -312,7 +312,7 @@ if (!empty($query)) {
                                             <?php if ($m['score_home'] !== null && $m['score_away'] !== null): ?>
                                                 <div class="score-box"><?php echo (int)$m['score_home'] . ' - ' . (int)$m['score_away']; ?></div>
                                             <?php else: ?>
-                                                <div class="score-box vs"><?php echo format_time_ar($m['match_time']); ?></div>
+                                                <div class="score-box vs"><?php echo format_time_ar($m['match_time'], $m['match_date']); ?></div>
                                             <?php endif; ?>
                                             <div class="match-date-small"><?php echo $m['match_date']; ?></div>
                                         </div>

@@ -274,6 +274,10 @@ $favicon = $settings['favicon'];
                         <span>اختبار تنبيهات تيليجرام</span>
                         <span class="icon">✈️</span>
                     </a>
+                    <a href="test_twitter.php" class="btn-bot bg-sky">
+                        <span>اختبار نشر تويتر</span>
+                        <span class="icon">🐦</span>
+                    </a>
                     <a href="get_chat_id.php" class="btn-bot bg-indigo">
                         <span>جلب معرف المجموعة (Chat ID)</span>
                         <span class="icon">🆔</span>
@@ -281,6 +285,10 @@ $favicon = $settings['favicon'];
                     <a href="send_daily_summary.php" class="btn-bot bg-green">
                         <span>إرسال ملخص اليوم (تيليجرام)</span>
                         <span class="icon">📝</span>
+                    </a>
+                    <a href="send_poll_manual.php" class="btn-bot bg-orange" style="background-color: #f97316;">
+                        <span>إرسال استفتاء يدوي</span>
+                        <span class="icon">🗳️</span>
                     </a>
                     <a href="dashboard.php?action=delete_old" class="btn-bot bg-red" onclick="return confirm('هل أنت متأكد؟ سيتم حذف جميع المباريات التي مر عليها أكثر من أسبوع.');">
                         <span>تنظيف المباريات القديمة</span>

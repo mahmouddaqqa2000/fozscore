@@ -54,18 +54,25 @@ function league_logo_html($name, $size = 28, $logo_url = null) {
     return "<div class=\"league-logo\" style=\"{$style}\">" . htmlspecialchars($initials) . "</div>";
 }
 
-function format_time_ar($time) {
+function format_time_ar($time, $date = null) {
     if (empty($time)) return '';
     try {
         $clean_time = str_replace(['ص', 'م'], ['AM', 'PM'], $time);
-        $dt = new DateTime($clean_time);
+        // نفترض أن التوقيت الأصلي هو توقيت القاهرة (مصدر البيانات)
+        $timezone = new DateTimeZone('Africa/Cairo');
+        $dt = new DateTime($date ? "$date $clean_time" : $clean_time, $timezone);
     } catch (Exception $e) {
         return htmlspecialchars($time);
     }
     $time12 = $dt->format('g:i'); // 12-hour without leading zeros
     $ampm = strtolower($dt->format('a'));
     $arabic = ($ampm === 'am') ? 'ص' : 'م';
-    return $time12 . ' ' . $arabic;
+    $formatted = $time12 . ' ' . $arabic;
+
+    if ($date) {
+        return '<span class="local-time" data-timestamp="' . $dt->format('c') . '">' . $formatted . '</span>';
+    }
+    return $formatted;
 }
 
 /**
@@ -439,6 +446,7 @@ function scrape_yallakora_news($pdo, $dateStr = null) {
     $count = 0;
     $output = "<div style='display:flex;flex-wrap:wrap;gap:20px;'>";
     $pdo->exec("DELETE FROM news WHERE image_url IS NULL OR image_url = ''");
+    $settings = get_site_settings($pdo); // جلب الإعدادات لاستخدامها في الإرسال
 
     foreach ($newsItems as $item) {
         if ($count >= 20) break;
@@ -482,6 +490,17 @@ function scrape_yallakora_news($pdo, $dateStr = null) {
         $stmt = $pdo->prepare("INSERT INTO news (title, summary, content, image_url) VALUES (?, ?, ?, ?)");
         $stmt->execute([$title, $summary, $content, $imgUrl]);
         
+        // --- إرسال إشعار تيليجرام للخبر الجديد ---
+        if (!empty($settings['telegram_bot_token']) && !empty($settings['telegram_chat_id'])) {
+            $newsId = $pdo->lastInsertId();
+            $newsLink = rtrim($settings['site_url'], '/') . "/view_news.php?id=$newsId";
+            $msg = "📰 <b>خبر جديد</b>\n\n";
+            $msg .= "<b>{$title}</b>\n\n";
+            $msg .= "<a href=\"{$newsLink}\">اقرأ التفاصيل كاملة</a>";
+            send_telegram_msg($pdo, $msg);
+        }
+        // -----------------------------------------
+
         $output .= "<div style='width:350px;border:1px solid #eee;padding:10px;border-radius:8px;background:#fafafa;'>";
         if ($imgUrl) $output .= "<img src='$imgUrl' alt='خبر' style='width:100%;height:180px;object-fit:cover;border-radius:6px;'>";
         $output .= "<h4 style='margin:10px 0 5px 0;font-size:18px;'><a href='$fullLink' target='_blank' style='color:#2563eb;text-decoration:none;'>$title</a></h4>";
@@ -548,7 +567,11 @@ function get_site_settings($pdo) {
         'social_youtube' => '#',
         'social_instagram' => '#',
         'telegram_bot_token' => '',
-        'telegram_chat_id' => ''
+        'telegram_chat_id' => '',
+        'twitter_api_key' => '',
+        'twitter_api_secret' => '',
+        'twitter_access_token' => '',
+        'twitter_access_token_secret' => ''
     ];
 
     return array_merge($defaults, $db_settings);
@@ -572,6 +595,128 @@ function send_telegram_msg($pdo, $message) {
         'text' => $message,
         'parse_mode' => 'HTML' // نستخدم HTML لتنسيق الرسالة
     ];
+
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, $url);
+    curl_setopt($ch, CURLOPT_POST, 1);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 5);
+    $result = curl_exec($ch);
+    // curl_close($ch);
+
+    return $result;
+}
+
+/**
+ * إرسال تغريدة عبر تويتر (X)
+ */
+function send_twitter_tweet($pdo, $message, $league_name = null) {
+    $settings = get_site_settings($pdo);
+    $consumer_key = $settings['twitter_api_key'];
+    $consumer_secret = $settings['twitter_api_secret'];
+    $oauth_token = $settings['twitter_access_token'];
+    $oauth_token_secret = $settings['twitter_access_token_secret'];
+
+    if (empty($consumer_key) || empty($consumer_secret) || empty($oauth_token) || empty($oauth_token_secret)) {
+        return false;
+    }
+
+    // تحويل HTML إلى نص عادي لتويتر
+    // تحويل الروابط: <a href="url">text</a> -> text url
+    $text = preg_replace('/<a\s+(?:[^>]*?\s+)?href="([^"]*)"[^>]*>(.*?)<\/a>/i', '$2 $1', $message);
+    $text = strip_tags(str_replace(['<br>', '<br/>', '<br />'], "\n", $text));
+    $text = html_entity_decode($text, ENT_QUOTES | ENT_XML1, 'UTF-8');
+    
+    // إضافة هاشتاج للدوري
+    if ($league_name) {
+        $hashtag = '#' . str_replace(' ', '_', preg_replace('/[^\p{L}\p{N}\s]/u', '', $league_name));
+        $text .= "\n" . $hashtag;
+    }
+    
+    $text .= "\n#FozScore";
+
+    $url = 'https://api.twitter.com/2/tweets';
+    $method = 'POST';
+    
+    // إعداد توقيع OAuth 1.0a
+    $oauth = [
+        'oauth_consumer_key' => $consumer_key,
+        'oauth_nonce' => bin2hex(random_bytes(16)),
+        'oauth_signature_method' => 'HMAC-SHA1',
+        'oauth_timestamp' => time(),
+        'oauth_token' => $oauth_token,
+        'oauth_version' => '1.0'
+    ];
+
+    $base_info = twitter_buildBaseString($url, $method, $oauth);
+    $composite_key = rawurlencode($consumer_secret) . '&' . rawurlencode($oauth_token_secret);
+    $oauth_signature = base64_encode(hash_hmac('sha1', $base_info, $composite_key, true));
+    $oauth['oauth_signature'] = $oauth_signature;
+
+    $header = 'Authorization: OAuth ';
+    $values = [];
+    foreach($oauth as $key => $value) $values[] = $key . '="' . rawurlencode($value) . '"';
+    $header .= implode(', ', $values);
+
+    $payload = ['text' => mb_substr($text, 0, 280)]; // التأكد من حد 280 حرف
+
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, $url);
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, [$header, 'Content-Type: application/json']);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    $response = curl_exec($ch);
+    return $response;
+}
+
+function twitter_buildBaseString($baseURI, $method, $params) {
+    $r = []; ksort($params);
+    foreach($params as $key=>$value) $r[] = "$key=" . rawurlencode($value);
+    return $method . "&" . rawurlencode($baseURI) . '&' . rawurlencode(implode('&', $r));
+}
+
+/**
+ * إرسال استفتاء (Poll) عبر تيليجرام
+ */
+function send_telegram_poll($pdo, $question, $options, $league_name = null) {
+    $settings = get_site_settings($pdo);
+    $token = $settings['telegram_bot_token'];
+    $chatId = $settings['telegram_chat_id'];
+    $threadId = null;
+
+    if ($league_name) {
+        // التأكد من وجود جدول التخصيص لتجنب الأخطاء
+        $pdo->exec("CREATE TABLE IF NOT EXISTS telegram_league_chats (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            league_name TEXT UNIQUE,
+            chat_id TEXT,
+            thread_id TEXT
+        )");
+        $stmt = $pdo->prepare("SELECT chat_id, thread_id FROM telegram_league_chats WHERE league_name = ?");
+        $stmt->execute([$league_name]);
+        $mapping = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($mapping && !empty($mapping['chat_id'])) {
+            $chatId = $mapping['chat_id'];
+            $threadId = $mapping['thread_id'];
+        }
+    }
+
+    if (empty($token) || empty($chatId)) return false;
+
+    $url = "https://api.telegram.org/bot$token/sendPoll";
+    $data = [
+        'chat_id' => $chatId,
+        'question' => $question,
+        'options' => json_encode($options),
+        'is_anonymous' => true, // استفتاء مجهول (الأكثر شيوعاً)
+    ];
+    
+    if (!empty($threadId)) $data['message_thread_id'] = $threadId;
 
     $ch = curl_init();
     curl_setopt($ch, CURLOPT_URL, $url);

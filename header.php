@@ -166,7 +166,96 @@ $primary_color = $settings['primary_color'] ?? '#1e293b';
     @media (max-width: 820px) {
         .search-trigger { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); }
     }
+
+    /* Telegram Banner */
+    .telegram-banner {
+        background: linear-gradient(90deg, #24A1DE 0%, #1b8bbf 100%);
+        color: #fff;
+        position: relative;
+        z-index: 1001;
+        display: flex;
+        align-items: stretch;
+        justify-content: space-between;
+        min-height: 46px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    
+    .telegram-link {
+        text-decoration: none;
+        color: #fff;
+        padding: 8px 15px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 10px;
+        font-weight: 700;
+        font-size: 0.95rem;
+        flex: 1;
+        transition: background 0.2s;
+    }
+    .telegram-link:hover { background: rgba(255,255,255,0.1); }
+    .telegram-link svg { 
+        width: 22px; height: 22px; fill: currentColor; flex-shrink: 0;
+        animation: telegram-shake 3s infinite;
+    }
+    @keyframes telegram-shake {
+        0%, 100% { transform: rotate(0deg); }
+        10%, 30% { transform: rotate(15deg); }
+        20%, 40% { transform: rotate(-15deg); }
+        50% { transform: rotate(0deg); }
+    }
+    
+    .telegram-close {
+        background: rgba(0,0,0,0.05);
+        border: none;
+        border-right: 1px solid rgba(255,255,255,0.1);
+        color: rgba(255,255,255,0.9);
+        width: 46px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2rem;
+        transition: all 0.2s;
+        flex-shrink: 0;
+    }
+    .telegram-close:hover { background: rgba(0,0,0,0.2); color: #fff; }
+
+    @media (max-width: 600px) {
+        .telegram-link {
+            font-size: 0.85rem;
+            padding: 8px 10px;
+            justify-content: center;
+        }
+        .telegram-link span {
+            white-space: normal;
+            text-align: center;
+        }
+    }
 </style>
+
+<div id="telegram-banner" class="telegram-banner" style="display:none;">
+    <a href="https://t.me/kora4tv" target="_blank" class="telegram-link">
+        <svg viewBox="0 0 24 24"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 11.944 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.463 4.049-1.72 4.471-1.72z"/></svg>
+        <span>انضم لقناتنا على تيليجرام لمتابعة المباريات! 📲</span>
+    </a>
+    <button class="telegram-close" onclick="closeTelegramBanner()" aria-label="إغلاق">✕</button>
+</div>
+
+<script>
+    const tgBanner = document.getElementById('telegram-banner');
+    const tgHideKey = 'hide_telegram_banner_ts';
+    const tgStored = localStorage.getItem(tgHideKey);
+    
+    // التحقق مما إذا كان الوقت المخزن غير موجود أو مر عليه أكثر من 24 ساعة (24 * 60 * 60 * 1000 ميلي ثانية)
+    if (!tgStored || (new Date().getTime() - parseInt(tgStored) > 24 * 60 * 60 * 1000)) {
+        if(tgBanner) tgBanner.style.display = 'flex';
+    }
+    function closeTelegramBanner() {
+        if(tgBanner) tgBanner.style.display = 'none';
+        localStorage.setItem(tgHideKey, new Date().getTime().toString());
+    }
+</script>
 
 <div class="navbar">
     <a class="brand" href="index.php">

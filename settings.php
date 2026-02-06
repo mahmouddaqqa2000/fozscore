@@ -24,6 +24,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $social_instagram = trim($_POST['social_instagram'] ?? '');
     $telegram_bot_token = trim($_POST['telegram_bot_token'] ?? '');
     $telegram_chat_id = trim($_POST['telegram_chat_id'] ?? '');
+    $twitter_api_key = trim($_POST['twitter_api_key'] ?? '');
+    $twitter_api_secret = trim($_POST['twitter_api_secret'] ?? '');
+    $twitter_access_token = trim($_POST['twitter_access_token'] ?? '');
+    $twitter_access_token_secret = trim($_POST['twitter_access_token_secret'] ?? '');
 
     // معالجة رفع ملف الشعار (إذا تم اختيار ملف)
     if (isset($_FILES['favicon_file']) && $_FILES['favicon_file']['error'] === UPLOAD_ERR_OK) {
@@ -73,6 +77,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt->execute(['social_instagram', $social_instagram]);
         $stmt->execute(['telegram_bot_token', $telegram_bot_token]);
         $stmt->execute(['telegram_chat_id', $telegram_chat_id]);
+        $stmt->execute(['twitter_api_key', $twitter_api_key]);
+        $stmt->execute(['twitter_api_secret', $twitter_api_secret]);
+        $stmt->execute(['twitter_access_token', $twitter_access_token]);
+        $stmt->execute(['twitter_access_token_secret', $twitter_access_token_secret]);
 
         $message = '<div class="alert alert-success">تم حفظ الإعدادات بنجاح!</div>';
     } catch (PDOException $e) {
@@ -188,6 +196,24 @@ $settings = get_site_settings($pdo);
                 <div class="form-group">
                     <label class="form-label">معرف المجموعة (Chat ID)</label>
                     <input type="text" name="telegram_chat_id" class="form-input" value="<?php echo htmlspecialchars($settings['telegram_chat_id']); ?>" placeholder="-100..." style="direction: ltr;">
+                </div>
+
+                <h3 style="margin-top: 2rem; margin-bottom: 1rem; color: var(--primary); border-bottom: 1px solid var(--border); padding-bottom: 10px;">🐦 إعدادات النشر التلقائي على تويتر (X)</h3>
+                <div class="form-group">
+                    <label class="form-label">API Key (Consumer Key)</label>
+                    <input type="text" name="twitter_api_key" class="form-input" value="<?php echo htmlspecialchars($settings['twitter_api_key']); ?>" style="direction: ltr;">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">API Secret (Consumer Secret)</label>
+                    <input type="text" name="twitter_api_secret" class="form-input" value="<?php echo htmlspecialchars($settings['twitter_api_secret']); ?>" style="direction: ltr;">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Access Token</label>
+                    <input type="text" name="twitter_access_token" class="form-input" value="<?php echo htmlspecialchars($settings['twitter_access_token']); ?>" style="direction: ltr;">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Access Token Secret</label>
+                    <input type="text" name="twitter_access_token_secret" class="form-input" value="<?php echo htmlspecialchars($settings['twitter_access_token_secret']); ?>" style="direction: ltr;">
                 </div>
 
                 <button type="submit" class="btn-save">حفظ التغييرات</button>

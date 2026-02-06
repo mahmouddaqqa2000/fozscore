@@ -495,7 +495,7 @@ $grouped_by_championship = $live_groups + $other_groups;
                                                             <div class="score-box vs">-- : --</div>
                                                             <span class="match-time-muted" style="margin-top:4px;">انتهت</span>
                                                         <?php else: ?>
-                                                            <div class="score-box time"><span style="margin-left:4px; opacity:0.8;">🕒</span><?php echo format_time_ar($m['match_time']); ?></div>
+                                                            <div class="score-box time"><span style="margin-left:4px; opacity:0.8;">🕒</span><?php echo format_time_ar($m['match_time'], $m['match_date']); ?></div>
                                                             <span class="match-time-muted" style="margin-top:4px;">لم تبدأ</span>
                                                         <?php endif; ?>
                                                     </div>

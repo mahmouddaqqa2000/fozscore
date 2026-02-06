@@ -185,23 +185,17 @@ echo '</div>';
 
 // دالة خاصة لهذا الملف
 function get_match_details_single($url) {
-    $nodeScript = __DIR__ . '/scraper_lineup.js';
-    $html = null;
+    // استخدام CURL بدلاً من Node.js
+    $ch = curl_init($url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+    curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36');
+    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    curl_setopt($ch, CURLOPT_ENCODING, ''); // لدعم ضغط GZIP
+    $html = curl_exec($ch);
+    // curl_close($ch); // Deprecated
 
-    if (file_exists($nodeScript)) {
-        $cmd = "node " . escapeshellarg($nodeScript) . " " . escapeshellarg($url);
-        $output = shell_exec($cmd);
-
-        // محاولة فك تشفير JSON لأن السكربت يعيد JSON يحتوي على HTML
-        $jsonResult = json_decode($output, true);
-        if (json_last_error() === JSON_ERROR_NONE && isset($jsonResult['html'])) {
-            $html = $jsonResult['html'];
-        } else {
-            $html = $output;
-        }
-    }
-
-    if (!$html || strlen($html) < 100) {
+    if (!$html) {
         return ['home' => null, 'away' => null, 'coach_home' => null, 'coach_away' => null, 'stats' => null, 'lineup_image' => null, 'html_preview' => $html];
     }
 
@@ -209,6 +203,13 @@ function get_match_details_single($url) {
     libxml_use_internal_errors(true);
     $dom->loadHTML('<?xml encoding="UTF-8">' . $html);
     libxml_clear_errors();
+    
+    // معالجة ترميز كووورة (Windows-1256) إذا لزم الأمر
+    if (strpos($url, 'kooora.com') !== false && !preg_match('//u', $html)) {
+        $html = mb_convert_encoding($html, 'UTF-8', 'windows-1256');
+        $dom->loadHTML('<?xml encoding="UTF-8">' . $html);
+    }
+    
     $xpath = new DOMXPath($dom);
 
     $homePlayers = [];
@@ -290,14 +291,18 @@ function get_match_details_single($url) {
         
         $prompt = "
         You are a football data extractor. Analyze the provided text which is a scraped webpage of a football match.
-        Extract the lineup (starting XI) for both the Home Team and Away Team.
+        Extract the lineup (starting XI) and Match Statistics for both the Home Team and Away Team.
         
         Return ONLY a JSON object with this structure:
         {
             \"home_team\": \"Name of home team\",
             \"away_team\": \"Name of away team\",
             \"home_players\": [\"Player 1\", \"Player 2\", ...],
-            \"away_players\": [\"Player 1\", \"Player 2\", ...]
+            \"away_players\": [\"Player 1\", \"Player 2\", ...],
+            \"stats\": [
+                {\"label\": \"Possession\", \"home\": \"50%\", \"away\": \"50%\"},
+                {\"label\": \"Shots\", \"home\": \"10\", \"away\": \"5\"}
+            ]
         }
         If you cannot find a lineup, return empty arrays. Do not include markdown formatting.
         ";
@@ -309,6 +314,10 @@ function get_match_details_single($url) {
             if (!empty($data['home_players']) && count($data['home_players']) > 5) {
                 $homePlayers = $data['home_players'];
                 $awayPlayers = $data['away_players'];
+                
+                if (!empty($data['stats'])) {
+                    $stats = $data['stats'];
+                }
                 // تحديث أسماء الفرق إذا وجدها الذكاء الاصطناعي
                 if (!empty($data['home_team'])) $teamHomeName = $data['home_team'];
                 if (!empty($data['away_team'])) $teamAwayName = $data['away_team'];
@@ -345,7 +354,7 @@ function get_match_details_single($url) {
     }
 
     // استخراج الإحصائيات
-    $stats = [];
+    if (empty($stats)) {
     $statsNodes = $xpath->query("//div[contains(@class, 'statsDiv')]//ul//li");
     foreach ($statsNodes as $node) {
         $label = trim($xpath->query(".//div[contains(@class, 'desc')]", $node)->item(0)->textContent ?? '');
@@ -355,6 +364,7 @@ function get_match_details_single($url) {
         if ($label && ($homeVal !== '' || $awayVal !== '')) {
             $stats[] = ['label' => $label, 'home' => $homeVal, 'away' => $awayVal];
         }
+    }
     }
 
     return [

@@ -348,7 +348,7 @@ $total_pages = ceil($total_matches / $perPage);
                                 <div class="match-details">
                                     <div class="match-date-time">
                                         <div class="date"><?php echo htmlspecialchars($m['match_date']); ?></div>
-                                        <div class="time"><?php echo format_time_ar($m['match_time']); ?></div>
+                                        <div class="time"><?php echo format_time_ar($m['match_time'], $m['match_date']); ?></div>
                                         <?php
                                             $status = get_match_status($m);
                                         ?>
