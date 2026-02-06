@@ -68,13 +68,6 @@ foreach ($dates as $dateStr) {
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     // curl_close($ch); // Removed to avoid deprecated warning in PHP 8.x
 
-    // Debug: طباعة أول 500 حرف من الصفحة عند سحب مباريات الأمس فقط
-    if ($dateStr == date('m/d/Y', strtotime('-1 day', $base_timestamp))) {
-        echo "<div style='direction:ltr;font-size:10px;background:#eee;padding:5px;'>\n";
-        echo htmlspecialchars(substr($html, 0, 500));
-        echo "</div>\n";
-    }
-
     if (!$html || $httpCode !== 200) {
         echo "فشل الاتصال بالموقع ($dateStr). رمز الحالة: $httpCode<br>";
         continue;
@@ -127,20 +120,6 @@ foreach ($dates as $dateStr) {
 
             if (empty($teamHome) || empty($teamAway)) continue;
 
-            // Debug: طباعة بيانات المباراة عند سحب مباريات الأمس فقط
-            if ($dateStr == date('m/d/Y', strtotime('-1 day', $base_timestamp))) {
-                echo "<div style='font-size:11px;color:#333;background:#f9f9f9;margin:2px 0;padding:2px;'>";
-                echo "Match: $teamHome vs $teamAway | scoreStr: $scoreStr | time: $matchTimeStr";
-                // طباعة عنصر النتيجة الخام
-                $mResultNode = $xpath->query(".//div[contains(@class, 'MResult')]", $matchNode)->item(0);
-                if ($mResultNode) {
-                    echo "<pre style='white-space:pre-wrap;background:#eee;border:1px solid #ccc;'>";
-                    echo htmlspecialchars($dom->saveHTML($mResultNode));
-                    echo "</pre>";
-                }
-                echo "</div>\n";
-            }
-
             // تحويل التاريخ لصيغة قاعدة البيانات Y-m-d
             $matchDateDB = date('Y-m-d', strtotime($dateStr));
 
@@ -162,7 +141,8 @@ foreach ($dates as $dateStr) {
             
             // تفعيل السحب التلقائي للتشكيلة والإحصائيات إذا كانت ناقصة
             // تم التعديل لسحب الأحداث فقط
-            $shouldFetchLineup = $fullMatchUrl && (!$existing || empty($existing['match_events']));
+            // تم التعطيل لأن Node.js غير مدعوم على الاستضافة
+            $shouldFetchLineup = false; 
             
             if ($shouldFetchLineup) {
                 echo " <span style='color:orange;font-size:0.8em;'>[محاولة سحب التفاصيل...]</span>";
