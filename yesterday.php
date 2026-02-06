@@ -321,7 +321,7 @@ foreach ($matches as $m) {
                                             <div class="match-info">
                                                 <div class="team home"><?php echo team_logo_html($m['team_home'], 50, $m['team_home_logo'] ?? null); ?> <?php echo htmlspecialchars($m['team_home']); ?></div>
                                                 <?php if ($m['score_home'] !== null && $m['score_away'] !== null): ?>
-                                                    <div class="score-box"><?php echo (int)$m['score_home'] . ' - ' . (int)$m['score_away']; ?> <span style="font-size:0.85em; color:#64748b; margin-right:8px;">انتهت</span></div>
+                                                    <div class="score-box"><?php echo (int)$m['score_home'] . ' - ' . (int)$m['score_away']; ?></div>
                                                 <?php else: ?>
                                                     <div class="score-box time"><span style="margin-left:4px; opacity:0.8;">🕒</span><?php echo format_time_ar($m['match_time']); ?></div>
                                                 <?php endif; ?>
