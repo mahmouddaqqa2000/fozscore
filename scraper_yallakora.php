@@ -1,5 +1,5 @@
 <?php
-// scraper_yallakora.php - سحب المباريات من YallaKora
+// scraper_yallakora.php - سحب مباريات الأمس ونتائجها من YallaKora
 
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/helpers.php';
@@ -32,19 +32,13 @@ if (php_sapi_name() === 'cli') {
 
 // إعدادات التاريخ
 // ملاحظة: تأكد من أن تاريخ السيرفر صحيح. إذا كان التاريخ خطأ، لن تجد مباريات.
-$mode = $_GET['mode'] ?? 'tomorrow';
+$mode = 'yesterday'; // إجبار الوضع على "أمس" فقط
 
 // تحديد ما إذا كنا نريد جلب التفاصيل (التشكيلة والأحداث) لأنها تبطئ العملية بشكل كبير
 // الافتراضي: لا يتم جلب التفاصيل لتسريع تحديث النتائج
 $fetch_details = isset($_GET['details']) && $_GET['details'] == '1';
 
-if ($mode === 'yesterday') {
-    $date = date('m/d/Y', strtotime('-1 day', $base_timestamp));
-} elseif ($mode === 'today') {
-    $date = date('m/d/Y', $base_timestamp);
-} else {
-    $date = date('m/d/Y', strtotime('+1 day', $base_timestamp));
-}
+$date = date('m/d/Y', strtotime('-1 day', $base_timestamp));
 
 $url = "https://www.yallakora.com/match-center/?date=$date";
 
@@ -221,7 +215,7 @@ foreach ($leagues as $leagueNode) {
 }
 
 // سحب الأخبار بعد الانتهاء من المباريات
-scrape_yallakora_news($pdo);
+// scrape_yallakora_news($pdo); // تم التعطيل لأننا نستخدم scrape_news_only.php في Cron Job منفصل
 
 echo "تم الانتهاء!\n";
 echo "تمت إضافة: $count مباراة.\n";

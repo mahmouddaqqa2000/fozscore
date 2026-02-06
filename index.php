@@ -345,7 +345,8 @@ $grouped_by_championship = $live_groups + $other_groups;
             .team.away { flex-direction: column-reverse; }
             .team.home { justify-content: center; text-align: center; order: 1; }
             .team.away { justify-content: center; text-align: center; order: 3; }
-            .score-box, .match-center-info { order: 2; min-width: 60px; font-size: 1rem; }
+            .match-center-info { order: 2; min-width: 60px; font-size: 1rem; }
+            .score-box { order: 0; }
             .match-center-info { margin-top: 12px; }
         }
         
@@ -442,6 +443,8 @@ $grouped_by_championship = $live_groups + $other_groups;
                                                             <span class="match-time-muted" style="color:#ef4444; font-weight:bold; margin-top:4px;">
                                                                 <span class="live-indicator" style="background-color:#ef4444;"></span> جاري الآن
                                                             </span>
+                                                        <?php elseif ($status['key'] === 'finished'): ?>
+                                                            <span class="match-time-muted" style="margin-top:4px;">انتهت</span>
                                                         <?php endif; ?>
                                                     </div>
                                                 <?php } else { // Match hasn't started or finished without score ?>

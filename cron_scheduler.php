@@ -112,6 +112,12 @@ function perform_scrape($pdo, $dateStr) {
             // استخراج النتيجة
             $scoreStr = trim($xpath->query(".//div[contains(@class, 'MResult')]//div[contains(@class, 'score')]", $matchNode)->item(0)->textContent ?? '');
             
+            // محاولة بديلة لاستخراج النتيجة إذا كانت الطريقة الأولى فارغة (مهم جداً للمباريات المنتهية)
+            if (empty($scoreStr)) {
+                $scoreSpans = $xpath->query(".//div[contains(@class, 'MResult')]//span[contains(@class, 'score')]", $matchNode);
+                if ($scoreSpans->length >= 2) $scoreStr = $scoreSpans->item(0)->textContent . ' - ' . $scoreSpans->item(1)->textContent;
+            }
+            
             $scoreHome = null;
             $scoreAway = null;
             
@@ -133,6 +139,7 @@ function perform_scrape($pdo, $dateStr) {
                 $stmt->execute([$scoreHome, $scoreAway, $dateStr, $teamHome, $teamAway]);
                 if ($stmt->rowCount() > 0) {
                     $updated_count++;
+                    echo "Updated: $teamHome vs $teamAway ($scoreHome-$scoreAway)\n";
                 }
             }
         }

@@ -172,14 +172,6 @@ require_once __DIR__ . '/db.php';
                         <span>سحب مباريات الأمس (تحديث النتائج)</span>
                         <span class="icon">⏮️</span>
                     </a>
-                    <a href="scraper_yallakora.php?mode=today" class="btn-bot bg-blue">
-                        <span>سحب مباريات اليوم (مباشر)</span>
-                        <span class="icon">▶️</span>
-                    </a>
-                    <a href="scraper_yallakora.php?mode=tomorrow" class="btn-bot bg-dark">
-                        <span>سحب مباريات الغد</span>
-                        <span class="icon">⏭️</span>
-                    </a>
                     <a href="scraper_all.php" class="btn-bot bg-green">
                         <span>تحديث شامل (أمس، اليوم، غداً)</span>
                         <span class="icon">🔄</span>
