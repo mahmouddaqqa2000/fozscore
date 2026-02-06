@@ -57,7 +57,8 @@ foreach ($today_matches as $match) {
 
     // إرسال إشعار بداية المباراة (إذا حان وقتها ولم يرسل من قبل)
     // نتحقق مما إذا كان الوقت الحالي قد تجاوز وقت المباراة بحد أقصى 5 دقائق
-    if ($now >= $matchTimestamp && $now <= ($matchTimestamp + 300) && !isset($sent_notifications[$match['id']]['start'])) {
+    // تم زيادة النافذة إلى 10 دقائق (600 ثانية) لضمان عدم تفويت الإشعار
+    if ($now >= $matchTimestamp && $now <= ($matchTimestamp + 600) && !isset($sent_notifications[$match['id']]['start'])) {
         $msg = "🔔 <b>بداية المباراة الآن</b>\n\n";
         $msg .= "⚽ {$match['team_home']} 🆚 {$match['team_away']}\n";
         if (!empty($match['championship'])) $msg .= "🏆 <i>{$match['championship']}</i>\n\n";
@@ -68,6 +69,9 @@ foreach ($today_matches as $match) {
         $sent_notifications[$match['id']]['start'] = true;
         file_put_contents($sent_file, json_encode($sent_notifications));
         echo "Sent start notification for {$match['team_home']} vs {$match['team_away']}\n";
+    } else {
+        // Debug info (اختياري: لمعرفة سبب عدم الإرسال)
+        // echo "Skipped start notification for {$match['team_home']} vs {$match['team_away']}: " . (isset($sent_notifications[$match['id']]['start']) ? "Already sent" : "Time mismatch") . "\n";
     }
 
     // إرسال إشعار نهاية المباراة (إذا انتهت ولديها نتيجة ولم يرسل من قبل)
@@ -89,7 +93,7 @@ foreach ($today_matches as $match) {
     if ($now >= ($matchTimestamp - 600) && $now <= ($matchTimestamp + 150 * 60)) {
         $should_update_today = true;
         echo "Active Match Found: {$match['team_home']} vs {$match['team_away']} ($timeStr)\n";
-        break; // يكفي مباراة واحدة لتشغيل التحديث
+        // break; // تم إزالة break لضمان فحص جميع المباريات للإشعارات
     }
 }
 
@@ -182,7 +186,8 @@ function perform_scrape($pdo, $dateStr, $settings) {
 
             if ($db_match && $scoreHome !== null && $scoreAway !== null) {
                 // التحقق مما إذا كانت النتيجة قد تغيرت بالفعل
-                if ($db_match['score_home'] != $scoreHome || $db_match['score_away'] != $scoreAway) {
+                // استخدام !== للمقارنة الصارمة لأن NULL == 0 في PHP، وهذا يمنع تحديث النتيجة عند بداية المباراة (0-0)
+                if ($db_match['score_home'] !== $scoreHome || $db_match['score_away'] !== $scoreAway) {
                     // تحديث النتيجة
                     $stmt_update = $pdo->prepare("UPDATE matches SET score_home = ?, score_away = ? WHERE id = ?");
                     $stmt_update->execute([$scoreHome, $scoreAway, $db_match['id']]);
