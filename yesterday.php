@@ -271,20 +271,6 @@ foreach ($matches as $m) {
         .news-title { font-size: 1rem; font-weight: 700; margin: 0 0 0.5rem; line-height: 1.5; color: var(--primary); }
         .news-date { font-size: 0.8rem; color: var(--text-light); }
         .view-all-btn { font-size: 0.9rem; color: var(--secondary); text-decoration: none; }
-        
-        .match-ended {
-            text-align: center;
-            color: #000;
-            font-size: 0.95em;
-            margin-top: 4px;
-            margin-bottom: 0;
-        }
-        @media (max-width: 768px) {
-            .match-ended {
-                font-size: 0.95em;
-                margin-top: 6px;
-            }
-        }
     </style>
 </head>
 <body>
@@ -336,7 +322,6 @@ foreach ($matches as $m) {
                                                 <div class="team home"><?php echo team_logo_html($m['team_home'], 50, $m['team_home_logo'] ?? null); ?> <?php echo htmlspecialchars($m['team_home']); ?></div>
                                                 <?php if ($m['score_home'] !== null && $m['score_away'] !== null): ?>
                                                     <div class="score-box"><?php echo (int)$m['score_home'] . ' - ' . (int)$m['score_away']; ?></div>
-                                                    <div class="match-ended">انتهت</div>
                                                 <?php endif; ?>
                                                 <?php if ($m['score_home'] !== null && $m['score_away'] !== null): ?>
     <div style="text-align:center; color:#000; font-size:0.95em; margin-top:2px;">انتهت</div>
