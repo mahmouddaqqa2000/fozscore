@@ -172,6 +172,13 @@ foreach ($matches as $m) {
             box-shadow: none;
             font-size: 0.95rem;
         }
+        .match-time-muted {
+            display: block;
+            font-size: 0.78rem;
+            color: var(--text-light);
+            margin-top: 6px;
+            text-align: center;
+        }
 
         /* New Bottom Details Style */
         .match-details-bottom {
@@ -243,7 +250,8 @@ foreach ($matches as $m) {
             .team.away { flex-direction: column-reverse; }
             .team.home { justify-content: center; text-align: center; order: 1; }
             .team.away { justify-content: center; text-align: center; order: 3; }
-            .score-box { order: 2; min-width: 60px; font-size: 1rem; margin-top: 12px; }
+            .match-center-info { order: 2; min-width: 60px; font-size: 1rem; margin-top: 12px; }
+            .score-box { order: 0; }
         }
         
         /* Team Logo Hover Effect */
@@ -320,12 +328,14 @@ foreach ($matches as $m) {
                                         <a href="view_match.php?id=<?php echo $m['id']; ?>" class="match-link">
                                             <div class="match-info">
                                                 <div class="team home"><?php echo team_logo_html($m['team_home'], 50, $m['team_home_logo'] ?? null); ?> <?php echo htmlspecialchars($m['team_home']); ?></div>
-                                                <?php if ($m['score_home'] !== null && $m['score_away'] !== null): ?>
-                                                    <div class="score-box"><?php echo (int)$m['score_home'] . ' - ' . (int)$m['score_away']; ?></div>
-                                                <?php endif; ?>
-                                                <?php if ($m['score_home'] !== null && $m['score_away'] !== null): ?>
-    <div style="text-align:center; color:#000; font-size:0.95em; margin-top:2px;">انتهت</div>
-<?php endif; ?>
+                                                <div class="match-center-info" style="display:flex; flex-direction:column; align-items:center;">
+                                                    <?php if ($m['score_home'] !== null && $m['score_away'] !== null): ?>
+                                                        <div class="score-box"><?php echo (int)$m['score_home'] . ' - ' . (int)$m['score_away']; ?></div>
+                                                    <?php else: ?>
+                                                        <div class="score-box vs">--:--</div>
+                                                    <?php endif; ?>
+                                                    <span class="match-time-muted" style="margin-top:4px;">انتهت</span>
+                                                </div>
                                                 <div class="team away"><?php echo htmlspecialchars($m['team_away']); ?> <?php echo team_logo_html($m['team_away'], 50, $m['team_away_logo'] ?? null); ?></div>
                                             </div>
                                             
