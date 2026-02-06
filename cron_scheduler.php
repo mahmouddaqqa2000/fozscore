@@ -57,8 +57,8 @@ foreach ($today_matches as $match) {
 
     // إرسال إشعار بداية المباراة (إذا حان وقتها ولم يرسل من قبل)
     // نتحقق مما إذا كان الوقت الحالي قد تجاوز وقت المباراة بحد أقصى 5 دقائق
-    // تم زيادة النافذة إلى 10 دقائق (600 ثانية) لضمان عدم تفويت الإشعار
-    if ($now >= $matchTimestamp && $now <= ($matchTimestamp + 600) && !isset($sent_notifications[$match['id']]['start'])) {
+    // تم زيادة النافذة إلى 30 دقيقة (1800 ثانية) لضمان عدم تفويت الإشعار حتى لو تأخر الكرون
+    if ($now >= $matchTimestamp && $now <= ($matchTimestamp + 1800) && !isset($sent_notifications[$match['id']]['start'])) {
         $msg = "🔔 <b>بداية المباراة الآن</b>\n\n";
         $msg .= "⚽ {$match['team_home']} 🆚 {$match['team_away']}\n";
         if (!empty($match['championship'])) $msg .= "🏆 <i>{$match['championship']}</i>\n\n";
@@ -196,12 +196,18 @@ function perform_scrape($pdo, $dateStr, $settings) {
                     echo "Updated: $teamHome vs $teamAway ($scoreHome-$scoreAway)\n";
                     
                     // إرسال إشعار تيليجرام بالتحديث
-                    $match_url = rtrim($settings['site_url'], '/') . '/view_match.php?id=' . $db_match['id'];
-                    $msg = "⚽ <b>تحديث مباشر (هدف!)</b>\n\n";
-                    $msg .= "$teamHome <b>$scoreHome</b> - <b>$scoreAway</b> $teamAway\n";
-                    if ($championship) $msg .= "🏆 <i>$championship</i>\n\n";
-                    $msg .= "<a href=\"$match_url\">عرض التفاصيل</a>";
-                    send_telegram_msg($pdo, $msg);
+                    // لا نرسل إشعار "هدف" إذا كانت النتيجة 0-0 وكانت سابقاً غير موجودة (بداية المباراة)
+                    // لأن إشعار البداية يكفي، أو سيتم إرساله في الدورة القادمة
+                    $is_start_0_0 = ($db_match['score_home'] === null && $scoreHome === 0 && $scoreAway === 0);
+
+                    if (!$is_start_0_0) {
+                        $match_url = rtrim($settings['site_url'], '/') . '/view_match.php?id=' . $db_match['id'];
+                        $msg = "⚽ <b>تحديث مباشر (هدف!)</b>\n\n";
+                        $msg .= "$teamHome <b>$scoreHome</b> - <b>$scoreAway</b> $teamAway\n";
+                        if ($championship) $msg .= "🏆 <i>$championship</i>\n\n";
+                        $msg .= "<a href=\"$match_url\">عرض التفاصيل</a>";
+                        send_telegram_msg($pdo, $msg);
+                    }
                 }
             }
         }
