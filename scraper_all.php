@@ -129,36 +129,10 @@ foreach ($dates as $dateStr) {
             $existing = $stmt->fetch();
 
             $matchTime = $matchTimeStr; // Use the extracted time
-
-            // جلب التشكيلة إذا كانت مفقودة
-            $lineupHome = null;
-            $lineupAway = null;
-            $coachHome = null;
-            $coachAway = null;
-            $matchStats = null;
-            $matchEvents = null;
-            $streamUrl = null;
             
-            // تفعيل السحب التلقائي للتشكيلة والإحصائيات إذا كانت ناقصة
-            // تم التعديل لسحب الأحداث فقط
-            // تم التعطيل لأن Node.js غير مدعوم على الاستضافة
-            $shouldFetchLineup = false; 
-            
-            if ($shouldFetchLineup) {
-                echo " <span style='color:orange;font-size:0.8em;'>[محاولة سحب التفاصيل...]</span>";
-                $details = get_match_details($fullMatchUrl);
-                $lineupHome = $details['home'];
-                 $lineupAway = $details['away'];
-                $coachHome = $details['coach_home'];
-                $coachAway = $details['coach_away'];
-                $matchStats = $details['stats'];
-                $matchEvents = $details['match_events'];
-                $streamUrl = $details['stream_url'];
-                if ($lineupHome) {
-                    echo " <span style='color:blue;font-size:0.8em;'>[تم جلب التشكيلة]</span>";
-                }
-                usleep(200000); // انتظار بسيط (0.2 ثانية) لتجنب الحظر
-            }
+            // تم إزالة كود سحب التفاصيل (Node.js) نهائياً لتسريع السكربت ومنع التعليق
+            $lineupHome = null; $lineupAway = null; $coachHome = null; $coachAway = null;
+            $matchStats = null; $matchEvents = null; $streamUrl = null;
 
             if ($existing) {
                 // تحديث النتيجة فقط إذا تم العثور عليها، أو إذا كانت المباراة لم تبدأ بعد (لتصفيرها)
