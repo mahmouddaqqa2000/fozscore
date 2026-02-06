@@ -131,6 +131,11 @@
             padding: 6px;
             line-height: 1;
         }
+
+        /* Dark Mode Mobile Menu */
+        body.dark-mode .nav-links { background: #1e293b; }
+        body.dark-mode .nav-links a { color: #f1f5f9; border-bottom-color: #334155; }
+        body.dark-mode .nav-links a:hover { background: #2d3748; }
     }
 </style>
 

@@ -631,6 +631,55 @@ if (!$match) {
             .timeline-content.home, .timeline-content.away { padding: 0; padding-right: 10px; justify-content: flex-start; flex: 1; order: 2; }
             .timeline-content:empty { display: none; }
         }
+
+        /* Dark Mode Support */
+        body.dark-mode {
+            --primary: #f1f5f9;
+            --secondary: #60a5fa;
+            --bg: #0f172a;
+            --card: #1e293b;
+            --text: #f1f5f9;
+            --text-light: #94a3b8;
+            --border: #334155;
+        }
+        body.dark-mode .match-view-card .championship-header { background: #2d3748; color: var(--text); border-bottom-color: var(--border); }
+        body.dark-mode .match-main-info .team-name { color: var(--text); }
+        body.dark-mode .final-score { color: var(--text); }
+        body.dark-mode .match-status { background: #334155; color: #cbd5e1; }
+        body.dark-mode .match-meta-footer { background: #2d3748; border-top-color: var(--border); }
+        body.dark-mode .tabs { background: var(--card); border-bottom-color: var(--border); }
+        body.dark-mode .tab-button:hover { background: #2d3748; color: var(--text); }
+        body.dark-mode .tab-content { background: var(--card); border-color: var(--border); }
+        body.dark-mode .h2h-item { background: #2d3748; }
+        body.dark-mode .h2h-score { background: #334155; }
+        body.dark-mode .player-stats-table th { background: #2d3748; color: var(--text-light); }
+        body.dark-mode .player-list-item { border-bottom-color: var(--border); }
+        body.dark-mode .player-list-number { background: #334155; color: var(--text); }
+        body.dark-mode .stat-bar-container { background: #334155; }
+        body.dark-mode .stream-section { background: var(--card); }
+        body.dark-mode .timeline::before { background: var(--border); }
+        body.dark-mode .timeline-time { background: var(--card); border-color: var(--border); color: var(--text); }
+        body.dark-mode .timeline-card { background: var(--card); border-color: var(--border); color: var(--text); }
+        body.dark-mode .news-item { border-bottom-color: var(--border); }
+        body.dark-mode .news-text { color: var(--text); }
+        body.dark-mode header, body.dark-mode .site-header, body.dark-mode .navbar {
+            background-color: #1e293b !important;
+            color: #f1f5f9 !important;
+            border-bottom: 1px solid #334155;
+        }
+        body.dark-mode .navbar .brand { color: #ffffff !important; }
+        body.dark-mode .navbar a { color: #e2e8f0 !important; }
+        body.dark-mode .menu-toggle { color: #ffffff !important; }
+        body.dark-mode footer, body.dark-mode .site-footer {
+            background-color: #1e293b !important;
+            color: #f1f5f9 !important;
+            border-top: 1px solid #334155;
+        }
+        
+        /* Toggle Button */
+        .theme-toggle { position: fixed; bottom: 20px; left: 20px; width: 50px; height: 50px; border-radius: 50%; background: #1e293b; color: #fff; border: none; font-size: 24px; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.3); z-index: 1000; transition: all 0.3s ease; display: flex; align-items: center; justify-content: center; }
+        .theme-toggle:hover { transform: scale(1.1); }
+        body.dark-mode .theme-toggle { background: var(--secondary); color: #fff; }
     </style>
 </head>
 <body>
@@ -1092,4 +1141,24 @@ function openTab(evt, tabName) {
     document.getElementById(tabName).style.display = "block";
     evt.currentTarget.className += " active";
 }
+
+document.addEventListener('DOMContentLoaded', function() {
+    const toggleBtn = document.createElement('button');
+    toggleBtn.innerHTML = '🌙';
+    toggleBtn.className = 'theme-toggle';
+    toggleBtn.title = 'تبديل الوضع الليلي';
+    document.body.appendChild(toggleBtn);
+    const currentTheme = localStorage.getItem('theme');
+    if (currentTheme === 'dark') {
+        document.body.classList.add('dark-mode');
+        toggleBtn.innerHTML = '☀️';
+    }
+    toggleBtn.addEventListener('click', function() {
+        document.body.classList.toggle('dark-mode');
+        let theme = 'light';
+        if (document.body.classList.contains('dark-mode')) { theme = 'dark'; toggleBtn.innerHTML = '☀️'; } 
+        else { toggleBtn.innerHTML = '🌙'; }
+        localStorage.setItem('theme', theme);
+    });
+});
 </script>

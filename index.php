@@ -375,6 +375,48 @@ $grouped_by_championship = $live_groups + $other_groups;
         .news-title { font-size: 1rem; font-weight: 700; margin: 0 0 0.5rem; line-height: 1.5; color: var(--primary); }
         .news-date { font-size: 0.8rem; color: var(--text-light); }
         .view-all-btn { font-size: 0.9rem; color: var(--secondary); text-decoration: none; }
+
+        /* Dark Mode Support */
+        body.dark-mode {
+            --primary: #f1f5f9;
+            --secondary: #60a5fa;
+            --bg: #0f172a;
+            --card: #1e293b;
+            --text: #f1f5f9;
+            --text-light: #94a3b8;
+            --border: #334155;
+        }
+        body.dark-mode .score-box { background: #334155; color: #fff; }
+        body.dark-mode .score-box.live { background: var(--accent); }
+        body.dark-mode .score-box.time { background: #334155; color: #cbd5e1; }
+        body.dark-mode .day-buttons { background: var(--card); border-color: var(--border); }
+        body.dark-mode .day-button:hover { background: #334155; }
+        body.dark-mode .match-item:hover { background-color: #2d3748; }
+        body.dark-mode .championship-header.major-league { background-color: #312e81; color: #e0e7ff; border-bottom-color: #4338ca; }
+        body.dark-mode .championship-header.cup { background-color: #451a03; color: #fef3c7; border-bottom-color: #92400e; }
+        body.dark-mode .detail-pill { background-color: #334155; border-color: #475569; color: #cbd5e1; }
+        body.dark-mode .detail-pill:hover { background-color: #475569; color: #fff; }
+        body.dark-mode .site-hero { background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); }
+        body.dark-mode .news-card { background: var(--card); border-color: var(--border); }
+        body.dark-mode .news-title { color: var(--text); }
+        body.dark-mode header, body.dark-mode .site-header, body.dark-mode .navbar {
+            background-color: #1e293b !important;
+            color: #f1f5f9 !important;
+            border-bottom: 1px solid #334155;
+        }
+        body.dark-mode .navbar .brand { color: #ffffff !important; }
+        body.dark-mode .navbar a { color: #e2e8f0 !important; }
+        body.dark-mode .menu-toggle { color: #ffffff !important; }
+        body.dark-mode footer, body.dark-mode .site-footer {
+            background-color: #1e293b !important;
+            color: #f1f5f9 !important;
+            border-top: 1px solid #334155;
+        }
+        
+        /* Toggle Button */
+        .theme-toggle { position: fixed; bottom: 20px; left: 20px; width: 50px; height: 50px; border-radius: 50%; background: #1e293b; color: #fff; border: none; font-size: 24px; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.3); z-index: 1000; transition: all 0.3s ease; display: flex; align-items: center; justify-content: center; }
+        .theme-toggle:hover { transform: scale(1.1); }
+        body.dark-mode .theme-toggle { background: var(--secondary); color: #fff; }
     </style>
 </head>
 <body>
@@ -392,7 +434,7 @@ $grouped_by_championship = $live_groups + $other_groups;
         </div>
 
         <div class="content-grid">
-            <div class="main-column">
+            <div class="main-column" id="matches-container">
                 <?php if (empty($matches)): ?>
                     <div class="match-card no-matches">
                         لا توجد مباريات مسجلة حالياً.
@@ -449,8 +491,11 @@ $grouped_by_championship = $live_groups + $other_groups;
                                                     </div>
                                                 <?php } else { // Match hasn't started or finished without score ?>
                                             <div class="match-center-info" style="display:flex; flex-direction:column; align-items:center;">
-                                                        <div class="score-box time"><span style="margin-left:4px; opacity:0.8;">🕒</span><?php echo format_time_ar($m['match_time']); ?></div>
-                                                        <?php if ($status['key'] === 'not_started'): ?>
+                                                        <?php if ($status['key'] === 'finished'): ?>
+                                                            <div class="score-box vs">-- : --</div>
+                                                            <span class="match-time-muted" style="margin-top:4px;">انتهت</span>
+                                                        <?php else: ?>
+                                                            <div class="score-box time"><span style="margin-left:4px; opacity:0.8;">🕒</span><?php echo format_time_ar($m['match_time']); ?></div>
                                                             <span class="match-time-muted" style="margin-top:4px;">لم تبدأ</span>
                                                         <?php endif; ?>
                                                     </div>
@@ -518,5 +563,54 @@ $grouped_by_championship = $live_groups + $other_groups;
         </div>
     </div>
     <?php include __DIR__ . '/footer.php'; ?>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const toggleBtn = document.createElement('button');
+            toggleBtn.innerHTML = '🌙';
+            toggleBtn.className = 'theme-toggle';
+            toggleBtn.title = 'تبديل الوضع الليلي';
+            document.body.appendChild(toggleBtn);
+            const currentTheme = localStorage.getItem('theme');
+            if (currentTheme === 'dark') {
+                document.body.classList.add('dark-mode');
+                toggleBtn.innerHTML = '☀️';
+            }
+            toggleBtn.addEventListener('click', function() {
+                document.body.classList.toggle('dark-mode');
+                let theme = 'light';
+                if (document.body.classList.contains('dark-mode')) { theme = 'dark'; toggleBtn.innerHTML = '☀️'; } 
+                else { toggleBtn.innerHTML = '🌙'; }
+                localStorage.setItem('theme', theme);
+            });
+        });
+
+        // تحديث النتائج تلقائياً كل دقيقة (60 ثانية) بدون إعادة تحميل الصفحة
+        setInterval(function() {
+            // نستخدم new URL لضمان التعامل الصحيح مع المعلمات الموجودة مسبقاً
+            const url = new URL(window.location.href);
+            // نضيف معلمة فريدة لمنع المتصفح من استخدام النسخة المخبأة (cache busting)
+            url.searchParams.set('cache_bust', new Date().getTime());
+
+            fetch(url.href, { cache: 'no-store' }) // إضافة خيار لمنع التخزين المؤقت بشكل صريح
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.text();
+                })
+                .then(html => {
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(html, 'text/html');
+                    const newContainer = doc.getElementById('matches-container');
+                    const currentContainer = document.getElementById('matches-container');
+
+                    // نحدث المحتوى فقط إذا كان هناك تغيير لتجنب الوميض
+                    if (newContainer && currentContainer && newContainer.innerHTML.trim() !== currentContainer.innerHTML.trim()) {
+                        currentContainer.innerHTML = newContainer.innerHTML;
+                    }
+                })
+                .catch(err => console.error('Error updating matches:', err));
+        }, 60000); // 60 ثانية
+    </script>
 </body>
 </html>

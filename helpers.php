@@ -57,7 +57,8 @@ function league_logo_html($name, $size = 28, $logo_url = null) {
 function format_time_ar($time) {
     if (empty($time)) return '';
     try {
-        $dt = new DateTime($time);
+        $clean_time = str_replace(['ص', 'م'], ['AM', 'PM'], $time);
+        $dt = new DateTime($clean_time);
     } catch (Exception $e) {
         return htmlspecialchars($time);
     }
@@ -115,7 +116,8 @@ function get_match_status($match) {
 
     try {
         $now = new DateTime();
-        $match_datetime = new DateTime($match['match_date'] . ' ' . $match['match_time']);
+        $clean_time = str_replace(['ص', 'م'], ['AM', 'PM'], $match['match_time']);
+        $match_datetime = new DateTime($match['match_date'] . ' ' . $clean_time);
         
         // إذا كان وقت المباراة في المستقبل، فهي 'لم تبدأ'.
         if ($now < $match_datetime) {

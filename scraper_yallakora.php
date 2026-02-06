@@ -32,13 +32,19 @@ if (php_sapi_name() === 'cli') {
 
 // إعدادات التاريخ
 // ملاحظة: تأكد من أن تاريخ السيرفر صحيح. إذا كان التاريخ خطأ، لن تجد مباريات.
-$mode = 'yesterday'; // إجبار الوضع على "أمس" فقط
+$mode = $_GET['mode'] ?? 'today';
 
 // تحديد ما إذا كنا نريد جلب التفاصيل (التشكيلة والأحداث) لأنها تبطئ العملية بشكل كبير
 // الافتراضي: لا يتم جلب التفاصيل لتسريع تحديث النتائج
 $fetch_details = isset($_GET['details']) && $_GET['details'] == '1';
 
-$date = date('m/d/Y', strtotime('-1 day', $base_timestamp));
+if ($mode === 'yesterday') {
+    $date = date('m/d/Y', strtotime('-1 day', $base_timestamp));
+} elseif ($mode === 'tomorrow') {
+    $date = date('m/d/Y', strtotime('+1 day', $base_timestamp));
+} else {
+    $date = date('m/d/Y', $base_timestamp);
+}
 
 $url = "https://www.yallakora.com/match-center/?date=$date";
 
@@ -156,6 +162,36 @@ foreach ($leagues as $leagueNode) {
         $stmt->execute([$matchDate, $teamHome, $teamAway]);
         $existing = $stmt->fetch();
 
+        // سحب الإحصائيات (إذا كانت المباراة جارية أو منتهية ولدينا رابط)
+        $matchStats = null;
+        if ($sourceUrl && ($scoreHome !== null || $scoreAway !== null)) {
+            $ch_details = curl_init($sourceUrl);
+            curl_setopt($ch_details, CURLOPT_RETURNTRANSFER, 1);
+            curl_setopt($ch_details, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36');
+            curl_setopt($ch_details, CURLOPT_FOLLOWLOCATION, true);
+            curl_setopt($ch_details, CURLOPT_SSL_VERIFYPEER, false);
+            curl_setopt($ch_details, CURLOPT_ENCODING, '');
+            curl_setopt($ch_details, CURLOPT_CONNECTTIMEOUT, 10);
+            curl_setopt($ch_details, CURLOPT_TIMEOUT, 20);
+            $html_details = curl_exec($ch_details);
+            
+            if ($html_details) {
+                $dom_details = new DOMDocument();
+                @$dom_details->loadHTML('<?xml encoding="UTF-8">' . $html_details);
+                $xpath_details = new DOMXPath($dom_details);
+                $statsNodes = $xpath_details->query("//div[contains(@class, 'statsDiv')]//ul//li");
+                $statsArray = [];
+                foreach ($statsNodes as $node) {
+                    $label = trim($xpath_details->query(".//div[contains(@class, 'desc')]", $node)->item(0)->nodeValue ?? '');
+                    $homeVal = trim($xpath_details->query(".//div[contains(@class, 'teamA')]", $node)->item(0)->nodeValue ?? '');
+                    $awayVal = trim($xpath_details->query(".//div[contains(@class, 'teamB')]", $node)->item(0)->nodeValue ?? '');
+                    if ($label !== '') $statsArray[] = ['label' => $label, 'home' => $homeVal, 'away' => $awayVal];
+                }
+                if (!empty($statsArray)) $matchStats = json_encode($statsArray, JSON_UNESCAPED_UNICODE);
+            }
+            usleep(100000); // انتظار بسيط لتخفيف الحمل
+        }
+
         // تجهيز متغيرات التشكيلة
         $lineupHome = null;
         $lineupAway = null;
@@ -163,7 +199,6 @@ foreach ($leagues as $leagueNode) {
         $coachAway = null;
         $streamUrl = null;
         $matchEvents = null;
-        $matchStats = null;
         $details = []; // تهيئة المصفوفة لتجنب الأخطاء
 
         // جلب التشكيلة فقط إذا كانت المباراة موجودة ولكن ليس لها تشكيلة، أو إذا كانت جديدة
@@ -177,7 +212,7 @@ foreach ($leagues as $leagueNode) {
             $lineupAway = $details['away'];
             $coachHome = $details['coach_home'];
             $coachAway = $details['coach_away'];
-            $matchStats = $details['stats'];
+            if (!$matchStats) $matchStats = $details['stats']; // استخدام الإحصائيات من التفاصيل إذا لم يتم سحبها سابقاً
             $matchEvents = $details['match_events'];
             $streamUrl = $details['stream_url'];
             if ($lineupHome) {
@@ -188,16 +223,16 @@ foreach ($leagues as $leagueNode) {
 
         if ($existing) {
             if ($scoreHome !== null) {
-                $update = $pdo->prepare("UPDATE matches SET score_home = ?, score_away = ?, team_home_logo = ?, team_away_logo = ?, match_time = ?, channel = ?, championship = ?, championship_logo = ?, source_url = ? WHERE id = ?");
-                $update->execute([$scoreHome, $scoreAway, $homeLogo, $awayLogo, $matchTime, $channel, $championship, $leagueLogo, $sourceUrl, $existing['id']]);
+                $update = $pdo->prepare("UPDATE matches SET score_home = ?, score_away = ?, team_home_logo = ?, team_away_logo = ?, match_time = ?, channel = ?, championship = ?, championship_logo = ?, source_url = ?, match_stats = COALESCE(?, match_stats) WHERE id = ?");
+                $update->execute([$scoreHome, $scoreAway, $homeLogo, $awayLogo, $matchTime, $channel, $championship, $leagueLogo, $sourceUrl, $matchStats, $existing['id']]);
             } else {
                 $update = $pdo->prepare("UPDATE matches SET team_home_logo = ?, team_away_logo = ?, match_time = ?, channel = ?, championship = ?, championship_logo = ?, source_url = ? WHERE id = ?");
                 $update->execute([$homeLogo, $awayLogo, $matchTime, $channel, $championship, $leagueLogo, $sourceUrl, $existing['id']]);
             }
             
             // تحديث التشكيلة إذا تم جلبها
-            if ($lineupHome || $lineupAway || $coachHome || $coachAway || $matchStats || $matchEvents) {
-                $pdo->prepare("UPDATE matches SET lineup_home = COALESCE(?, lineup_home), lineup_away = COALESCE(?, lineup_away), coach_home = COALESCE(?, coach_home), coach_away = COALESCE(?, coach_away), match_stats = COALESCE(?, match_stats), match_events = COALESCE(?, match_events) WHERE id = ?")->execute([$lineupHome, $lineupAway, $coachHome, $coachAway, $matchStats, $matchEvents, $existing['id']]);
+            if ($lineupHome || $lineupAway || $coachHome || $coachAway || $matchEvents) {
+                $pdo->prepare("UPDATE matches SET lineup_home = COALESCE(?, lineup_home), lineup_away = COALESCE(?, lineup_away), coach_home = COALESCE(?, coach_home), coach_away = COALESCE(?, coach_away), match_events = COALESCE(?, match_events) WHERE id = ?")->execute([$lineupHome, $lineupAway, $coachHome, $coachAway, $matchEvents, $existing['id']]);
             }
             
             // تحديث رابط البث إذا تم جلبه

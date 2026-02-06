@@ -36,14 +36,23 @@ function get_network_time() {
 
 $base_timestamp = get_network_time();
 
-// تحديد الأيام: أمس، اليوم، غداً
-$dates = [
-    date('m/d/Y', strtotime('-1 day', $base_timestamp)),
-    date('m/d/Y', $base_timestamp),
-    date('m/d/Y', strtotime('+1 day', $base_timestamp))
-];
+$mode = $_GET['mode'] ?? 'all';
 
-echo "<h3>بدء التحديث الشامل (جميع المباريات + شعارات الدوريات)...</h3>";
+// تحديد الأيام بناءً على الوضع المختار
+if ($mode === 'today') {
+    $dates = [date('m/d/Y', $base_timestamp)];
+    echo "<h3>بدء تحديث مباريات اليوم...</h3>";
+} elseif ($mode === 'yesterday') {
+    $dates = [date('m/d/Y', strtotime('-1 day', $base_timestamp))];
+    echo "<h3>بدء تحديث مباريات الأمس...</h3>";
+} else {
+    $dates = [
+        date('m/d/Y', strtotime('-1 day', $base_timestamp)),
+        date('m/d/Y', $base_timestamp),
+        date('m/d/Y', strtotime('+1 day', $base_timestamp))
+    ];
+    echo "<h3>بدء التحديث الشامل (جميع المباريات + شعارات الدوريات)...</h3>";
+}
 flush();
 
 foreach ($dates as $dateStr) {
@@ -117,6 +126,15 @@ foreach ($dates as $dateStr) {
             // 3. الوقت والنتيجة والقناة
             $matchTimeStr = trim($xpath->query(".//div[contains(@class, 'MResult')]//span[contains(@class, 'time')]", $matchNode)->item(0)->nodeValue ?? '');
             $scoreStr = trim($xpath->query(".//div[contains(@class, 'MResult')]//div[contains(@class, 'score')]", $matchNode)->item(0)->textContent ?? '');
+            
+            // محاولة بديلة لاستخراج النتيجة إذا كانت الطريقة الأولى فارغة (مهم جداً للمباريات المنتهية)
+            if (empty($scoreStr)) {
+                $scoreSpans = $xpath->query(".//div[contains(@class, 'MResult')]//span[contains(@class, 'score')]", $matchNode);
+                if ($scoreSpans->length >= 2) {
+                    $scoreStr = trim($scoreSpans->item(0)->textContent) . ' - ' . trim($scoreSpans->item(1)->textContent);
+                }
+            }
+            
             $channel = trim($xpath->query(".//div[contains(@class, 'channel')]", $matchNode)->item(0)->nodeValue ?? '');
             
             // رابط المباراة
@@ -154,7 +172,7 @@ foreach ($dates as $dateStr) {
                 curl_setopt($ch_details, CURLOPT_CONNECTTIMEOUT, 10);
                 curl_setopt($ch_details, CURLOPT_TIMEOUT, 20);
                 $html_details = curl_exec($ch_details);
-                curl_close($ch_details);
+                // curl_close($ch_details); // Deprecated in PHP 8.5+
 
                 if ($html_details) {
                     $dom_details = new DOMDocument();
