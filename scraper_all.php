@@ -6,6 +6,8 @@ require_once __DIR__ . '/helpers.php';
 
 header('Content-Type: text/html; charset=utf-8');
 set_time_limit(0); // منع توقف السكربت أثناء العمل لفترة طويلة
+ob_implicit_flush(true); // إجبار السيرفر على إرسال البيانات للمتصفح فوراً
+if (ob_get_level() > 0) ob_end_flush();
 
 // دالة لجلب الوقت الحقيقي من الإنترنت (Google) لتجاوز خطأ توقيت السيرفر
 function get_network_time() {
@@ -33,10 +35,12 @@ $dates = [
 ];
 
 echo "بدء عملية السحب والتحديث الشامل من YallaKora (بتاريخ الشبكة: " . date('Y-m-d', $base_timestamp) . ")...<br>";
+flush();
 
 foreach ($dates as $dateStr) {
     echo "<hr>";
     echo "جاري سحب مباريات تاريخ: $dateStr<br>";
+    flush();
     
     $url = "https://www.yallakora.com/match-center/?date=$dateStr";
 
@@ -55,6 +59,9 @@ foreach ($dates as $dateStr) {
         'Upgrade-Insecure-Requests: 1'
     ]);
     curl_setopt($ch, CURLOPT_ENCODING, ''); // فك ضغط الاستجابة (GZIP)
+    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 15); // مهلة اتصال 15 ثانية
+    curl_setopt($ch, CURLOPT_TIMEOUT, 60);        // مهلة قراءة 60 ثانية
+    curl_setopt($ch, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V4); // إجبار استخدام IPv4 لتجنب مشاكل الاستضافة
     
     $html = curl_exec($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
@@ -213,6 +220,7 @@ foreach ($dates as $dateStr) {
         }
     }
     echo "النتيجة: تم إضافة $count_added | تم تحديث $count_updated<br>";
+    flush();
     
     // انتظار عشوائي بين 2 إلى 5 ثواني ليبدو كأنه إنسان يتصفح
     sleep(rand(2, 5));

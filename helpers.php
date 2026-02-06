@@ -399,6 +399,9 @@ function scrape_yallakora_news($pdo, $dateStr = null) {
     ]);
     curl_setopt($ch, CURLOPT_REFERER, "https://www.yallakora.com/");
     curl_setopt($ch, CURLOPT_ENCODING, '');
+    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 15);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 60);
+    curl_setopt($ch, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V4);
     $html = curl_exec($ch);
 
     if (!$html) {
