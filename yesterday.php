@@ -322,9 +322,10 @@ foreach ($matches as $m) {
                                                 <div class="team home"><?php echo team_logo_html($m['team_home'], 50, $m['team_home_logo'] ?? null); ?> <?php echo htmlspecialchars($m['team_home']); ?></div>
                                                 <?php if ($m['score_home'] !== null && $m['score_away'] !== null): ?>
                                                     <div class="score-box"><?php echo (int)$m['score_home'] . ' - ' . (int)$m['score_away']; ?></div>
-                                                <?php else: ?>
-                                                    <div class="score-box time"><span style="margin-left:4px; opacity:0.8;">🕒</span><?php echo format_time_ar($m['match_time']); ?></div>
                                                 <?php endif; ?>
+                                                <?php if ($m['score_home'] !== null && $m['score_away'] !== null): ?>
+    <div style="text-align:center; color:#000; font-size:0.95em; margin-top:2px;">انتهت</div>
+<?php endif; ?>
                                                 <div class="team away"><?php echo htmlspecialchars($m['team_away']); ?> <?php echo team_logo_html($m['team_away'], 50, $m['team_away_logo'] ?? null); ?></div>
                                             </div>
                                             
