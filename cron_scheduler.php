@@ -180,7 +180,7 @@ function perform_scrape($pdo, $dateStr, $settings) {
             }
 
             // البحث عن المباراة في قاعدة البيانات للحصول على ID والنتيجة الحالية
-            $stmt_find = $pdo->prepare("SELECT id, score_home, score_away FROM matches WHERE match_date = ? AND team_home = ? AND team_away = ?");
+            $stmt_find = $pdo->prepare("SELECT id, score_home, score_away, match_time FROM matches WHERE match_date = ? AND team_home = ? AND team_away = ?");
             $stmt_find->execute([$dateStr, $teamHome, $teamAway]);
             $db_match = $stmt_find->fetch(PDO::FETCH_ASSOC);
 
@@ -199,8 +199,20 @@ function perform_scrape($pdo, $dateStr, $settings) {
                     // لا نرسل إشعار "هدف" إذا كانت النتيجة 0-0 وكانت سابقاً غير موجودة (بداية المباراة)
                     // لأن إشعار البداية يكفي، أو سيتم إرساله في الدورة القادمة
                     $is_start_0_0 = ($db_match['score_home'] === null && $scoreHome === 0 && $scoreAway === 0);
+                    
+                    // التحقق من أن المباراة جارية حالياً (اليوم + ضمن وقت اللعب)
+                    // نتأكد أن التاريخ هو اليوم، وأن الوقت لم يتجاوز 3 ساعات (180 دقيقة) من البداية لضمان أنها مباشرة
+                    $is_live_now = false;
+                    if ($dateStr === date('Y-m-d') && !empty($db_match['match_time'])) {
+                        $clean_time = str_replace(['ص', 'م'], ['AM', 'PM'], $db_match['match_time']);
+                        $match_ts = strtotime("$dateStr $clean_time");
+                        // نعتبر المباراة مباشرة إذا مر عليها أقل من 180 دقيقة (لشمل الوقت الإضافي)
+                        if ($match_ts && time() <= ($match_ts + 180 * 60)) {
+                            $is_live_now = true;
+                        }
+                    }
 
-                    if (!$is_start_0_0) {
+                    if (!$is_start_0_0 && $is_live_now) {
                         $match_url = rtrim($settings['site_url'], '/') . '/view_match.php?id=' . $db_match['id'];
                         $msg = "⚽ <b>تحديث مباشر (هدف!)</b>\n\n";
                         $msg .= "$teamHome <b>$scoreHome</b> - <b>$scoreAway</b> $teamAway\n";
