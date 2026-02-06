@@ -54,10 +54,18 @@ if (php_sapi_name() !== 'cli') flush(); // إرسال المخرجات فورا�
 $ch = curl_init();
 curl_setopt($ch, CURLOPT_URL, $url);
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36');
+curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36');
 curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
 curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
 curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0); // تعطيل التحقق من المضيف لتجنب مشاكل SSL
+curl_setopt($ch, CURLOPT_HTTPHEADER, [
+    'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+    'Accept-Language: ar,en-US;q=0.9,en;q=0.8',
+    'Cache-Control: max-age=0',
+    'Connection: keep-alive',
+    'Upgrade-Insecure-Requests: 1'
+]);
+curl_setopt($ch, CURLOPT_ENCODING, ''); // فك ضغط الاستجابة (GZIP) - ضروري جداً للاستضافة
 curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 15); // مهلة الاتصال 15 ثانية
 curl_setopt($ch, CURLOPT_TIMEOUT, 60);        // مهلة القراءة 60 ثانية
 curl_setopt($ch, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V4); // **الإصلاح الأهم: إجبار استخدام IPv4**
