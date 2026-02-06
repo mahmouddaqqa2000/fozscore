@@ -553,12 +553,14 @@ function get_match_details($url) {
     if (file_exists($nodeScript)) {
         // استدعاء Node.js
         // محاولة استخدام المسار العام أو المسار المحدد
-        // على Hostinger قد يكون المسار مختلفاً، يمكنك تغييره هنا
-        $nodePath = trim(shell_exec('which node'));
-        if (empty($nodePath)) $nodePath = 'node'; // Fallback
+        // !! هام جداً للاستضافة !!
+        // المسار الصحيح لـ Node.js على Hostinger غالباً ما يكون محدداً.
+        // يمكنك معرفة المسار الدقيق عبر SSH باستخدام أمر `which node`
+        // ثم ضع المسار الكامل هنا. مثال: '/usr/bin/node'
+        $nodePath = '/usr/bin/node'; // <--- قم بتغيير هذا إذا كان المسار مختلفاً
         
-        $cmd = $nodePath . " " . escapeshellarg($nodeScript) . " " . escapeshellarg($url);
-        $output = shell_exec($cmd);
+        $cmd = $nodePath . " " . escapeshellarg($nodeScript) . " " . escapeshellarg($url) . " 2>&1";
+        $output = shell_exec($cmd); // إضافة 2>&1 لالتقاط الأخطاء
 
         // محاولة فك تشفير JSON
         $jsonResult = json_decode($output, true);

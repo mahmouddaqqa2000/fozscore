@@ -141,26 +141,6 @@ foreach ($dates as $dateStr) {
                 echo "</div>\n";
             }
 
-            $matchTime = $matchTimeStr;
-            $scoreHome = null;
-            $scoreAway = null;
-            
-            // تنظيف وتحليل النتيجة
-            $scoreStr = trim(preg_replace('/[^\d\-\–\—]/u', ' ', $scoreStr)); // إبقاء الأرقام والشرطات فقط
-            if (!empty($scoreStr)) {
-                // محاولة 1: البحث عن نمط "رقم - رقم"
-                if (preg_match('/(\d+)\s*[-–—]\s*(\d+)/u', $scoreStr, $matches)) {
-                    $scoreHome = (int)$matches[1];
-                    $scoreAway = (int)$matches[2];
-                } elseif (preg_match_all('/\d+/', $scoreStr, $matches)) {
-                    // محاولة 2: البحث عن أي رقمين (احتياطي)
-                    if (count($matches[0]) >= 2) {
-                        $scoreHome = (int)$matches[0][0];
-                        $scoreAway = (int)$matches[0][1];
-                    }
-                }
-            }
-
             // تحويل التاريخ لصيغة قاعدة البيانات Y-m-d
             $matchDateDB = date('Y-m-d', strtotime($dateStr));
 
@@ -168,6 +148,8 @@ foreach ($dates as $dateStr) {
             $stmt = $pdo->prepare("SELECT id, lineup_home FROM matches WHERE match_date = ? AND team_home = ? AND team_away = ?");
             $stmt->execute([$matchDateDB, $teamHome, $teamAway]);
             $existing = $stmt->fetch();
+
+            $matchTime = $matchTimeStr; // Use the extracted time
 
             // جلب التشكيلة إذا كانت مفقودة
             $lineupHome = null;
@@ -183,6 +165,7 @@ foreach ($dates as $dateStr) {
             $shouldFetchLineup = $fullMatchUrl && (!$existing || empty($existing['match_events']));
             
             if ($shouldFetchLineup) {
+                echo " <span style='color:orange;font-size:0.8em;'>[محاولة سحب التفاصيل...]</span>";
                 $details = get_match_details($fullMatchUrl);
                 $lineupHome = $details['home'];
                  $lineupAway = $details['away'];
