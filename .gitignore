@@ -1,0 +1,7 @@
+# تجاهل قاعدة البيانات (لأن السيرفر يحتوي على البيانات الحية)
+matches.sqlite
+
+# تجاهل ملفات النظام والمكتبات الكبيرة
+.DS_Store
+node_modules/
+puppeteer_errors.log
