@@ -13,6 +13,9 @@ if (empty($url)) {
     die('<div class="card">يرجى إدخال رابط المباراة.<br><a href="bot_dashboard.php">العودة</a></div>');
 }
 
+// تعطيل الميزة لأنها تتطلب Node.js
+die('<div class="card" style="color:red; text-align:center;">❌<br>تم تعطيل ميزة السحب الذكي لأنها تتطلب Node.js وهو غير مدعوم على خطة الاستضافة الحالية.</div><br><div style="text-align:center;"><a href="bot_dashboard.php" style="padding:10px;background:#2563eb;color:white;text-decoration:none;border-radius:5px;">العودة للوحة التحكم</a></div>');
+
 echo "<div class='card'>";
 echo "<h3>🤖 جاري التحليل الذكي عبر Gemini AI...</h3>";
 echo "<p>الرابط: <a href='$url' target='_blank'>$url</a></p>";

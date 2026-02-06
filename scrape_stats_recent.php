@@ -100,6 +100,11 @@ echo '<br><a href="bot_dashboard.php" style="padding:10px; background:#2563eb; c
 
 // دالة مساعدة لجلب تفاصيل المباراة
 function get_match_details($url, $mode = 'full') {
+    // =================================================================
+    // تم تعطيل هذه الميزة لأنها تتطلب Node.js وهو غير مدعوم على خطة الاستضافة الحالية
+    // =================================================================
+    return ['home' => null, 'away' => null, 'coach_home' => null, 'coach_away' => null, 'stats' => null, 'events' => null];
+
     $nodeScript = __DIR__ . '/scraper_lineup.js';
     $html = null;
     $extracted_events = [];

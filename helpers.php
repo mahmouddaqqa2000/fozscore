@@ -550,33 +550,13 @@ function get_match_details($url) {
     $html = null;
     $matchEventsStr = null;
 
-    if (file_exists($nodeScript)) {
-        // استدعاء Node.js
-        // محاولة استخدام المسار العام أو المسار المحدد
-        // !! هام جداً للاستضافة !!
-        // المسار الصحيح لـ Node.js على Hostinger غالباً ما يكون محدداً.
-        // يمكنك معرفة المسار الدقيق عبر SSH باستخدام أمر `which node`
-        // ثم ضع المسار الكامل هنا. مثال: '/usr/bin/node'
-        $nodePath = '/usr/bin/node'; // <--- قم بتغيير هذا إذا كان المسار مختلفاً
-        
-        $cmd = $nodePath . " " . escapeshellarg($nodeScript) . " " . escapeshellarg($url) . " 2>&1";
-        $output = shell_exec($cmd); // إضافة 2>&1 لالتقاط الأخطاء
-
-        // محاولة فك تشفير JSON
-        $jsonResult = json_decode($output, true);
-        if (json_last_error() === JSON_ERROR_NONE && isset($jsonResult['html'])) {
-            $html = $jsonResult['html'];
-            if (isset($jsonResult['extracted_events']) && is_array($jsonResult['extracted_events'])) {
-                $matchEventsStr = implode("\n", $jsonResult['extracted_events']);
-            }
-        } else {
-            $html = $output;
-        }
-    }
-
-    if (!$html || strlen($html) < 100) {
-        return ['home' => null, 'away' => null, 'coach_home' => null, 'coach_away' => null, 'stats' => null, 'match_events' => null, 'stream_url' => null, 'html_preview' => 'فشل Puppeteer في جلب الصفحة. تأكد من تثبيت Node.js و puppeteer.'];
-    }
+    // =================================================================
+    // تم تعطيل هذه الميزة لأنها تتطلب Node.js وهو غير مدعوم على خطة الاستضافة الحالية
+    // سيعيد هذا التعديل قيمة فارغة دائماً لمنع تعليق السكربت
+    // =================================================================
+    $error_message = 'تم تعطيل سحب التفاصيل (التشكيلة/الإحصائيات) لأنها تتطلب Node.js وهو غير مدعوم على خطة الاستضافة الحالية.';
+    return ['home' => null, 'away' => null, 'coach_home' => null, 'coach_away' => null, 'stats' => null, 'match_events' => null, 'stream_url' => null, 'html_preview' => $error_message];
+    
 
     $dom = new DOMDocument();
     libxml_use_internal_errors(true);
@@ -661,6 +641,11 @@ function get_match_details($url) {
  * دالة لاستخراج كود البث (iframe) من رابط معين
  */
 function get_stream_iframe($url) {
+    // =================================================================
+    // تم تعطيل هذه الميزة لأنها تتطلب Node.js وهو غير مدعوم على خطة الاستضافة الحالية
+    // =================================================================
+    return ['success' => false, 'message' => 'تم تعطيل سحب البث لأنه يتطلب Node.js وهو غير مدعوم على خطة الاستضافة الحالية.'];
+
     $nodeScript = __DIR__ . '/scraper_lineup.js';
     $html = null;
 

@@ -69,6 +69,12 @@ foreach ($matches as $match) {
 
 // دالة السحب (مقتبسة من scrape_single_match.php)
 function get_match_details_cron($url) {
+    // =================================================================
+    // تم تعطيل هذه الميزة لأنها تتطلب Node.js وهو غير مدعوم على خطة الاستضافة الحالية
+    // سيعيد هذا التعديل قيمة فارغة دائماً لمنع تعليق السكربت
+    // =================================================================
+    return ['home' => null, 'away' => null, 'coach_home' => null, 'coach_away' => null, 'stats' => null, 'match_events' => null];
+
     $nodeScript = __DIR__ . '/scraper_lineup.js';
     $html = null;
     $matchEventsStr = null;
