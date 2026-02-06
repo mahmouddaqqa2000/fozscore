@@ -49,6 +49,7 @@ if ($mode === 'yesterday') {
 $url = "https://www.yallakora.com/match-center/?date=$date";
 
 echo "جاري الاتصال بـ YallaKora ($date)...\n";
+if (php_sapi_name() !== 'cli') flush(); // إرسال المخرجات فوراً للمتصفح
 
 $ch = curl_init();
 curl_setopt($ch, CURLOPT_URL, $url);
@@ -56,8 +57,10 @@ curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
 curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36');
 curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
 curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0); // تعطيل التحقق من المضيف لتجنب مشاكل SSL
 curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 15); // مهلة الاتصال 15 ثانية
 curl_setopt($ch, CURLOPT_TIMEOUT, 60);        // مهلة القراءة 60 ثانية
+curl_setopt($ch, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V4); // **الإصلاح الأهم: إجبار استخدام IPv4**
 $html = curl_exec($ch);
 $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 // curl_close($ch); // Removed to avoid deprecated warning
