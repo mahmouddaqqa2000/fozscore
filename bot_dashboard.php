@@ -5,6 +5,9 @@ if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
     header('Location: login.php');
     exit;
 }
+
+// جلب اتصال قاعدة البيانات
+require_once __DIR__ . '/db.php';
 ?>
 <!doctype html>
 <html lang="ar" dir="rtl">
@@ -243,7 +246,7 @@ if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
                         <select name="match_id" class="form-input" style="background:white;">
                             <option value="">-- اختر المباراة لربط البث (اختياري) --</option>
                             <?php
-                            $stmt = $pdo->query("SELECT id, team_home, team_away FROM matches WHERE match_date >= CURDATE() - INTERVAL 1 DAY ORDER BY match_date DESC, match_time ASC");
+                            $stmt = $pdo->query("SELECT id, team_home, team_away FROM matches WHERE match_date >= DATE('now', '-1 day') ORDER BY match_date DESC, match_time ASC");
                             while ($m = $stmt->fetch()) {
                                 echo "<option value='{$m['id']}'>{$m['team_home']} vs {$m['team_away']}</option>";
                             }

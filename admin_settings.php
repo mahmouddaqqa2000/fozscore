@@ -1,97 +1,99 @@
 <?php
-require_once __DIR__ . '/db.php';
-require_once __DIR__ . '/helpers.php';
+require_once __DIR__ . '/auth_check.php'; // حماية الصفحة بكلمة مرور
 
-$message = '';
+$configFile = __DIR__ . '/config.php';
+$config = require $configFile;
+$success_message = '';
+$error_message = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // تحديث اسم الموقع
-    if (isset($_POST['site_name'])) {
-        $site_name = trim($_POST['site_name']);
-        $stmt = $pdo->prepare("INSERT OR REPLACE INTO settings (key_name, value) VALUES ('site_name', ?)");
-        $stmt->execute([$site_name]);
-        $message = "تم حفظ الإعدادات بنجاح.";
-    }
+    $current_password = $_POST['current_password'] ?? '';
+    $new_username = trim($_POST['new_username'] ?? '');
+    $new_password = $_POST['new_password'] ?? '';
+    $confirm_password = $_POST['confirm_password'] ?? '';
 
-    // رفع الشعار
-    if (isset($_FILES['favicon']) && $_FILES['favicon']['error'] === UPLOAD_ERR_OK) {
-        $allowed = ['ico', 'png', 'jpg', 'jpeg', 'svg'];
-        $filename = $_FILES['favicon']['name'];
-        $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
-        
-        if (in_array($ext, $allowed)) {
-            $uploadDir = __DIR__ . '/assets/';
-            if (!is_dir($uploadDir)) mkdir($uploadDir, 0755, true);
-            
-            $newFilename = 'favicon_' . time() . '.' . $ext;
-            $targetPath = $uploadDir . $newFilename;
-            
-            if (move_uploaded_file($_FILES['favicon']['tmp_name'], $targetPath)) {
-                $faviconUrl = 'assets/' . $newFilename;
-                $stmt = $pdo->prepare("INSERT OR REPLACE INTO settings (key_name, value) VALUES ('favicon', ?)");
-                $stmt->execute([$faviconUrl]);
-                $message = "تم رفع الشعار وحفظ الإعدادات بنجاح.";
-            } else {
-                $message = "حدث خطأ أثناء رفع الملف.";
-            }
+    // التحقق من كلمة المرور الحالية
+    if ($current_password !== $config['admin_pass']) {
+        $error_message = 'كلمة المرور الحالية غير صحيحة.';
+    } elseif (empty($new_username) || empty($new_password)) {
+        $error_message = 'يجب ملء اسم المستخدم وكلمة المرور الجديدة.';
+    } elseif ($new_password !== $confirm_password) {
+        $error_message = 'كلمتا المرور الجديدتان غير متطابقتين.';
+    } else {
+        // بناء محتوى ملف الإعدادات الجديد
+        $new_config_content = "<?php\n";
+        $new_config_content .= "// config.php - إعدادات لوحة التحكم\n";
+        $new_config_content .= "return [\n";
+        $new_config_content .= "    'admin_user' => '" . addslashes($new_username) . "',\n";
+        $new_config_content .= "    'admin_pass' => '" . addslashes($new_password) . "'\n";
+        $new_config_content .= "];\n";
+
+        // كتابة الملف
+        if (is_writable($configFile) && file_put_contents($configFile, $new_config_content) !== false) {
+            $success_message = 'تم تحديث اسم المستخدم وكلمة المرور بنجاح. سيتم تسجيل خروجك الآن لتسجيل الدخول بالبيانات الجديدة.';
+            // تسجيل الخروج بعد 3 ثوانٍ
+            header('Refresh: 3; url=logout.php');
         } else {
-            $message = "صيغة الملف غير مدعومة. يرجى رفع صورة (ico, png, jpg, svg).";
+            $error_message = 'فشل تحديث ملف الإعدادات. تأكد من أن السيرفر لديه صلاحيات الكتابة على الملف (config.php).';
         }
     }
 }
-
-$settings = get_site_settings($pdo);
 ?>
 <!doctype html>
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>إعدادات الموقع</title>
+    <title>إعدادات الحساب - لوحة التحكم</title>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Tajawal', sans-serif; background: #f8fafc; padding: 20px; }
-        .container { max-width: 600px; margin: 0 auto; background: #fff; padding: 30px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
-        h1 { margin-top: 0; color: #1e293b; }
-        .form-group { margin-bottom: 20px; }
-        label { display: block; margin-bottom: 8px; font-weight: bold; color: #334155; }
-        input[type="text"] { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-family: inherit; box-sizing: border-box; }
-        .btn { background: #2563eb; color: #fff; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-family: inherit; font-weight: bold; }
-        .btn:hover { background: #1d4ed8; }
-        .alert { padding: 15px; background: #dcfce7; color: #166534; border-radius: 6px; margin-bottom: 20px; }
-        .current-favicon { margin-top: 10px; }
-        .current-favicon img { max-width: 64px; border: 1px solid #e2e8f0; padding: 4px; border-radius: 4px; }
-        .back-link { display: inline-block; margin-bottom: 20px; color: #64748b; text-decoration: none; }
+        body { font-family: 'Tajawal', sans-serif; background-color: #f8fafc; margin: 0; }
+        .container { max-width: 800px; margin: 2rem auto; padding: 2rem; background: #fff; border-radius: 16px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+        h2 { color: #1e293b; margin-top: 0; margin-bottom: 1.5rem; }
+        .message { padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; }
+        .success { background: #dcfce7; color: #166534; }
+        .error { background: #fee2e2; color: #991b1b; }
+        form { display: flex; flex-direction: column; gap: 1.5rem; }
+        label { font-weight: 600; color: #475569; }
+        input { padding: 12px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 1rem; width: 95%; }
+        button { background: #2563eb; color: #fff; padding: 12px 20px; border: none; border-radius: 8px; font-weight: 700; font-size: 1rem; cursor: pointer; transition: background 0.2s; align-self: flex-start; }
+        .back-link { display: inline-block; margin-top: 1rem; color: #2563eb; text-decoration: none; font-weight: 600; }
     </style>
 </head>
 <body>
+    <?php include_once __DIR__ . '/admin_header.php'; ?>
     <div class="container">
-        <a href="bot_dashboard.php" class="back-link">← العودة للوحة التحكم</a>
-        <h1>إعدادات الموقع</h1>
-        
-        <?php if ($message): ?>
-            <div class="alert"><?php echo htmlspecialchars($message); ?></div>
+        <h2>تغيير اسم المستخدم وكلمة المرور</h2>
+        <?php if ($success_message): ?>
+            <div class="message success"><?php echo $success_message; ?></div>
         <?php endif; ?>
-        
-        <form method="post" enctype="multipart/form-data">
-            <div class="form-group">
-                <label for="site_name">اسم الموقع (يظهر في تبويب المتصفح)</label>
-                <input type="text" id="site_name" name="site_name" value="<?php echo htmlspecialchars($settings['site_name']); ?>" required>
+        <?php if ($error_message): ?>
+            <div class="message error"><?php echo $error_message; ?></div>
+        <?php endif; ?>
+
+        <?php if (empty($success_message)): ?>
+        <form method="POST" action="admin_settings.php">
+            <div>
+                <label for="current_password">كلمة المرور الحالية</label>
+                <input type="password" id="current_password" name="current_password" required>
             </div>
-            
-            <div class="form-group">
-                <label for="favicon">شعار الموقع (Favicon)</label>
-                <input type="file" id="favicon" name="favicon" accept=".ico,.png,.jpg,.jpeg,.svg">
-                <?php if (!empty($settings['favicon'])): ?>
-                    <div class="current-favicon">
-                        <p style="margin: 5px 0; font-size: 0.9rem; color: #64748b;">الشعار الحالي:</p>
-                        <img src="<?php echo htmlspecialchars($settings['favicon']); ?>" alt="Favicon">
-                    </div>
-                <?php endif; ?>
+            <hr style="border:none; border-top:1px solid #e2e8f0;">
+            <div>
+                <label for="new_username">اسم المستخدم الجديد</label>
+                <input type="text" id="new_username" name="new_username" value="<?php echo htmlspecialchars($config['admin_user']); ?>" required>
             </div>
-            
-            <button type="submit" class="btn">حفظ التغييرات</button>
+            <div>
+                <label for="new_password">كلمة المرور الجديدة</label>
+                <input type="password" id="new_password" name="new_password" required>
+            </div>
+            <div>
+                <label for="confirm_password">تأكيد كلمة المرور الجديدة</label>
+                <input type="password" id="confirm_password" name="confirm_password" required>
+            </div>
+            <button type="submit">تحديث البيانات</button>
         </form>
+        <?php endif; ?>
+        <a href="bot_dashboard.php" class="back-link">&larr; العودة إلى لوحة التحكم</a>
     </div>
 </body>
 </html>

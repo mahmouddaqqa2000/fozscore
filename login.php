@@ -1,25 +1,22 @@
 <?php
 session_start();
+$config = require __DIR__ . '/config.php';
 
-// إذا كان المستخدم مسجلاً دخوله بالفعل، يتم توجيهه إلى لوحة التحكم
+// إذا كان المستخدم مسجلاً دخوله بالفعل، يتم توجيهه للوحة التحكم
 if (isset($_SESSION['loggedin']) && $_SESSION['loggedin'] === true) {
-    header('Location: dashboard.php');
+    header('Location: bot_dashboard.php');
     exit;
 }
-
-// بيانات الدخول (للتجربة)
-define('USERNAME', 'admin');
-define('PASSWORD', 'password123');
 
 $error = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $username = $_POST['username'] ?? '';
     $password = $_POST['password'] ?? '';
 
-    if ($username === USERNAME && $password === PASSWORD) {
+    if ($username === $config['admin_user'] && $password === $config['admin_pass']) {
         $_SESSION['loggedin'] = true;
         $_SESSION['username'] = $username;
-        header('Location: dashboard.php');
+        header('Location: bot_dashboard.php');
         exit;
     } else {
         $error = 'اسم المستخدم أو كلمة المرور غير صحيحة.';
@@ -31,86 +28,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>تسجيل الدخول - FozScore</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <title>تسجيل الدخول - لوحة التحكم</title>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
-        :root { --primary: #101820; --secondary: #0056b3; --bg: #f0f2f5; --card: #ffffff; --text: #333; }
-        body {
-            font-family: 'Tajawal', sans-serif;
-            background-color: var(--bg);
-            color: var(--text);
-            margin: 0;
-            padding: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-        }
-        .login-container {
-            background: var(--card);
-            padding: 2rem 3rem;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-            width: 100%;
-            max-width: 400px;
-            text-align: center;
-        }
-        .login-container h1 {
-            margin-top: 0;
-            margin-bottom: 1.5rem;
-            font-size: 1.8rem;
-            color: var(--primary);
-        }
-        .form-group {
-            margin-bottom: 1.5rem;
-            text-align: right;
-        }
-        .form-group label {
-            display: block;
-            margin-bottom: 0.5rem;
-            font-weight: 500;
-        }
-        .form-group input {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            box-sizing: border-box;
-        }
-        .btn-login {
-            width: 100%;
-            padding: 12px;
-            background-color: var(--secondary);
-            color: white;
-            border: none;
-            border-radius: 5px;
-            font-size: 1.1rem;
-            font-weight: bold;
-            cursor: pointer;
-            transition: background-color 0.2s;
-        }
-        .btn-login:hover { background-color: #004494; }
-        .error-message { background: #ffe6e6; color: #dc3545; border: 1px solid #ffb3b3; padding: 10px; margin-bottom: 1rem; border-radius: 5px; }
+        body { font-family: 'Tajawal', sans-serif; background-color: #f8fafc; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
+        .login-container { background: #fff; padding: 2.5rem; border-radius: 16px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1); width: 100%; max-width: 400px; text-align: center; }
+        h2 { color: #1e293b; margin-top: 0; margin-bottom: 1.5rem; }
+        .error { background: #fee2e2; color: #b91c1c; padding: 10px; border-radius: 8px; margin-bottom: 1rem; }
+        form { display: flex; flex-direction: column; gap: 1rem; }
+        label { text-align: right; font-weight: 600; color: #475569; }
+        input { padding: 12px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 1rem; }
+        input:focus { outline: none; border-color: #2563eb; box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2); }
+        button { background: #2563eb; color: #fff; padding: 12px; border: none; border-radius: 8px; font-weight: 700; font-size: 1rem; cursor: pointer; transition: background 0.2s; }
+        button:hover { background: #1d4ed8; }
     </style>
 </head>
 <body>
     <div class="login-container">
-        <h1>لوحة التحكم</h1>
+        <h2>لوحة تحكم FozScore</h2>
         <?php if ($error): ?>
-            <div class="error-message"><?php echo $error; ?></div>
+            <div class="error"><?php echo $error; ?></div>
         <?php endif; ?>
-        <form method="post">
-            <div class="form-group">
+        <form method="POST" action="login.php">
+            <div>
                 <label for="username">اسم المستخدم</label>
-                <input type="text" id="username" name="username" required>
+                <input type="text" id="username" name="username" required style="width: 95%;">
             </div>
-            <div class="form-group">
+            <div>
                 <label for="password">كلمة المرور</label>
-                <input type="password" id="password" name="password" required>
+                <input type="password" id="password" name="password" required style="width: 95%;">
             </div>
-            <button type="submit" class="btn-login">تسجيل الدخول</button>
+            <button type="submit">تسجيل الدخول</button>
         </form>
     </div>
 </body>
