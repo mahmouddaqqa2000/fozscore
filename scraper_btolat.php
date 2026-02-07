@@ -45,8 +45,8 @@ $count_updated = 0;
 
 // تحضير الاستعلامات
 $stmtCheck = $pdo->prepare("SELECT id FROM matches WHERE team_home = ? AND team_away = ? AND match_date = ?");
-$stmtInsert = $pdo->prepare("INSERT INTO matches (match_date, match_time, team_home, team_away, score_home, score_away, championship) VALUES (?, ?, ?, ?, ?, ?, ?)");
-$stmtUpdate = $pdo->prepare("UPDATE matches SET score_home = ?, score_away = ?, match_time = ?, championship = ? WHERE id = ?");
+$stmtInsert = $pdo->prepare("INSERT INTO matches (match_date, match_time, team_home, team_away, score_home, score_away, championship, team_home_logo, team_away_logo, championship_logo) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+$stmtUpdate = $pdo->prepare("UPDATE matches SET score_home = ?, score_away = ?, match_time = ?, championship = ?, team_home_logo = ?, team_away_logo = ?, championship_logo = ? WHERE id = ?");
 
 $first_failed_html = null;
 
@@ -67,16 +67,33 @@ foreach ($match_cards as $card) {
         if ($node) { $team_away = trim($node->textContent); break; }
     }
 
+    // استخراج الشعارات
+    $team_home_logo = null;
+    $home_img_node = $xpath->query(".//*[contains(@class, 'team1')]//img", $card)->item(0);
+    if ($home_img_node) {
+        $team_home_logo = $home_img_node->getAttribute('data-original') ?: $home_img_node->getAttribute('src');
+    }
+
+    $team_away_logo = null;
+    $away_img_node = $xpath->query(".//*[contains(@class, 'team2')]//img", $card)->item(0);
+    if ($away_img_node) {
+        $team_away_logo = $away_img_node->getAttribute('data-original') ?: $away_img_node->getAttribute('src');
+    }
+
     $time_node = $xpath->query(".//div[contains(@class, 'time')] | .//span[contains(@class, 'matchDate')] | .//div[contains(@class, 'date')]", $card)->item(0);
     $match_time = $time_node ? trim($time_node->textContent) : '';
 
     $championship = "مباريات اليوم"; // افتراضي
+    $championship_logo = null;
     // محاولة العثور على اسم البطولة من العنوان السابق للكارت
     $prev = $card->parentNode->previousSibling;
     while ($prev && $prev->nodeType !== XML_ELEMENT_NODE) { $prev = $prev->previousSibling; }
     if ($prev) {
         $champNode = $xpath->query(".//h2 | .//div[contains(@class, 'legTitle')] | .//div[contains(@class, 'title')]", $prev)->item(0);
         if ($champNode) $championship = trim($champNode->textContent);
+        
+        $champLogoNode = $xpath->query(".//img", $prev)->item(0);
+        if ($champLogoNode) $championship_logo = $champLogoNode->getAttribute('src');
     }
 
     if ($team_home && $team_away) {
@@ -113,10 +130,10 @@ foreach ($match_cards as $card) {
         $existing = $stmtCheck->fetch();
 
         if ($existing) {
-            $stmtUpdate->execute([$score_home, $score_away, $match_time, $championship, $existing['id']]);
+            $stmtUpdate->execute([$score_home, $score_away, $match_time, $championship, $team_home_logo, $team_away_logo, $championship_logo, $existing['id']]);
             $count_updated++;
         } else {
-            $stmtInsert->execute([$today, $match_time, $team_home, $team_away, $score_home, $score_away, $championship]);
+            $stmtInsert->execute([$today, $match_time, $team_home, $team_away, $score_home, $score_away, $championship, $team_home_logo, $team_away_logo, $championship_logo]);
             $count_added++;
         }
     } else {
