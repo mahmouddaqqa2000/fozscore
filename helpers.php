@@ -870,8 +870,9 @@ function get_match_details($url) {
     
     // 1. استراتيجية XPath: محاولات متعددة للبحث عن قائمة الأحداث
     $eventQueries = [
+        "//div[@id='events']//ul/li", // الأولوية 1: المعرف المؤكد من التبويبات
+        "//div[@id='minbymin']//ul/li", // الأولوية 2: تبويب دقيقة بدقيقة (قد يحتوي على الأحداث أيضاً)
         "//div[contains(@class, 'eventsTtl')]/following-sibling::ul/li", // الهيكل القياسي
-        "//div[@id='events']//ul/li", // هيكل التبويبات القديم
         "//div[contains(@class, 'matchEvents')]//ul/li", // حاوية الأحداث العامة
         "//div[contains(@class, 'events')]//ul/li", // بحث عام عن كلاس events
         "//div[contains(@class, 'tabContent')][contains(@class, 'events')]//ul/li", // محتوى التبويب الجديد
