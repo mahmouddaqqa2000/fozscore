@@ -81,7 +81,11 @@ foreach ($dates as $date) {
             $total_updated++;
         } else {
             if (empty($details['match_events'])) {
-                echo "<span class='status-skip' style='color:#d97706;'>لا توجد أحداث (أو لم تبدأ)</span>";
+                if (strpos($details['html_preview'], 'Cloudflare') !== false || strpos($details['html_preview'], 'Attention Required') !== false) {
+                    echo "<span class='status-fail'>تم حظر الطلب (Cloudflare) ⛔</span>";
+                } else {
+                    echo "<span class='status-skip' style='color:#d97706;'>لا توجد أحداث (أو لم تبدأ)</span>";
+                }
             } else {
                 echo "<span class='status-skip'>لا تغيير</span>";
             }

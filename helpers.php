@@ -749,6 +749,14 @@ function get_match_details($url) {
     curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
     curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
     curl_setopt($ch, CURLOPT_ENCODING, ''); 
+    // إضافة ترويسات لتقليل احتمالية الحظر أو اختلاف المحتوى على الاستضافة
+    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+        'Accept-Language: ar,en-US;q=0.9,en;q=0.8',
+        'Cache-Control: max-age=0',
+        'Connection: keep-alive',
+        'Upgrade-Insecure-Requests: 1'
+    ]);
     $html = curl_exec($ch);
     
     if (!$html) {
@@ -877,6 +885,36 @@ function get_match_details($url) {
                 if (mb_strlen($cleanText) > 5 && mb_strlen($cleanText) < 100) {
                     // محاولة تخمين النوع من الكلاسات أو النص (اختياري)
                     $events[] = "$min ⚽ $cleanText (مستضيف)"; // افتراضي، سيتم تصحيحه يدوياً أو تحسينه لاحقاً
+                }
+            }
+        }
+    }
+    
+    // 3. استراتيجية البحث النصي الشامل (Nuclear Fallback) - للاستضافات التي قد تستقبل HTML مختلف
+    // إذا فشل كل شيء، نبحث عن أي عنصر يحتوي على توقيت (رقم + ')
+    if (empty($events)) {
+        $dom = new DOMDocument();
+        @$dom->loadHTML('<?xml encoding="UTF-8">' . $html);
+        $xpath = new DOMXPath($dom);
+        
+        // نبحث عن أي عنصر يحتوي على نص يشبه التوقيت (مثل 45' أو 90+2')
+        $timeNodes = $xpath->query("//*[contains(text(), \"'\")]");
+        
+        foreach ($timeNodes as $node) {
+            $text = trim($node->textContent);
+            // التحقق من أن النص هو توقيت فقط (أرقام و ')
+            if (preg_match('/^(\d+(?:\+\d+)?)\'$/', $text)) {
+                $min = $text;
+                // البحث عن الوصف في العناصر المجاورة أو الآباء
+                $parent = $node->parentNode;
+                $fullText = $parent->textContent;
+                $cleanText = trim(str_replace($min, '', $fullText));
+                $cleanText = preg_replace('/\s+/', ' ', $cleanText);
+                
+                // إذا كان النص يحتوي على معلومات مفيدة، نعتبره حدثاً
+                if (mb_strlen($cleanText) > 5 && mb_strlen($cleanText) < 100) {
+                    // محاولة تخمين النوع من الكلاسات أو النص (اختياري)
+                    $events[] = "$min ⚽ $cleanText (مستضيف)"; // افتراضي
                 }
             }
         }
