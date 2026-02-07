@@ -144,7 +144,12 @@ if (isset($update['callback_query'])) {
             $uri = rtrim($uri, '/');
             $photoUrl = "$protocol://$host$uri/instagram.png";
             
-            sendPhoto($token, $chat_id, $photoUrl, $msg, $keyboard);
+            $res = sendPhoto($token, $chat_id, $photoUrl, $msg, $keyboard);
+            $json = json_decode($res, true);
+            // إذا فشل إرسال الصورة (مثلاً الصورة غير موجودة)، نرسل رسالة نصية كبديل
+            if (!$json || !$json['ok']) {
+                sendMessage($token, $chat_id, $msg, $keyboard);
+            }
         } else {
             sendMessage($token, $chat_id, $msg, $keyboard);
         }
@@ -217,7 +222,8 @@ function sendPhoto($token, $chat_id, $photo, $caption, $keyboard = null) {
     curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-    curl_exec($ch);
+    $result = curl_exec($ch);
     curl_close($ch);
+    return $result;
 }
 ?>
