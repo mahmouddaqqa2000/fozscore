@@ -483,6 +483,9 @@ function scrape_yallakora_news($pdo, $dateStr = null) {
         // استبدال "يلا كورة" بـ "كورة فور" في المحتوى
         $content = str_replace('يلا كورة', 'كورة فور', $content);
         
+        // إضافة نص ثابت في نهاية الخبر
+        $content .= "\n\nالمصدر: كورة فور سبورت";
+        
         $summary = $title;
         if (function_exists('ask_gemini_json') && !empty($content)) {
             $prompt = "قم بكتابة ملخص قصير وجذاب (حوالي 30 كلمة) لهذا الخبر الرياضي باللغة العربية، بأسلوب صحفي مشوق ومناسب لمحركات البحث (SEO).";
