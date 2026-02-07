@@ -169,4 +169,14 @@ $pdo->exec("CREATE TABLE IF NOT EXISTS bot_users (
   created_at INTEGER
 )");
 
+// إنشاء جدول سجل المعاملات (الشحن)
+$pdo->exec("CREATE TABLE IF NOT EXISTS bot_transactions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  chat_id INTEGER,
+  username TEXT,
+  amount REAL,
+  stars INTEGER,
+  created_at INTEGER
+)");
+
 ?>

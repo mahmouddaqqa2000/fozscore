@@ -540,6 +540,42 @@ $services_list = $pdo->query("SELECT * FROM bot_services ORDER BY id DESC")->fet
             </form>
         </div>
 
+        <!-- سجل عمليات الشحن -->
+        <div class="card">
+            <h2>📜 سجل عمليات الشحن (النجوم)</h2>
+            <?php
+            $transactions = $pdo->query("SELECT * FROM bot_transactions ORDER BY id DESC LIMIT 20")->fetchAll(PDO::FETCH_ASSOC);
+            if (empty($transactions)): ?>
+                <p style="text-align:center; color:#94a3b8;">لا توجد عمليات شحن مسجلة.</p>
+            <?php else: ?>
+                <div style="overflow-x:auto;">
+                <table style="width:100%; border-collapse:collapse; font-size:0.9rem;">
+                    <thead>
+                        <tr style="background:#f1f5f9; text-align:right;">
+                            <th style="padding:10px;">المستخدم</th>
+                            <th style="padding:10px;">النجوم</th>
+                            <th style="padding:10px;">المبلغ ($)</th>
+                            <th style="padding:10px;">التاريخ</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($transactions as $t): ?>
+                        <tr style="border-bottom:1px solid #e2e8f0;">
+                            <td style="padding:10px;">
+                                <?php echo htmlspecialchars($t['username']); ?>
+                                <br><span style="font-size:0.8em; color:#64748b;"><?php echo $t['chat_id']; ?></span>
+                            </td>
+                            <td style="padding:10px;">⭐️ <?php echo $t['stars']; ?></td>
+                            <td style="padding:10px; color:#16a34a; font-weight:bold;">$<?php echo number_format($t['amount'], 2); ?></td>
+                            <td style="padding:10px; color:#64748b;"><?php echo date('Y-m-d H:i', $t['created_at']); ?></td>
+                        </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+                </div>
+            <?php endif; ?>
+        </div>
+
         <!-- إدارة المتجر -->
         <div class="card">
             <h2>🛒 متجر الخدمات الرقمية</h2>

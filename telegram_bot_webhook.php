@@ -93,16 +93,29 @@ if (isset($update['message'])) {
         
         if (strpos($payload, 'topup_') === 0) {
             $parts = explode('_', $payload);
-            // $stars = $parts[1];
+            $stars = intval($parts[1]);
             $usd_amount = floatval($parts[2]);
             
             // تحديث رصيد المستخدم
-            $stmtUser = $pdo->prepare("SELECT balance FROM bot_users WHERE chat_id = ?");
+            $stmtUser = $pdo->prepare("SELECT balance, username FROM bot_users WHERE chat_id = ?");
             $stmtUser->execute([$chat_id]);
-            $current = $stmtUser->fetchColumn();
+            $userRow = $stmtUser->fetch(PDO::FETCH_ASSOC);
+            $current = $userRow['balance'] ?? 0;
+            $username = $userRow['username'] ?? 'Unknown';
+            
             $new_balance = $current + $usd_amount;
             
             $pdo->prepare("UPDATE bot_users SET balance = ? WHERE chat_id = ?")->execute([$new_balance, $chat_id]);
+            
+            // تسجيل المعاملة
+            $pdo->prepare("INSERT INTO bot_transactions (chat_id, username, amount, stars, created_at) VALUES (?, ?, ?, ?, ?)")->execute([$chat_id, $username, $usd_amount, $stars, time()]);
+            
+            // إشعار الإدارة (باستخدام Chat ID المحفوظ في الإعدادات)
+            $admin_chat_id = $settings['chat_id'] ?? '';
+            if ($admin_chat_id) {
+                $adminMsg = "🔔 **عملية شحن جديدة!**\n\n👤 المستخدم: " . htmlspecialchars($username) . " (`$chat_id`)\n⭐️ النجوم: $stars\n💰 المبلغ: $" . number_format($usd_amount, 2) . "\n⏰ الوقت: " . date('Y-m-d H:i:s');
+                sendMessage($token, $admin_chat_id, $adminMsg);
+            }
             
             $msg = "✅ **تم شحن الرصيد بنجاح!**\n\n";
             $msg .= "💰 المبلغ المضاف: $" . number_format($usd_amount, 2) . "\n";
