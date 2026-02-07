@@ -494,16 +494,10 @@ function scrape_yallakora_news($pdo, $dateStr = null) {
         if (!empty($settings['telegram_bot_token']) && !empty($settings['telegram_chat_id'])) {
             $newsId = $pdo->lastInsertId();
             $newsLink = rtrim($settings['site_url'], '/') . "/view_news.php?id=$newsId";
-            
-            $caption = "📰 <b>خبر جديد</b>\n\n";
-            $caption .= "<b>{$title}</b>\n\n";
-            $caption .= "<a href=\"{$newsLink}\">اقرأ التفاصيل كاملة</a>";
-
-            if (!empty($imgUrl)) {
-                send_telegram_photo($pdo, $imgUrl, $caption);
-            } else {
-                send_telegram_msg($pdo, $caption);
-            }
+            $msg = "📰 <b>خبر جديد</b>\n\n";
+            $msg .= "<b>{$title}</b>\n\n";
+            $msg .= "<a href=\"{$newsLink}\">اقرأ التفاصيل كاملة</a>";
+            send_telegram_msg($pdo, $msg);
         }
         // -----------------------------------------
 
@@ -609,39 +603,6 @@ function send_telegram_msg($pdo, $message) {
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
     curl_setopt($ch, CURLOPT_TIMEOUT, 5);
-    $result = curl_exec($ch);
-    // curl_close($ch);
-
-    return $result;
-}
-
-/**
- * إرسال صورة مع تعليق عبر تيليجرام
- */
-function send_telegram_photo($pdo, $photo, $caption) {
-    $settings = get_site_settings($pdo);
-    $token = $settings['telegram_bot_token'];
-    $chatId = $settings['telegram_chat_id'];
-
-    if (empty($token) || empty($chatId)) {
-        return false;
-    }
-
-    $url = "https://api.telegram.org/bot$token/sendPhoto";
-    $data = [
-        'chat_id' => $chatId,
-        'photo' => $photo,
-        'caption' => $caption,
-        'parse_mode' => 'HTML'
-    ];
-
-    $ch = curl_init();
-    curl_setopt($ch, CURLOPT_URL, $url);
-    curl_setopt($ch, CURLOPT_POST, 1);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-    curl_setopt($ch, CURLOPT_TIMEOUT, 10);
     $result = curl_exec($ch);
     // curl_close($ch);
 
