@@ -1285,13 +1285,13 @@ function generate_match_seo_data($match) {
     $formatted_time = format_time_ar($time);
 
     // 1. عنوان الصفحة (Title)
-    $title = "مباراة $home ضد $away اليوم - $league | FozScore";
+    $title = "مباراة $home ضد $away اليوم - $league | كورة فور سبورت";
 
     // 2. وصف الميتا (Meta Description)
-    $description = "تابع نتيجة ومجريات مباراة $home و$away في $league. موعد المباراة $date الساعة $formatted_time. تغطية حصرية، تشكيلة الفريقين، والقنوات الناقلة على FozScore.";
+    $description = "تابع نتيجة ومجريات مباراة $home و$away في $league. موعد المباراة $date الساعة $formatted_time. تغطية حصرية، تشكيلة الفريقين، والقنوات الناقلة على كورة فور سبورت.";
 
     // 3. الكلمات المفتاحية (Keywords)
-    $keywords = "مباراة $home و$away, $league, بث مباشر $home, نتيجة مباراة $away, أهداف $home ضد $away, موعد مباراة $home, تشكيلة $home, FozScore";
+    $keywords = "مباراة $home و$away, $league, بث مباشر $home, نتيجة مباراة $away, أهداف $home ضد $away, موعد مباراة $home, تشكيلة $home, كورة فور سبورت";
 
     // 4. محتوى المقال (Article Body) - نص غني للعرض في الصفحة
     $content = "
@@ -1301,11 +1301,15 @@ function generate_match_seo_data($match) {
     وذلك ضمن منافسات <strong>$league</strong> لموسم " . date('Y') . ".
     </p>
     <p>
-    من المقرر أن تنطلق صافرة البداية في تمام الساعة <strong>$formatted_time</strong> بتوقيت القاهرة، 
-    حيث يستضيف اللقاء ملعب <strong>$stadium</strong>. 
+    من المقرر أن تنطلق صافرة البداية في تمام الساعة <strong>$formatted_time</strong> بتوقيت القاهرة";
+
+    if (!empty($stadium) && $stadium !== 'غير محدد') {
+        $content .= "، حيث يستضيف اللقاء ملعب <strong>$stadium</strong>";
+    }
+
+    $content .= ". 
     ويسعى كلا الفريقين لتحقيق نتيجة إيجابية في هذه المواجهة المرتقبة.
-    </p>
-    ";
+    </p>";
 
     if (!empty($channel) && $channel !== 'غير محدد') {
         $content .= "<p>وستنقل المباراة عبر قناة <strong>$channel</strong>";
@@ -1317,7 +1321,7 @@ function generate_match_seo_data($match) {
 
     $content .= "
     <p>
-    تابعوا تغطية حصرية لحظة بلحظة لنتيجة المباراة، الأهداف، والملخص الكامل عبر موقع <strong>FozScore</strong>.
+    تابعوا تغطية حصرية لحظة بلحظة لنتيجة المباراة، الأهداف، والملخص الكامل عبر موقع <strong>كورة فور سبورت</strong>.
     </p>";
 
     return [

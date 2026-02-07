@@ -60,7 +60,7 @@ if (!$match) {
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title><?php echo isset($seo_data['title']) ? $seo_data['title'] : (isset($match) ? htmlspecialchars($match['team_home']) . ' ضد ' . htmlspecialchars($match['team_away']) . ' - FozScore' : 'تفاصيل المباراة'); ?></title>
+    <title><?php echo isset($seo_data['title']) ? $seo_data['title'] : (isset($match) ? htmlspecialchars($match['team_home']) . ' ضد ' . htmlspecialchars($match['team_away']) . ' - كورة فور سبورت' : 'تفاصيل المباراة'); ?></title>
     <meta name="description" content="<?php echo isset($seo_data['description']) ? htmlspecialchars($seo_data['description']) : ''; ?>">
     <meta name="keywords" content="<?php echo isset($seo_data['keywords']) ? htmlspecialchars($seo_data['keywords']) : ''; ?>">
     <base href="/">
