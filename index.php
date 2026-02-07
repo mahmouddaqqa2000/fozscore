@@ -351,6 +351,17 @@ $important_matches = array_filter($matches, function($m) use ($important_teams) 
         }
         @keyframes blink { 50% { opacity: 0.3; } }
         
+        @keyframes fire-burn {
+            0% { transform: scale(1); filter: brightness(100%); }
+            50% { transform: scale(1.2); filter: brightness(130%); }
+            100% { transform: scale(1); filter: brightness(100%); }
+        }
+        .fire-icon {
+            display: inline-block;
+            margin-right: 8px;
+            animation: fire-burn 1.5s infinite ease-in-out;
+        }
+        
         /* Responsive Design */
         @media (max-width: 768px) {
             .match-info { width: 100%; justify-content: space-between; gap: 10px; align-items: flex-start; }
@@ -456,9 +467,9 @@ $important_matches = array_filter($matches, function($m) use ($important_teams) 
                     
                     <?php if (!empty($important_matches)): ?>
                         <div class="championship-group">
-                            <div class="championship-header" style="background: linear-gradient(to left, #ea580c, #dc2626); color: #fff; border-bottom: none; border-radius: 8px;">
+                            <div class="championship-header" style="background: linear-gradient(to left, #1e293b, #334155); color: #fff; border-bottom: none; border-radius: 8px;">
                                 <span class="league-name">أهم مباريات اليوم</span>
-                                <span style="margin-right: 8px;">🔥</span>
+                                <span class="fire-icon">🔥</span>
                             </div>
                             <div class="match-card">
                                 <?php foreach ($important_matches as $m): ?>
