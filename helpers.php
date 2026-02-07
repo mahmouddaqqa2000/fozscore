@@ -742,18 +742,18 @@ function send_telegram_poll($pdo, $question, $options, $league_name = null) {
 
 // دالة مساعدة لجلب تفاصيل المباراة (التشكيلة) - منسوخة من scraper_all.php
 function get_match_details($url) {
-    // استخدام Puppeteer عبر Node.js
-    $nodeScript = __DIR__ . '/scraper_lineup.js';
-    $html = null;
-    $matchEventsStr = null;
-
-    // =================================================================
-    // تم تعطيل هذه الميزة لأنها تتطلب Node.js وهو غير مدعوم على خطة الاستضافة الحالية
-    // سيعيد هذا التعديل قيمة فارغة دائماً لمنع تعليق السكربت
-    // =================================================================
-    $error_message = 'تم تعطيل سحب التفاصيل (التشكيلة/الإحصائيات) لأنها تتطلب Node.js وهو غير مدعوم على خطة الاستضافة الحالية.';
-    return ['home' => null, 'away' => null, 'coach_home' => null, 'coach_away' => null, 'stats' => null, 'match_events' => null, 'stream_url' => null, 'html_preview' => $error_message];
+    // استخدام CURL لسحب الصفحة
+    $ch = curl_init($url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+    curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36');
+    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    curl_setopt($ch, CURLOPT_ENCODING, ''); 
+    $html = curl_exec($ch);
     
+    if (!$html) {
+        return ['home' => null, 'away' => null, 'coach_home' => null, 'coach_away' => null, 'stats' => null, 'match_events' => null, 'stream_url' => null, 'html_preview' => 'فشل الاتصال'];
+    }
 
     $dom = new DOMDocument();
     libxml_use_internal_errors(true);
@@ -761,53 +761,41 @@ function get_match_details($url) {
     libxml_clear_errors();
     $xpath = new DOMXPath($dom);
 
-    $homePlayers = [];
-    $awayPlayers = [];
+    // --- استخراج أحداث المباراة ---
+    $events = [];
+    // البحث عن قائمة الأحداث (عادة تكون تحت عنوان eventsTtl)
+    $eventNodes = $xpath->query("//div[contains(@class, 'eventsTtl')]/following-sibling::ul/li");
+    
+    if ($eventNodes->length == 0) {
+        // محاولة بديلة
+        $eventNodes = $xpath->query("//div[@id='events']//ul/li");
+    }
 
-    $extractPlayer = function($node, $xpath) {
-        $name = trim($xpath->query(".//p|.//span[contains(@class, 'name')]", $node)->item(0)->textContent ?? '');
-        $num = trim($xpath->query(".//span[contains(@class, 'number')]", $node)->item(0)->textContent ?? '');
-        $img = $xpath->query(".//img", $node)->item(0)?->getAttribute('src');
-        
-        if ($name) {
-            $playerStr = $name;
-            if ($img) $playerStr .= " | " . $img;
-            if ($num) $playerStr .= " | " . $num;
-            return $playerStr;
+    foreach ($eventNodes as $node) {
+        $class = $node->getAttribute('class');
+        if (strpos($class, 'referee') !== false) continue; // تخطي الحكم
+
+        $min = trim($xpath->query(".//span[contains(@class, 'min')]", $node)->item(0)->textContent ?? '');
+        $desc = trim($xpath->query(".//div[contains(@class, 'description')]", $node)->item(0)->textContent ?? '');
+        $desc = preg_replace('/\s+/', ' ', $desc); // تنظيف المسافات
+
+        $type = '';
+        if (strpos($class, 'goal') !== false) $type = '⚽';
+        elseif (strpos($class, 'yellowCard') !== false) $type = '🟨';
+        elseif (strpos($class, 'redCard') !== false) $type = '🟥';
+        elseif (strpos($class, 'sub') !== false) {
+            $type = '🔄';
+            $subIn = trim($xpath->query(".//span[contains(@class, 'subIn')]", $node)->item(0)->textContent ?? '');
+            $subOut = trim($xpath->query(".//span[contains(@class, 'subOut')]", $node)->item(0)->textContent ?? '');
+            if ($subIn && $subOut) $desc = "دخول: $subIn | خروج: $subOut";
         }
-        return null;
-    };
+        elseif (strpos($class, 'penOut') !== false) $type = '❌ ركلة جزاء ضائعة:';
 
-    // محاولات متعددة للبحث عن التشكيلة في نفس الصفحة
-    $queries = [
-        ['//div[@id="squad"]//div[contains(@class, "teamA")]//div[contains(@class, "player")]', '//div[@id="squad"]//div[contains(@class, "teamB")]//div[contains(@class, "player")]'],
-        ['//div[contains(@class, "teamA")]//div[contains(@class, "player")]', '//div[contains(@class, "teamB")]//div[contains(@class, "player")]'],
-        ['//div[contains(@class, "team1")]//div[contains(@class, "player")]', '//div[contains(@class, "team2")]//div[contains(@class, "player")]'],
-        ['//div[contains(@class, "home")]//div[contains(@class, "player")]', '//div[contains(@class, "away")]//div[contains(@class, "player")]'],
-        ['//section[contains(@class, "lineup")]//div[contains(@class, "teamA")]//div[contains(@class, "player")]', '//section[contains(@class, "lineup")]//div[contains(@class, "teamB")]//div[contains(@class, "player")]']
-    ];
-
-    foreach ($queries as $q) {
-        $homeNodes = $xpath->query($q[0]);
-        $awayNodes = $xpath->query($q[1]);
-        if ($homeNodes->length > 0) {
-            break;
+        if ($desc) {
+            $side = strpos($class, 'left') !== false ? '(ضيف)' : '(مستضيف)';
+            $events[] = "$min' $type $desc $side";
         }
     }
-
-    // معالجة النتائج
-    foreach ($homeNodes as $node) {
-        $p = $extractPlayer($node, $xpath);
-        if ($p) $homePlayers[] = $p;
-    }
-
-    foreach ($awayNodes as $node) {
-        $p = $extractPlayer($node, $xpath);
-        if ($p) $awayPlayers[] = $p;
-    }
-
-    $coachHome = trim($xpath->query("//div[contains(@class, 'teamA')]//div[contains(@class, 'manager')]//p")->item(0)->textContent ?? '');
-    $coachAway = trim($xpath->query("//div[contains(@class, 'teamB')]//div[contains(@class, 'manager')]//p")->item(0)->textContent ?? '');
 
     // استخراج الإحصائيات
     $stats = [];
@@ -823,14 +811,14 @@ function get_match_details($url) {
     }
 
     return [
-        'home' => !empty($homePlayers) ? implode("\n", $homePlayers) : null,
-        'away' => !empty($awayPlayers) ? implode("\n", $awayPlayers) : null,
-        'coach_home' => $coachHome ?: null,
-        'coach_away' => $coachAway ?: null,
+        'home' => null, // تم تعطيل سحب التشكيلة مؤقتاً للتركيز على الأحداث
+        'away' => null,
+        'coach_home' => null,
+        'coach_away' => null,
         'stats' => !empty($stats) ? json_encode($stats, JSON_UNESCAPED_UNICODE) : null,
-        'match_events' => $matchEventsStr,
+        'match_events' => !empty($events) ? implode("\n", $events) : null,
         'stream_url' => null,
-        'html_preview' => substr($html, 0, 1500) // عرض أول 1500 حرف من الكود للمعاينة
+        'html_preview' => ''
     ];
 }
 

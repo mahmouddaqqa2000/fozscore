@@ -175,7 +175,7 @@ $favicon = $settings['favicon'];
                     <span>📅</span> تحديث المباريات الأساسي
                 </div>
                 <div class="action-list">
-                    <a href="scraper_yallakora.php?mode=yesterday" class="btn-bot bg-slate">
+                    <a href="scraper_yallakora.php?mode=yesterday&details=1" class="btn-bot bg-slate">
                         <span>سحب مباريات الأمس (تحديث النتائج)</span>
                         <span class="icon">⏮️</span>
                     </a>
