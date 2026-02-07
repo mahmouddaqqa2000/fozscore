@@ -133,4 +133,12 @@ $pdo->exec("CREATE TABLE IF NOT EXISTS secondary_bot_settings (
   value TEXT
 )");
 
+// إنشاء جدول خدمات البوت (المتجر)
+$pdo->exec("CREATE TABLE IF NOT EXISTS bot_services (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  price TEXT,
+  description TEXT
+)");
+
 ?>

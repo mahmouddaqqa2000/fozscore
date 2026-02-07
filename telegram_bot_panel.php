@@ -219,10 +219,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['save_settings'])) {
         $token = trim($_POST['bot_token']);
         $chat_id = trim($_POST['chat_id']);
+        $contact = trim($_POST['contact_user']);
         
         $stmt = $pdo->prepare("INSERT OR REPLACE INTO secondary_bot_settings (key_name, value) VALUES (?, ?)");
         $stmt->execute(['bot_token', $token]);
         $stmt->execute(['chat_id', $chat_id]);
+        $stmt->execute(['contact_user', $contact]);
         
         $message = "تم حفظ إعدادات البوت بنجاح ✅";
         $msg_type = "success";
@@ -267,9 +269,69 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $msg_type = "error";
         }
     }
+
+    // 3. إدارة الخدمات (إضافة)
+    if (isset($_POST['add_service'])) {
+        $name = $_POST['service_name'];
+        $price = $_POST['service_price'];
+        $desc = $_POST['service_desc'];
+        $stmt = $pdo->prepare("INSERT INTO bot_services (name, price, description) VALUES (?, ?, ?)");
+        $stmt->execute([$name, $price, $desc]);
+        $message = "تم إضافة الخدمة للمتجر ✅";
+        $msg_type = "success";
+    }
+
+    // 4. حذف خدمة
+    if (isset($_POST['delete_service'])) {
+        $id = $_POST['service_id'];
+        $pdo->prepare("DELETE FROM bot_services WHERE id = ?")->execute([$id]);
+        $message = "تم حذف الخدمة 🗑️";
+        $msg_type = "success";
+    }
+
+    // 5. نشر قائمة الخدمات
+    if (isset($_POST['publish_services'])) {
+        $settings = get_sec_bot_settings($pdo);
+        $token = $settings['bot_token'] ?? '';
+        $chat_id = $settings['chat_id'] ?? '';
+        $contact = $settings['contact_user'] ?? '';
+        
+        $stmt = $pdo->query("SELECT * FROM bot_services");
+        $services = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        if ($services && $token && $chat_id) {
+            $msg = "🔥 <b>قائمة خدماتنا المميزة</b> 🔥\n\n";
+            foreach ($services as $s) {
+                $msg .= "💎 <b>{$s['name']}</b>\n";
+                if ($s['price']) $msg .= "💰 السعر: {$s['price']}\n";
+                if ($s['description']) $msg .= "📝 {$s['description']}\n";
+                $msg .= "------------------\n";
+            }
+            if ($contact) $msg .= "\n📩 للطلب والاستفسار: $contact";
+            
+            $url = "https://api.telegram.org/bot$token/sendMessage";
+            $data = ['chat_id' => $chat_id, 'text' => $msg, 'parse_mode' => 'HTML'];
+            
+            $ch = curl_init($url);
+            curl_setopt($ch, CURLOPT_POST, 1);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            curl_exec($ch);
+            curl_close($ch);
+            
+            $message = "تم نشر قائمة الخدمات للقناة بنجاح 📢";
+            $msg_type = "success";
+        } else {
+            $message = "تأكد من وجود خدمات ومن إعدادات البوت.";
+            $msg_type = "error";
+        }
+    }
 }
 
 $settings = get_sec_bot_settings($pdo);
+// جلب الخدمات الحالية
+$services_list = $pdo->query("SELECT * FROM bot_services ORDER BY id DESC")->fetchAll(PDO::FETCH_ASSOC);
 ?>
 <!doctype html>
 <html lang="ar" dir="rtl">
@@ -305,6 +367,10 @@ $settings = get_sec_bot_settings($pdo);
         .alert.error { background-color: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
         
         .info-box { background: #eff6ff; padding: 15px; border-radius: 8px; font-size: 0.9rem; color: #1e40af; margin-bottom: 20px; border: 1px solid #dbeafe; }
+
+        .service-item { background: #f8fafc; border: 1px solid #e2e8f0; padding: 10px; border-radius: 8px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+        .service-details { font-size: 0.9rem; }
+        .service-price { font-weight: bold; color: #16a34a; }
     </style>
 </head>
 <body>
@@ -333,6 +399,10 @@ $settings = get_sec_bot_settings($pdo);
                     <label>Chat ID (معرف القناة أو المجموعة)</label>
                     <input type="text" name="chat_id" value="<?php echo htmlspecialchars($settings['chat_id'] ?? ''); ?>" placeholder="-100xxxxxxxxxx" required>
                 </div>
+                <div class="form-group">
+                    <label>معرف التواصل (يظهر أسفل الرسالة)</label>
+                    <input type="text" name="contact_user" value="<?php echo htmlspecialchars($settings['contact_user'] ?? ''); ?>" placeholder="@username">
+                </div>
                 <button type="submit" name="save_settings" class="btn btn-save">حفظ الإعدادات</button>
             </form>
         </div>
@@ -347,6 +417,46 @@ $settings = get_sec_bot_settings($pdo);
                 </div>
                 <button type="submit" name="send_message" class="btn btn-send">إرسال الآن 🚀</button>
             </form>
+        </div>
+
+        <!-- إدارة المتجر -->
+        <div class="card">
+            <h2>🛒 متجر الخدمات الرقمية</h2>
+            
+            <!-- نموذج إضافة خدمة -->
+            <form method="post" style="background: #f1f5f9; padding: 15px; border-radius: 10px; margin-bottom: 20px;">
+                <h3 style="margin-top:0; font-size:1rem;">إضافة خدمة جديدة</h3>
+                <div class="form-group">
+                    <input type="text" name="service_name" placeholder="اسم الخدمة (مثال: 1000 متابع انستجرام)" required>
+                </div>
+                <div class="form-group" style="display:flex; gap:10px;">
+                    <input type="text" name="service_price" placeholder="السعر (مثال: 5$)" style="flex:1;" required>
+                    <input type="text" name="service_desc" placeholder="وصف قصير (اختياري)" style="flex:2;">
+                </div>
+                <button type="submit" name="add_service" class="btn" style="background:#16a34a; width:100%;">إضافة للقائمة ➕</button>
+            </form>
+
+            <!-- قائمة الخدمات -->
+            <?php if (empty($services_list)): ?>
+                <p style="text-align:center; color:#94a3b8;">لا توجد خدمات مضافة حالياً.</p>
+            <?php else: ?>
+                <?php foreach ($services_list as $srv): ?>
+                    <div class="service-item">
+                        <div class="service-details">
+                            <strong><?php echo htmlspecialchars($srv['name']); ?></strong>
+                            <br><span class="service-price"><?php echo htmlspecialchars($srv['price']); ?></span>
+                            <?php if ($srv['description']): ?> - <span style="color:#64748b;"><?php echo htmlspecialchars($srv['description']); ?></span><?php endif; ?>
+                        </div>
+                        <form method="post" style="margin:0;">
+                            <input type="hidden" name="service_id" value="<?php echo $srv['id']; ?>">
+                            <button type="submit" name="delete_service" style="background:none; border:none; cursor:pointer; font-size:1.2rem;" title="حذف">🗑️</button>
+                        </form>
+                    </div>
+                <?php endforeach; ?>
+                <form method="post" style="margin-top:20px;">
+                    <button type="submit" name="publish_services" class="btn" style="background:#7c3aed; width:100%;">📢 نشر القائمة كاملة للقناة</button>
+                </form>
+            <?php endif; ?>
         </div>
         
         <!-- أدوات مساعدة -->
