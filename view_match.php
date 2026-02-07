@@ -53,6 +53,46 @@ if (!$match) {
 
     // توليد بيانات SEO والمقال الوصفي
     $seo_data = generate_match_seo_data($match);
+
+    // --- نظام التوقعات ---
+    // إنشاء الجدول إذا لم يكن موجوداً
+    $pdo->exec("CREATE TABLE IF NOT EXISTS match_predictions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        match_id INTEGER NOT NULL,
+        prediction VARCHAR(10) NOT NULL,
+        user_ip VARCHAR(45),
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )");
+
+    $user_ip = $_SERVER['REMOTE_ADDR'];
+    $cookie_name = 'voted_match_' . $id;
+    $has_voted = isset($_COOKIE[$cookie_name]);
+
+    // التحقق من قاعدة البيانات أيضاً (لمنع تكرار التصويت من نفس الـ IP)
+    if (!$has_voted) {
+        $stmt_check = $pdo->prepare("SELECT id FROM match_predictions WHERE match_id = ? AND user_ip = ?");
+        $stmt_check->execute([$id, $user_ip]);
+        if ($stmt_check->fetch()) $has_voted = true;
+    }
+
+    // معالجة التصويت
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['predict']) && !$has_voted) {
+        $pred = $_POST['predict'];
+        if (in_array($pred, ['home', 'draw', 'away'])) {
+            $stmt_vote = $pdo->prepare("INSERT INTO match_predictions (match_id, prediction, user_ip) VALUES (?, ?, ?)");
+            $stmt_vote->execute([$id, $pred, $user_ip]);
+            setcookie($cookie_name, '1', time() + (86400 * 30), "/"); // حفظ الكوكي لمدة 30 يوم
+            header("Location: view_match.php?id=$id");
+            exit;
+        }
+    }
+
+    // جلب إحصائيات التوقعات
+    $stmt_stats = $pdo->prepare("SELECT prediction, COUNT(*) as count FROM match_predictions WHERE match_id = ? GROUP BY prediction");
+    $stmt_stats->execute([$id]);
+    $votes = $stmt_stats->fetchAll(PDO::FETCH_KEY_PAIR);
+    $total_votes = array_sum($votes);
+    // -------------------
 }
 ?>
 <!doctype html>
@@ -754,6 +794,26 @@ if (!$match) {
         .theme-toggle { position: fixed; bottom: 20px; left: 20px; width: 50px; height: 50px; border-radius: 50%; background: #1e293b; color: #fff; border: none; font-size: 24px; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.3); z-index: 1000; transition: all 0.3s ease; display: flex; align-items: center; justify-content: center; }
         .theme-toggle:hover { transform: scale(1.1); }
         body.dark-mode .theme-toggle { background: var(--secondary); color: #fff; }
+        
+        /* Prediction System Styles */
+        .prediction-card { background: var(--card); border-radius: 16px; padding: 1.5rem; margin-top: 2rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); text-align: center; border: 1px solid var(--border); }
+        .prediction-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 1.5rem; color: var(--primary); }
+        .prediction-buttons { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+        .btn-predict { flex: 1; min-width: 100px; padding: 12px; border: 2px solid var(--border); border-radius: 12px; background: transparent; cursor: pointer; font-weight: 700; transition: all 0.2s; color: var(--text); font-family: inherit; font-size: 0.95rem; }
+        .btn-predict:hover { transform: translateY(-2px); background: #f8fafc; }
+        .btn-predict.home:hover { border-color: var(--secondary); color: var(--secondary); }
+        .btn-predict.draw:hover { border-color: var(--text-light); color: var(--text-light); }
+        .btn-predict.away:hover { border-color: var(--accent); color: var(--accent); }
+        
+        .prediction-results { display: flex; flex-direction: column; gap: 12px; margin-top: 10px; }
+        .result-row { display: flex; align-items: center; gap: 10px; font-size: 0.9rem; }
+        .result-label { width: 100px; text-align: right; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .progress-track { flex: 1; height: 10px; background: #e2e8f0; border-radius: 5px; overflow: hidden; }
+        .progress-fill { height: 100%; border-radius: 5px; transition: width 1s ease; }
+        .result-pct { width: 45px; text-align: left; font-weight: 700; font-size: 0.85rem; }
+        
+        body.dark-mode .btn-predict:hover { background: #334155; }
+        body.dark-mode .progress-track { background: #334155; }
     </style>
 </head>
 <body>
@@ -876,6 +936,49 @@ if (!$match) {
                 </div>
             </div>
             <?php endif; ?>
+
+            <!-- Prediction System -->
+            <div class="prediction-card">
+                <div class="prediction-title">توقعات الجمهور للمباراة</div>
+                <?php 
+                $status = get_match_status($match);
+                // عرض النتائج إذا صوت المستخدم أو انتهت المباراة أو جارية
+                if ($has_voted || $status['key'] !== 'not_started'): 
+                    $home_pct = $total_votes > 0 ? round(($votes['home'] ?? 0) / $total_votes * 100) : 0;
+                    $draw_pct = $total_votes > 0 ? round(($votes['draw'] ?? 0) / $total_votes * 100) : 0;
+                    $away_pct = $total_votes > 0 ? round(($votes['away'] ?? 0) / $total_votes * 100) : 0;
+                ?>
+                    <div class="prediction-results">
+                        <div class="result-row">
+                            <div class="result-label"><?php echo htmlspecialchars($match['team_home']); ?></div>
+                            <div class="progress-track"><div class="progress-fill" style="width: <?php echo $home_pct; ?>%; background-color: var(--secondary);"></div></div>
+                            <div class="result-pct"><?php echo $home_pct; ?>%</div>
+                        </div>
+                        <div class="result-row">
+                            <div class="result-label">تعادل</div>
+                            <div class="progress-track"><div class="progress-fill" style="width: <?php echo $draw_pct; ?>%; background-color: #94a3b8;"></div></div>
+                            <div class="result-pct"><?php echo $draw_pct; ?>%</div>
+                        </div>
+                        <div class="result-row">
+                            <div class="result-label"><?php echo htmlspecialchars($match['team_away']); ?></div>
+                            <div class="progress-track"><div class="progress-fill" style="width: <?php echo $away_pct; ?>%; background-color: var(--accent);"></div></div>
+                            <div class="result-pct"><?php echo $away_pct; ?>%</div>
+                        </div>
+                    </div>
+                    <div style="margin-top: 15px; font-size: 0.85rem; color: var(--text-light);">
+                        إجمالي الأصوات: <?php echo $total_votes; ?>
+                    </div>
+                <?php else: ?>
+                    <form method="post" class="prediction-buttons">
+                        <button type="submit" name="predict" value="home" class="btn-predict home">فوز <?php echo htmlspecialchars($match['team_home']); ?></button>
+                        <button type="submit" name="predict" value="draw" class="btn-predict draw">تعادل</button>
+                        <button type="submit" name="predict" value="away" class="btn-predict away">فوز <?php echo htmlspecialchars($match['team_away']); ?></button>
+                    </form>
+                    <div style="margin-top: 15px; font-size: 0.85rem; color: var(--text-light);">
+                        شارك بتوقعك لرؤية النتائج
+                    </div>
+                <?php endif; ?>
+            </div>
 
             <!-- Tabs Navigation -->
             <div class="tabs">
