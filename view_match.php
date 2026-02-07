@@ -823,6 +823,15 @@ if (!$match) {
         
         body.dark-mode .h2h-summary-card { background: #2d3748; border-color: var(--border); }
         body.dark-mode .stat-pct { color: #60a5fa; }
+
+        /* Videos Tab Styles */
+        .video-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px; }
+        .video-item { background: var(--bg); border-radius: 8px; overflow: hidden; border: 1px solid var(--border); transition: transform 0.2s; }
+        .video-item:hover { transform: translateY(-3px); }
+        .video-thumb { width: 100%; height: 120px; object-fit: cover; position: relative; }
+        .video-play-icon { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 40px; height: 40px; background: rgba(0,0,0,0.6); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 20px; }
+        .video-title { padding: 10px; font-size: 0.9rem; font-weight: 600; color: var(--primary); line-height: 1.4; }
+        body.dark-mode .video-item { background: #2d3748; }
     </style>
 </head>
 <body>
@@ -996,6 +1005,7 @@ if (!$match) {
                 <button class="tab-button <?php echo $active_tab === 'stats' ? 'active' : ''; ?>" onclick="openTab(event, 'stats')">الإحصائيات</button>
                 <button class="tab-button <?php echo $active_tab === 'standings' ? 'active' : ''; ?>" onclick="openTab(event, 'standings')">المراكز</button>
                 <button class="tab-button <?php echo $active_tab === 'events' ? 'active' : ''; ?>" onclick="openTab(event, 'events')">الأحداث</button>
+                <button class="tab-button <?php echo $active_tab === 'videos' ? 'active' : ''; ?>" onclick="openTab(event, 'videos')">فيديوهات</button>
             </div>
 
             <!-- Tab Content -->
@@ -1249,6 +1259,26 @@ if (!$match) {
 
             <div id="standings" class="tab-content <?php echo $active_tab === 'standings' ? 'active' : ''; ?>">
                 <p class="placeholder-text">ميزة جدول الترتيب قيد التطوير حالياً.</p>
+            </div>
+
+            <div id="videos" class="tab-content <?php echo $active_tab === 'videos' ? 'active' : ''; ?>">
+                <?php 
+                $match_videos = !empty($match['match_videos']) ? json_decode($match['match_videos'], true) : [];
+                if (empty($match_videos)): ?>
+                    <p class="placeholder-text">لا توجد فيديوهات أو ملخصات متوفرة لهذه المباراة حالياً.</p>
+                <?php else: ?>
+                    <div class="video-grid">
+                        <?php foreach ($match_videos as $video): ?>
+                            <a href="<?php echo htmlspecialchars($video['url']); ?>" target="_blank" class="video-item" style="text-decoration: none;">
+                                <div style="position: relative;">
+                                    <img src="<?php echo htmlspecialchars($video['thumbnail']); ?>" class="video-thumb" alt="video thumbnail">
+                                    <div class="video-play-icon">▶</div>
+                                </div>
+                                <div class="video-title"><?php echo htmlspecialchars($video['title']); ?></div>
+                            </a>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endif; ?>
             </div>
 
             <div id="events" class="tab-content <?php echo $active_tab === 'events' ? 'active' : ''; ?>">

@@ -1204,14 +1204,52 @@ function get_match_details($url) {
 
     // استخراج الإحصائيات
     $stats = [];
-    $statsNodes = $xpath->query("//div[contains(@class, 'statsDiv')]//ul//li");
-    foreach ($statsNodes as $node) {
+    $statsNodes = null;
+    $statsQueries = [
+        "//div[@id='stats']//ul/li", // الأولوية لتبويب الإحصائيات
+        "//div[contains(@class, 'statsDiv')]//ul/li" // البحث العام
+    ];
+
+    foreach ($statsQueries as $query) {
+        $nodes = $xpath->query($query);
+        if ($nodes->length > 0) { $statsNodes = $nodes; break; }
+    }
+
+    if ($statsNodes) foreach ($statsNodes as $node) {
         $label = trim($xpath->query(".//div[contains(@class, 'desc')]", $node)->item(0)->textContent ?? '');
         $homeVal = trim($xpath->query(".//div[contains(@class, 'teamA')]", $node)->item(0)->textContent ?? '');
         $awayVal = trim($xpath->query(".//div[contains(@class, 'teamB')]", $node)->item(0)->textContent ?? '');
         
         if ($label && ($homeVal !== '' || $awayVal !== '')) {
             $stats[] = ['label' => $label, 'home' => $homeVal, 'away' => $awayVal];
+        }
+    }
+
+    // استخراج الفيديوهات (الملخصات والأهداف)
+    $videos = [];
+    $videoQueries = [
+        "//div[@id='teamVideos']//div[contains(@class, 'item')]",
+        "//div[contains(@class, 'videos')]//div[contains(@class, 'item')]"
+    ];
+    
+    foreach ($videoQueries as $query) {
+        $videoNodes = $xpath->query($query);
+        if ($videoNodes->length > 0) {
+            foreach ($videoNodes as $node) {
+                $linkNode = $xpath->query(".//a", $node)->item(0);
+                $imgNode = $xpath->query(".//img", $node)->item(0);
+                
+                $title = trim($linkNode->getAttribute('title') ?? $linkNode->textContent ?? '');
+                $href = $linkNode ? $linkNode->getAttribute('href') : '';
+                $img = $imgNode ? ($imgNode->getAttribute('data-src') ?: $imgNode->getAttribute('src')) : '';
+                
+                if ($href && $title) {
+                    if (strpos($href, 'http') !== 0) $href = "https://www.yallakora.com" . $href;
+                    if ($img && strpos($img, 'http') !== 0) $img = "https://www.yallakora.com" . $img;
+                    $videos[] = ['title' => $title, 'url' => $href, 'thumbnail' => $img];
+                }
+            }
+            break; 
         }
     }
 
@@ -1233,6 +1271,7 @@ function get_match_details($url) {
         'coach_away' => $coachAway ?: null,
         'stats' => !empty($stats) ? json_encode($stats, JSON_UNESCAPED_UNICODE) : null,
         'match_events' => !empty($events) ? implode("\n", $events) : null,
+        'match_videos' => !empty($videos) ? json_encode($videos, JSON_UNESCAPED_UNICODE) : null,
         'stream_url' => null,
         'html_preview' => '',
         'lineup_debug' => $lineupDebug
