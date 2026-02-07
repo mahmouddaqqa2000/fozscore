@@ -159,14 +159,16 @@ if (isset($update['message'])) {
                                     return; // إيقاف العملية هنا
                                 }
                                 
-                                // الرصيد كافٍ: عرض التكلفة وطلب الرابط
-                                $msg = "💵 **تكلفة الطلب:** $" . number_format($total_cost, 2) . "\n";
+                                // الرصيد كافٍ: عرض التكلفة وزر التأكيد
+                                $msg = "💵 **تكلفة الطلب:** $" . number_format($total_cost, 2) . " (لعدد $qty)\n";
                                 $msg .= "💰 **رصيدك الحالي:** $" . number_format($current_balance, 2) . "\n";
                                 $msg .= "📉 **الرصيد بعد الخصم:** $" . number_format($current_balance - $total_cost, 2) . "\n\n";
-                                $msg .= "🔗 **رابط الحساب أو المنشور:**\nيرجى إرسال الرابط المطلوب.";
+                                $msg .= "👇 **يرجى تأكيد الطلب للمتابعة:**";
                                 
-                                setUserState($pdo, $chat_id, 'WAITING_LINK', $newData);
-                                sendMessage($token, $chat_id, $msg);
+                                $keyboard = ['inline_keyboard' => [[['text' => '✅ تأكيد الطلب', 'callback_data' => 'confirm_order_cost']]]];
+                                
+                                setUserState($pdo, $chat_id, 'WAITING_COST_CONFIRMATION', $newData);
+                                sendMessage($token, $chat_id, $msg, $keyboard);
                                 return;
                             }
                         }
@@ -180,6 +182,8 @@ if (isset($update['message'])) {
                 } else {
                     sendMessage($token, $chat_id, "⚠️ يرجى إرسال رقم صحيح (مثال: 1000).");
                 }
+            } elseif ($stateData['state'] === 'WAITING_COST_CONFIRMATION') {
+                sendMessage($token, $chat_id, "⚠️ يرجى الضغط على زر **تأكيد الطلب** أعلاه للمتابعة.");
             } elseif ($stateData['state'] === 'WAITING_LINK') {
                 // المستخدم أدخل الرابط
                 $link = $text;
@@ -564,6 +568,20 @@ if (isset($update['callback_query'])) {
         $prices = [['label' => "$stars Stars", 'amount' => $stars]]; // المبلغ لـ XTR هو عدد النجوم
         
         sendInvoice($token, $chat_id, $title, $description, $payload, $currency, $prices);
+    }
+
+    // --- معالجة تأكيد تكلفة الطلب ---
+    if ($data === 'confirm_order_cost') {
+        $stateData = getUserState($pdo, $chat_id);
+        if ($stateData && $stateData['state'] === 'WAITING_COST_CONFIRMATION') {
+            $newData = $stateData['data'];
+            setUserState($pdo, $chat_id, 'WAITING_LINK', $newData);
+            
+            $msg = "🔗 **رابط الحساب أو المنشور:**\n\nيرجى إرسال الرابط المطلوب تنفيذ الخدمة عليه.";
+            sendMessage($token, $chat_id, $msg);
+        } else {
+            sendMessage($token, $chat_id, "⚠️ انتهت صلاحية الجلسة، يرجى البدء من جديد.");
+        }
     }
 }
 
