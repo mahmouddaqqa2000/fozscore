@@ -634,11 +634,10 @@ if (!$match) {
         }
         
         @media (max-width: 600px) {
-            .timeline::before { left: auto; right: 23px; transform: none; }
-            .timeline-row { margin-bottom: 20px; }
-            .timeline-time { margin-left: 15px; margin-right: 0; width: 50px; height: 50px; font-size: 0.85rem; order: 1; }
-            .timeline-content.home, .timeline-content.away { padding: 0; padding-right: 10px; justify-content: flex-start; flex: 1; order: 2; }
-            .timeline-content:empty { display: none; }
+            .timeline-content.home { padding-right: 8px; }
+            .timeline-content.away { padding-left: 8px; }
+            .timeline-card { padding: 8px 10px; font-size: 0.85rem; min-height: 35px; gap: 8px; }
+            .timeline-time { width: 40px; height: 40px; font-size: 0.75rem; border-width: 2px; }
         }
 
         /* Yallakora-style Event Icons & Details */
