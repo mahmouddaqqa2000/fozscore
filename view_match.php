@@ -820,7 +820,7 @@ if (!$match) {
                         $display_channel = format_channel_name($match['channel']);
                         $logo_url = get_channel_logo_url($display_channel);
                         if ($logo_url): ?>
-                            <img src="<?php echo $logo_url; ?>" alt="logo">
+                            <img src="<?php echo $logo_url; ?>" alt="<?php echo htmlspecialchars($display_channel); ?>" title="<?php echo htmlspecialchars($display_channel); ?>" onerror="this.outerHTML='📺'">
                         <?php else: ?>
                             📺
                         <?php endif; ?>
