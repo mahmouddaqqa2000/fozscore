@@ -187,6 +187,10 @@ $favicon = $settings['favicon'];
                         <span>تحديث شامل (أمس، اليوم، غداً)</span>
                         <span class="icon">🔄</span>
                     </a>
+                    <a href="scraper_btolat.php" class="btn-bot bg-rose">
+                        <span>سحب من بطولات (Btolat)</span>
+                        <span class="icon">🅱️</span>
+                    </a>
                 </div>
             </div>
 
