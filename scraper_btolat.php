@@ -77,7 +77,7 @@ foreach ($dates_to_scrape as $current_date) {
 
     if ($match_cards->length === 0) {
         echo "<div style='color:orange; margin: 10px 0;'>لم يتم العثور على مباريات باستخدام المحددات الافتراضية. جاري محاولة البحث العام...</div>";
-        $match_cards = $xpath->query("//li[contains(@class, 'match')] | //div[contains(@class, 'match')][not(contains(@class, 'matches'))][not(contains(@class, 'matchsDays'))][not(contains(@class, 'day'))]");
+        $match_cards = $xpath->query("//li[contains(@class, 'match')] | //div[contains(@class, 'match')][not(contains(@class, 'matches'))][not(contains(@class, 'matchsDays'))][not(contains(@class, 'day'))][not(contains(@class, 'matchCenterBox'))]");
     }
 
     echo "<p>تم العثور على " . $match_cards->length . " مباراة.</p>";
