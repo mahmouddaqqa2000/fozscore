@@ -469,6 +469,9 @@ function scrape_yallakora_news($pdo, $dateStr = null) {
         $title = preg_replace('/\d{1,2}\s+(?:يناير|فبراير|مارس|أبريل|مايو|يونيو|يوليو|أغسطس|سبتمبر|أكتوبر|نوفمبر|ديسمبر)\s+\d{4}(?:\s+\d{1,2}:\d{2}\s+(?:م|ص))?/u', '', $title);
         $title = trim($title);
         if (mb_strpos($title, 'مواقعنا الأخرى') !== false) continue;
+        
+        // استبدال "يلا كورة" بـ "كورة فور" في العنوان
+        $title = str_replace('يلا كورة', 'كورة فور', $title);
 
         $stmt = $pdo->prepare("SELECT id FROM news WHERE title = ?");
         $stmt->execute([$title]);
@@ -476,6 +479,9 @@ function scrape_yallakora_news($pdo, $dateStr = null) {
 
         $content = get_yallakora_article_content($fullLink);
         if (!$content) $content = $title;
+        
+        // استبدال "يلا كورة" بـ "كورة فور" في المحتوى
+        $content = str_replace('يلا كورة', 'كورة فور', $content);
         
         $summary = $title;
         if (function_exists('ask_gemini_json') && !empty($content)) {
