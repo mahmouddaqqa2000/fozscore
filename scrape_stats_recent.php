@@ -110,6 +110,13 @@ foreach ($dates as $date) {
         // سحب التفاصيل
         $details = get_match_details($match['source_url']);
         
+        // عرض حالة سحب التشكيلة للتشخيص
+        if (empty($details['home'])) {
+             echo "<div style='color:#ef4444; font-size:0.85em; margin-top:2px; padding-right:10px;'>❌ لم يتم سحب التشكيلة. التشخيص: " . htmlspecialchars($details['lineup_debug'] ?? 'غير معروف') . "</div>";
+        } else {
+             echo "<div style='color:#10b981; font-size:0.85em; margin-top:2px; padding-right:10px;'>✅ تم سحب التشكيلة (" . htmlspecialchars($details['lineup_debug'] ?? 'نجاح') . ")</div>";
+        }
+        
         $updates = [];
         $params = [];
         

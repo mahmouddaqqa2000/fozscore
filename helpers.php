@@ -957,6 +957,8 @@ function get_match_details($url) {
     };
 
     // محاولات البحث عن التشكيلة
+    $lineupDebug = "لم يتم العثور على التشكيلة";
+    
     $lineupQueries = [
         ['//div[@id="squad"]//div[contains(@class, "teamA")]//div[contains(@class, "player")]', '//div[@id="squad"]//div[contains(@class, "teamB")]//div[contains(@class, "player")]'],
         ['//div[contains(@class, "squad")]//div[contains(@class, "teamA")]//div[contains(@class, "player")]', '//div[contains(@class, "squad")]//div[contains(@class, "teamB")]//div[contains(@class, "player")]'],
@@ -966,10 +968,11 @@ function get_match_details($url) {
         ['//div[contains(@class, "teamA")]//div[contains(@class, "player")]', '//div[contains(@class, "teamB")]//div[contains(@class, "player")]']
     ];
 
-    foreach ($lineupQueries as $q) {
+    foreach ($lineupQueries as $idx => $q) {
         $homeNodes = $xpath->query($q[0]);
         $awayNodes = $xpath->query($q[1]);
         if ($homeNodes->length > 0) {
+            $lineupDebug = "تم العثور عليها باستخدام XPath رقم #$idx";
             foreach ($homeNodes as $node) { $p = $extractPlayer($node, $xpath); if ($p) $homePlayers[] = $p; }
             foreach ($awayNodes as $node) { $p = $extractPlayer($node, $xpath); if ($p) $awayPlayers[] = $p; }
             break;
@@ -978,6 +981,7 @@ function get_match_details($url) {
 
     // استراتيجية Regex (احتياطية قوية) للتشكيلة إذا فشل XPath
     if (empty($homePlayers)) {
+        $lineupDebug = "فشل XPath. جاري تجربة Regex...";
         // البحث عن كتل اللاعبين في النص الكامل
         // النمط: <div class="player"> ... <p class="name">Name</p> ... <p class="number">10</p>
         preg_match_all('/<div[^>]*class="[^"]*player[^"]*"[^>]*>.*?class="[^"]*name[^"]*"[^>]*>(.*?)<\/[^>]+>.*?class="[^"]*number[^"]*"[^>]*>(.*?)<\/[^>]+>/is', $html, $matches, PREG_SET_ORDER);
@@ -986,6 +990,7 @@ function get_match_details($url) {
             // تقسيم اللاعبين إلى فريقين (افتراض أن النصف الأول للمستضيف والنصف الثاني للضيف)
             $total = count($matches);
             $half = ceil($total / 2);
+            $lineupDebug = "تم العثور عليها باستخدام Regex ($total لاعب)";
             
             foreach ($matches as $i => $m) {
                 $name = trim(strip_tags($m[1]));
@@ -1009,6 +1014,12 @@ function get_match_details($url) {
                     else $awayPlayers[] = $playerStr;
                 }
             }
+        } else {
+            // تشخيص سبب الفشل
+            $hasSquad = strpos($html, 'squad') !== false ? 'نعم' : 'لا';
+            $hasPlayer = strpos($html, 'player') !== false ? 'نعم' : 'لا';
+            $hasFormation = strpos($html, 'formation') !== false ? 'نعم' : 'لا';
+            $lineupDebug = "فشل كلي. طول الصفحة: " . strlen($html) . ". كلمات مفتاحية: squad=$hasSquad, player=$hasPlayer, formation=$hasFormation";
         }
     }
 
@@ -1036,7 +1047,8 @@ function get_match_details($url) {
         'stats' => !empty($stats) ? json_encode($stats, JSON_UNESCAPED_UNICODE) : null,
         'match_events' => !empty($events) ? implode("\n", $events) : null,
         'stream_url' => null,
-        'html_preview' => ''
+        'html_preview' => '',
+        'lineup_debug' => $lineupDebug
     ];
 }
 
