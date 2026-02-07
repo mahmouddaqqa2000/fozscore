@@ -159,16 +159,14 @@ if (isset($update['message'])) {
                                     return; // إيقاف العملية هنا
                                 }
                                 
-                                // الرصيد كافٍ: عرض التكلفة وزر التأكيد
-                                $msg = "💵 **تكلفة الطلب:** $" . number_format($total_cost, 2) . " (لعدد $qty)\n";
-                                $msg .= "💰 **رصيدك الحالي:** $" . number_format($current_balance, 2) . "\n";
-                                $msg .= "📉 **الرصيد بعد الخصم:** $" . number_format($current_balance - $total_cost, 2) . "\n\n";
-                                $msg .= "👇 **يرجى تأكيد الطلب للمتابعة:**";
+                                // الرصيد كافٍ: حفظ التكلفة وطلب الرابط
+                                $newData['total_cost'] = $total_cost;
                                 
-                                $keyboard = ['inline_keyboard' => [[['text' => '✅ تأكيد الطلب', 'callback_data' => 'confirm_order_cost']]]];
+                                $msg = "💵 **التكلفة المتوقعة:** $" . number_format($total_cost, 2) . "\n";
+                                $msg .= "🔗 **رابط الحساب أو المنشور:**\n\nيرجى إرسال الرابط المطلوب تنفيذ الخدمة عليه.";
                                 
-                                setUserState($pdo, $chat_id, 'WAITING_COST_CONFIRMATION', $newData);
-                                sendMessage($token, $chat_id, $msg, $keyboard);
+                                setUserState($pdo, $chat_id, 'WAITING_LINK', $newData);
+                                sendMessage($token, $chat_id, $msg);
                                 return;
                             }
                         }
@@ -182,8 +180,6 @@ if (isset($update['message'])) {
                 } else {
                     sendMessage($token, $chat_id, "⚠️ يرجى إرسال رقم صحيح (مثال: 1000).");
                 }
-            } elseif ($stateData['state'] === 'WAITING_COST_CONFIRMATION') {
-                sendMessage($token, $chat_id, "⚠️ يرجى الضغط على زر **تأكيد الطلب** أعلاه للمتابعة.");
             } elseif ($stateData['state'] === 'WAITING_LINK') {
                 // المستخدم أدخل الرابط
                 $link = $text;
@@ -202,60 +198,35 @@ if (isset($update['message'])) {
                 }
                 // -----------------------------------------
                 
-                // --- التحقق من الرصيد وخصم التكلفة (للخدمات المسعرة) ---
-                if (isset($data['service_id'])) {
-                    $service_id = $data['service_id'];
-                    $qty = $data['qty'];
-                    
-                    $stmtSrv = $pdo->prepare("SELECT * FROM bot_services WHERE id = ?");
-                    $stmtSrv->execute([$service_id]);
-                    $service = $stmtSrv->fetch(PDO::FETCH_ASSOC);
-                    
-                    if ($service) {
-                        $cost_per_1k = floatval($service['cost'] ?? 0);
-                        // إذا كانت الخدمة لها تكلفة محددة
-                        if ($cost_per_1k > 0) {
-                            $total_cost = ($qty / 1000) * $cost_per_1k;
-                            
-                            // التحقق من الرصيد الحالي
-                            $stmtUser = $pdo->prepare("SELECT balance FROM bot_users WHERE chat_id = ?");
-                            $stmtUser->execute([$chat_id]);
-                            $current_balance = $stmtUser->fetchColumn();
-                            
-                            if ($current_balance < $total_cost) {
-                                $msg = "🚫 **عذراً، رصيدك غير كافٍ!**\n\n";
-                                $msg .= "💵 تكلفة الطلب: $" . number_format($total_cost, 2) . " (لعدد $qty)\n";
-                                $msg .= "� رصيدك الحالي: $" . number_format($current_balance, 2) . "\n\n";
-                                
-                                $keyboard = ['inline_keyboard' => [[['text' => '⭐️ شحن الرصيد (نجوم)', 'callback_data' => 'recharge_stars_menu']]]];
-                                
-                                sendMessage($token, $chat_id, $msg, $keyboard);
-                                clearUserState($pdo, $chat_id);
-                                return; // إيقاف العملية
-                            }
-                            
-                            // خصم الرصيد
-                            $new_balance = $current_balance - $total_cost;
-                            $pdo->prepare("UPDATE bot_users SET balance = ? WHERE chat_id = ?")->execute([$new_balance, $chat_id]);
-                            
-                            // إعلام المستخدم بالتكلفة قبل طلب الرابط
-                            $costMsg = "💵 **تكلفة الطلب:** $" . number_format($total_cost, 2) . "\n";
-                            $costMsg .= "💰 **رصيدك الجديد:** $" . number_format($new_balance, 2) . "\n";
-                            sendMessage($token, $chat_id, $costMsg);
-
-                            // إضافة معلومات التكلفة للبيانات لعرضها في الرسالة النهائية
-                            $data['total_cost'] = $total_cost;
-                            $data['new_balance'] = $new_balance;
-                        }
-                    }
-                }
-                else {
-                    // --- حالة الطلب العام (بدون خدمة محددة) ---
-                    // نتحقق فقط من أن الرصيد أكبر من صفر للسماح بالطلب
+                // حفظ الرابط في البيانات
+                $data['link'] = $link;
+                
+                // تجهيز ملخص الطلب للمراجعة
+                $platform = ucfirst($data['platform']);
+                $type = $data['type_label'] ?? 'خدمة';
+                $qty = $data['qty'];
+                $total_cost = $data['total_cost'] ?? 0;
+                
+                // التحقق النهائي من الرصيد قبل عرض زر التأكيد
+                if ($total_cost > 0) {
                     $stmtUser = $pdo->prepare("SELECT balance FROM bot_users WHERE chat_id = ?");
                     $stmtUser->execute([$chat_id]);
                     $current_balance = $stmtUser->fetchColumn();
                     
+                    if ($current_balance < $total_cost) {
+                        $msg = "🚫 **عذراً، رصيدك غير كافٍ!**\n\n";
+                        $msg .= "💵 تكلفة الطلب: $" . number_format($total_cost, 2) . "\n";
+                        $msg .= "💰 رصيدك الحالي: $" . number_format($current_balance, 2) . "\n";
+                        $keyboard = ['inline_keyboard' => [[['text' => '⭐️ شحن الرصيد (نجوم)', 'callback_data' => 'recharge_stars_menu']]]];
+                        sendMessage($token, $chat_id, $msg, $keyboard);
+                        clearUserState($pdo, $chat_id);
+                        return;
+                    }
+                } else {
+                    // للطلبات العامة (بدون تكلفة محددة)، نتحقق أن الرصيد > 0
+                    $stmtUser = $pdo->prepare("SELECT balance FROM bot_users WHERE chat_id = ?");
+                    $stmtUser->execute([$chat_id]);
+                    $current_balance = $stmtUser->fetchColumn();
                     if ($current_balance <= 0) {
                         $msg = "🚫 **عذراً، رصيدك صفر!**\n\n";
                         $contact = $settings['contact_user'] ?? 'الإدارة';
@@ -272,29 +243,21 @@ if (isset($update['message'])) {
                         return; // إيقاف العملية
                     }
                 }
-                // -------------------------------------------------------
-
-                clearUserState($pdo, $chat_id); // انتهت المحادثة
                 
-                // تجهيز ملخص الطلب
-                $platform = ucfirst($data['platform']);
-                $type = $data['type_label'] ?? ($service['name'] ?? 'خدمة');
-                $qty = $data['qty'];
-                $contact = $settings['contact_user'] ?? 'الإدارة';
-                
-                $msg = "✅ **تم تأكيد طلبك!** 🚀\n\n";
-                $msg .= "طلبك الآن **قيد التنفيذ** وسيتم البدء به قريباً.\n\n";
+                $msg = " **مراجعة الطلب:**\n\n";
                 $msg .= "📱 **المنصة:** $platform\n";
                 $msg .= "🔧 **الخدمة:** $type\n";
                 $msg .= "🔢 **العدد:** $qty\n";
-                if (isset($data['total_cost'])) {
-                    $msg .= "💵 **التكلفة:** $" . number_format($data['total_cost'], 2) . "\n";
-                    $msg .= "💰 **الرصيد المتبقي:** $" . number_format($data['new_balance'], 2) . "\n";
+                $msg .= " **الرابط:** $link\n";
+                if ($total_cost > 0) {
+                    $msg .= "💵 **التكلفة:** $" . number_format($total_cost, 2) . "\n";
                 }
-                $msg .= "🔗 **الرابط:** $link\n\n";
-                if (!isset($data['total_cost'])) $msg .= "💰 **لإتمام الدفع، تواصل مع:** $contact";
+                $msg .= "\n👇 **اضغط تأكيد لإتمام الطلب وخصم الرصيد:**";
                 
-                sendMessage($token, $chat_id, $msg);
+                $keyboard = ['inline_keyboard' => [[['text' => '✅ تأكيد الطلب', 'callback_data' => 'confirm_order_final']]]];
+                
+                setUserState($pdo, $chat_id, 'WAITING_FINAL_CONFIRMATION', $data);
+                sendMessage($token, $chat_id, $msg, $keyboard);
             }
         }
     }
@@ -570,14 +533,36 @@ if (isset($update['callback_query'])) {
         sendInvoice($token, $chat_id, $title, $description, $payload, $currency, $prices);
     }
 
-    // --- معالجة تأكيد تكلفة الطلب ---
-    if ($data === 'confirm_order_cost') {
+    // --- معالجة تأكيد الطلب النهائي ---
+    if ($data === 'confirm_order_final') {
         $stateData = getUserState($pdo, $chat_id);
-        if ($stateData && $stateData['state'] === 'WAITING_COST_CONFIRMATION') {
-            $newData = $stateData['data'];
-            setUserState($pdo, $chat_id, 'WAITING_LINK', $newData);
+        if ($stateData && $stateData['state'] === 'WAITING_FINAL_CONFIRMATION') {
+            $data = $stateData['data'];
+            $total_cost = $data['total_cost'] ?? 0;
             
-            $msg = "🔗 **رابط الحساب أو المنشور:**\n\nيرجى إرسال الرابط المطلوب تنفيذ الخدمة عليه.";
+            // خصم الرصيد
+            $stmtUser = $pdo->prepare("SELECT balance FROM bot_users WHERE chat_id = ?");
+            $stmtUser->execute([$chat_id]);
+            $current_balance = $stmtUser->fetchColumn();
+            
+            if ($total_cost > 0 && $current_balance < $total_cost) {
+                sendMessage($token, $chat_id, "🚫 رصيدك غير كافٍ لإتمام العملية.");
+                clearUserState($pdo, $chat_id);
+                return;
+            }
+            
+            $new_balance = $current_balance - $total_cost;
+            $pdo->prepare("UPDATE bot_users SET balance = ? WHERE chat_id = ?")->execute([$new_balance, $chat_id]);
+            
+            // إرسال رسالة التأكيد النهائية
+            $msg = "✅ **تم تأكيد طلبك بنجاح!** 🚀\n\n";
+            $msg .= "طلبك الآن **قيد التنفيذ**.\n\n";
+            $msg .= "🔧 **الخدمة:** " . ($data['type_label'] ?? '') . "\n";
+            $msg .= "🔢 **العدد:** " . ($data['qty'] ?? 0) . "\n";
+            $msg .= "🔗 **الرابط:** " . ($data['link'] ?? '') . "\n";
+            if ($total_cost > 0) $msg .= "💰 **الرصيد المتبقي:** $" . number_format($new_balance, 2) . "\n";
+            
+            clearUserState($pdo, $chat_id);
             sendMessage($token, $chat_id, $msg);
         } else {
             sendMessage($token, $chat_id, "⚠️ انتهت صلاحية الجلسة، يرجى البدء من جديد.");
