@@ -6,6 +6,7 @@ set_time_limit(0);
 
 $url = $_GET['url'] ?? '';
 $stats_only = isset($_GET['stats_only']) && $_GET['stats_only'] == '1';
+$standings_only = isset($_GET['standings_only']) && $_GET['standings_only'] == '1';
 
 if (empty($url)) {
     die('<div style="text-align:center;padding:20px;font-family:sans-serif;">يرجى إدخال رابط المباراة.<br><a href="bot_dashboard.php">العودة</a></div>');
@@ -33,11 +34,14 @@ if ($is_search_query) {
 if ($stats_only) {
     echo "<div style='color:#d97706; font-weight:bold; margin-bottom:10px;'>⚠ وضع سحب الإحصائيات فقط (لن يتم تعديل التشكيلة)</div>";
 }
+if ($standings_only) {
+    echo "<div style='color:#0d9488; font-weight:bold; margin-bottom:10px;'>⚠ وضع سحب جدول الترتيب فقط</div>";
+}
 
 // استدعاء دالة السحب
 $details = get_match_details_single($url);
 
-if (empty($details['home']) && empty($details['lineup_image'])) {
+if (!$standings_only && empty($details['home']) && empty($details['lineup_image'])) {
     echo "<div style='color:red; font-weight:bold; padding:15px; border:1px solid red; background:#fff0f0; border-radius:8px;'>❌ فشل العثور على التشكيلة.</div>";
     
     // التحقق من وجود CAPTCHA
@@ -74,6 +78,11 @@ if (empty($details['home']) && empty($details['lineup_image'])) {
         echo "<div style='color:#d97706; font-weight:bold; margin-top:10px;'>📷 تم العثور على صورة قد تكون للتشكيلة:</div>";
         echo "<img src='" . htmlspecialchars($details['lineup_image']) . "' style='max-width:100%; margin-top:10px; border:1px solid #ccc; border-radius:8px;'><br>";
         echo "<small>الرابط: " . htmlspecialchars($details['lineup_image']) . "</small><br>";
+    }
+    
+    if (!empty($details['standings'])) {
+        $standingsCount = count(json_decode($details['standings'], true));
+        echo "<div style='color:#0d9488; font-weight:bold; margin-top:10px;'>📊 تم العثور على جدول الترتيب ($standingsCount فريق).</div>";
     }
 
     // محاولة تحديث قاعدة البيانات
@@ -140,7 +149,7 @@ if (empty($details['home']) && empty($details['lineup_image'])) {
             $sql = "UPDATE matches SET ";
             
             // إذا لم يتم طلب الإحصائيات فقط، قم بتحديث التشكيلة
-            if (!$stats_only && !empty($details['home'])) {
+            if (!$stats_only && !$standings_only && !empty($details['home'])) {
                 $sql .= "lineup_home = ?, lineup_away = ?, coach_home = COALESCE(?, coach_home), coach_away = COALESCE(?, coach_away) ";
                 $updateData[] = $details['home'];
                 $updateData[] = $details['away'];
@@ -148,18 +157,24 @@ if (empty($details['home']) && empty($details['lineup_image'])) {
                 $updateData[] = $details['coach_away'];
             }
 
-            if (!empty($details['stats'])) {
+            if (!$standings_only && !empty($details['stats'])) {
                 if (!empty($updateData)) $sql .= ", ";
                 $sql .= "match_stats = ? ";
                 $updateData[] = $details['stats'];
             }
             
             // إذا وجدت صورة تشكيلة، يمكننا إضافتها للأخبار أو حقل خاص (حالياً سنضيفها كخبر للمباراة)
-            if (!$stats_only && !empty($details['lineup_image'])) {
+            if (!$stats_only && !$standings_only && !empty($details['lineup_image'])) {
                 $imageNote = "صورة التشكيلة: " . $details['lineup_image'];
                 if (!empty($updateData)) $sql .= ", ";
                 $sql .= "match_news = ? ";
                 $updateData[] = $imageNote;
+            }
+            
+            if (!empty($details['standings'])) {
+                if (!empty($updateData)) $sql .= ", ";
+                $sql .= "match_standings = ? ";
+                $updateData[] = $details['standings'];
             }
 
             $sql .= "WHERE id = ?";
@@ -315,12 +330,41 @@ function get_match_details_single($url) {
     }
     }
 
+    // استخراج جدول الترتيب (Standings)
+    $standings = [];
+    $standingsNodes = $xpath->query("//div[@id='standings']//div[contains(@class, 'ranking')]//ul/li[not(contains(@class, 'head'))]");
+    
+    if ($standingsNodes->length > 0) {
+        foreach ($standingsNodes as $node) {
+            $rank = trim($xpath->query(".//div[contains(@class, 'arr')]", $node)->item(0)->textContent ?? '');
+            $team = trim($xpath->query(".//div[contains(@class, 'team')]//a|.//div[contains(@class, 'team')]//p", $node)->item(0)->textContent ?? '');
+            $played = trim($xpath->query(".//div[contains(@class, 'w_pld')]", $node)->item(0)->textContent ?? '');
+            $points = trim($xpath->query(".//div[contains(@class, 'w_pts')]", $node)->item(0)->textContent ?? '');
+            $win = trim($xpath->query(".//div[contains(@class, 'w_win')]", $node)->item(0)->textContent ?? '');
+            $draw = trim($xpath->query(".//div[contains(@class, 'w_draw')]", $node)->item(0)->textContent ?? '');
+            $loss = trim($xpath->query(".//div[contains(@class, 'w_loss')]", $node)->item(0)->textContent ?? '');
+            
+            if ($team && $points !== '') {
+                $standings[] = [
+                    'rank' => $rank,
+                    'team' => $team,
+                    'played' => $played,
+                    'points' => $points,
+                    'win' => $win,
+                    'draw' => $draw,
+                    'loss' => $loss
+                ];
+            }
+        }
+    }
+
     return [
         'home' => !empty($homePlayers) ? implode("\n", $homePlayers) : null,
         'away' => !empty($awayPlayers) ? implode("\n", $awayPlayers) : null,
         'coach_home' => $coachHome ?: null,
         'coach_away' => $coachAway ?: null,
         'stats' => !empty($stats) ? json_encode($stats, JSON_UNESCAPED_UNICODE) : null,
+        'standings' => !empty($standings) ? json_encode($standings, JSON_UNESCAPED_UNICODE) : null,
         'lineup_image' => $lineupImage,
         'html_preview' => substr($html, 0, 2000),
         'html_full' => $html // نحتاجه لاستخراج أسماء الفرق

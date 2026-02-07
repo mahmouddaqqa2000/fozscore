@@ -212,8 +212,8 @@ $favicon = $settings['favicon'];
                         <span>سحب أحداث المباريات (أهداف/بطاقات)</span>
                         <span class="icon">⚽</span>
                     </a>
-                    <a href="scrape_stats_recent.php?type=full" class="btn-bot bg-teal" style="background-color: #0d9488;">
-                        <span>تحديث ترتيب الفرق (المراكز)</span>
+                    <a href="scrape_stats_recent.php?type=standings" class="btn-bot bg-teal" style="background-color: #0d9488;">
+                        <span>تحديث جدول الترتيب (المراكز) فقط</span>
                         <span class="icon">📊</span>
                     </a>
                     <a href="scrape_lineups_today.php" class="btn-bot bg-sky" title="هذه الميزة معطلة حالياً لأنها تتطلب Node.js">
@@ -337,6 +337,10 @@ $favicon = $settings['favicon'];
                     <label class="checkbox-label">
                         <input type="checkbox" name="stats_only" value="1" style="width: 18px; height: 18px;">
                         سحب الإحصائيات فقط (دون تغيير التشكيلة الحالية)
+                    </label>
+                    <label class="checkbox-label">
+                        <input type="checkbox" name="standings_only" value="1" style="width: 18px; height: 18px;">
+                        سحب جدول الترتيب فقط
                     </label>
                 </form>
             </div>

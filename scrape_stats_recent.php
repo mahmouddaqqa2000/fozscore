@@ -31,7 +31,7 @@ if (function_exists('apache_setenv')) @apache_setenv('no-gzip', 1);
 while (ob_get_level() > 0) { ob_end_flush(); }
 ob_implicit_flush(1);
 
-$type = $_GET['type'] ?? 'events'; // 'events' or 'full'
+$type = $_GET['type'] ?? 'events'; // 'events', 'full', or 'standings'
 
 echo '<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><title>تحديث الأحداث</title>';
 echo '<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">';
@@ -55,7 +55,10 @@ setInterval(function() { window.scrollTo(0, document.body.scrollHeight); }, 1000
 ';
 echo '</head><body><div class="container">';
 
-$title = ($type === 'events') ? 'سحب أحداث المباريات (أهداف، بطاقات، تبديلات)' : 'سحب التفاصيل الكاملة (إحصائيات وتشكيلات)';
+$title = 'سحب أحداث المباريات';
+if ($type === 'full') $title = 'سحب التفاصيل الكاملة (إحصائيات وتشكيلات)';
+if ($type === 'standings') $title = 'تحديث جدول الترتيب (المراكز)';
+
 echo "<h2>🔄 $title</h2>";
 echo "<p>جاري تحديث البيانات للمباريات (أمس، اليوم، غداً)...</p>";
 // إضافة حشو لإجبار المتصفح على عرض البداية فوراً
@@ -134,17 +137,19 @@ if (empty($all_matches)) {
         }
         
         // عرض حالة سحب التشكيلة للتشخيص
-        if (empty($details['home'])) {
-             echo "<div style='color:#ef4444; font-size:0.85em; margin-top:2px; padding-right:10px;'>❌ لم يتم سحب التشكيلة. التشخيص: " . htmlspecialchars($details['lineup_debug'] ?? 'غير معروف') . "</div>";
-        } else {
-             echo "<div style='color:#10b981; font-size:0.85em; margin-top:2px; padding-right:10px;'>✅ تم سحب التشكيلة (" . htmlspecialchars($details['lineup_debug'] ?? 'نجاح') . ")</div>";
+        if ($type !== 'standings') {
+            if (empty($details['home'])) {
+                 echo "<div style='color:#ef4444; font-size:0.85em; margin-top:2px; padding-right:10px;'>❌ لم يتم سحب التشكيلة. التشخيص: " . htmlspecialchars($details['lineup_debug'] ?? 'غير معروف') . "</div>";
+            } else {
+                 echo "<div style='color:#10b981; font-size:0.85em; margin-top:2px; padding-right:10px;'>✅ تم سحب التشكيلة (" . htmlspecialchars($details['lineup_debug'] ?? 'نجاح') . ")</div>";
+            }
         }
         
         $updates = [];
         $params = [];
         
         // تحديث الأحداث
-        if (!empty($details['match_events'])) {
+        if ($type !== 'standings' && !empty($details['match_events'])) {
             // مقارنة بسيطة لتجنب التحديث غير الضروري
             $new_events_clean = preg_replace('/\s+/', '', $details['match_events']);
             $old_events_clean = preg_replace('/\s+/', '', $match['match_events'] ?? '');
@@ -161,7 +166,7 @@ if (empty($all_matches)) {
         }
 
         // تحديث التشكيلة (إذا وجدت ولم تكن موجودة مسبقاً أو للتحديث)
-        if (!empty($details['home'])) {
+        if ($type !== 'standings' && !empty($details['home'])) {
             // نقوم بالتحديث إذا كانت التشكيلة الجديدة موجودة
             $updates[] = "lineup_home = ?";
             $params[] = $details['home'];
@@ -187,7 +192,7 @@ if (empty($all_matches)) {
             echo "<span class='status-ok'>تم التحديث ✅</span>";
             $total_updated++;
         } else {
-            if (empty($details['match_events'])) {
+            if ($type !== 'standings' && empty($details['match_events'])) {
                 if (strpos($details['html_preview'], 'Cloudflare') !== false || strpos($details['html_preview'], 'Attention Required') !== false) {
                     echo "<span class='status-fail'>تم حظر الطلب (Cloudflare) ⛔</span>";
                 } elseif (strpos($details['html_preview'], 'فشل الاتصال') !== false) {
