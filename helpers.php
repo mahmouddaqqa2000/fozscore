@@ -108,6 +108,9 @@ function get_channel_logo_url($channel_name) {
     $channel_map = [
         'ssc sport 1 hd' => 'ssc-1.png',
         'ssc 1 hd' => 'ssc-1.png',
+        'ssc 1' => 'ssc-1.png',
+        'ssc news' => 'ssc-news.png',
+        'ssc extra 1' => 'ssc-extra-1.png',
         // Bein Sports
         'beinsports 1' => 'beinsports-1.png',
         'beinsports 2' => 'beinsports-2.png',
@@ -116,17 +119,42 @@ function get_channel_logo_url($channel_name) {
         'beinsports 5' => 'beinsports-5.png',
         'beinsports 6' => 'beinsports-6.png',
         'beinsports news' => 'beinsports-news.png',
+        'beinsports xtra 1' => 'beinsports-xtra-1.png',
+        'beinsports xtra 2' => 'beinsports-xtra-2.png',
+        'alkass one' => 'alkass-one.png',
+        'alkass two' => 'alkass-two.png',
+        'alkass 1' => 'alkass-one.png',
+        'alkass 2' => 'alkass-two.png',
+        'ad sports 1' => 'ad-sports-1.png',
+        'ad sports 2' => 'ad-sports-2.png',
+        'on time sports 1' => 'ontime-sports-1.png',
+        'on time sports 2' => 'ontime-sports-2.png',
     ];
 
     $normalized_name = strtolower(trim($channel_name));
     
-    // استخدم الخريطة أولاً، ثم القاعدة العامة
-    $logo_filename = $channel_map[$normalized_name] ?? str_replace(' ', '-', $normalized_name) . '.png';
+    // قائمة الاحتمالات لاسم الملف للبحث عنها
+    $possible_filenames = [];
     
-    $logo_path = 'assets/channels/' . $logo_filename;
+    // 1. من الخريطة
+    if (isset($channel_map[$normalized_name])) {
+        $possible_filenames[] = $channel_map[$normalized_name];
+    }
 
-    if (file_exists(__DIR__ . '/' . $logo_path)) {
-        return $logo_path;
+    // 2. استبدال المسافات بشرطة (الافتراضي)
+    $possible_filenames[] = str_replace(' ', '-', $normalized_name) . '.png';
+    
+    // 3. حذف المسافات تماماً (مثل beinsports1.png)
+    $possible_filenames[] = str_replace(' ', '', $normalized_name) . '.png';
+    
+    // 4. استبدال المسافات بشرطة سفلية (مثل beinsports_1.png)
+    $possible_filenames[] = str_replace(' ', '_', $normalized_name) . '.png';
+
+    foreach ($possible_filenames as $filename) {
+        $logo_path = 'assets/channels/' . $filename;
+        if (file_exists(__DIR__ . '/' . $logo_path)) {
+            return $logo_path;
+        }
     }
     
     return false;
