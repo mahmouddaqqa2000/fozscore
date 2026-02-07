@@ -672,11 +672,13 @@ if (!$match) {
         
         @media (max-width: 600px) {
             .timeline-content { gap: 6px; }
-            .timeline-row { flex-direction: row; }
-            .timeline-content.home { padding-right: 8px; }
-            .timeline-content.away { padding-left: 8px; }
+            .timeline-row { flex-direction: column; gap: 5px; margin-bottom: 15px; }
+            .timeline-content { width: 100%; padding: 0 !important; justify-content: center !important; }
+            .timeline-content:empty { display: none; }
+            .timeline-time { order: -1; margin-bottom: 5px; }
             .timeline-card { padding: 8px 10px; font-size: 0.85rem; min-height: 35px; gap: 8px; }
             .timeline-time { width: 40px; height: 40px; font-size: 0.75rem; border-width: 2px; }
+            .timeline::before { display: none; }
         }
 
         /* Yallakora-style Event Icons & Details */
