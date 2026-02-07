@@ -141,4 +141,10 @@ $pdo->exec("CREATE TABLE IF NOT EXISTS bot_services (
   description TEXT
 )");
 
+// إضافة عمود التصنيف (category) لجدول الخدمات إذا لم يكن موجوداً
+$cols = $pdo->query("PRAGMA table_info(bot_services)")->fetchAll(PDO::FETCH_COLUMN, 1);
+if (!in_array('category', $cols)) {
+    $pdo->exec("ALTER TABLE bot_services ADD COLUMN category TEXT");
+}
+
 ?>

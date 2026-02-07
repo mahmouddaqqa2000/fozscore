@@ -275,8 +275,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $name = $_POST['service_name'];
         $price = $_POST['service_price'];
         $desc = $_POST['service_desc'];
-        $stmt = $pdo->prepare("INSERT INTO bot_services (name, price, description) VALUES (?, ?, ?)");
-        $stmt->execute([$name, $price, $desc]);
+        $category = $_POST['service_category'];
+        $stmt = $pdo->prepare("INSERT INTO bot_services (name, price, description, category) VALUES (?, ?, ?, ?)");
+        $stmt->execute([$name, $price, $desc, $category]);
         $message = "تم إضافة الخدمة للمتجر ✅";
         $msg_type = "success";
     }
@@ -304,14 +305,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             foreach ($services as $s) {
                 // تحديد الأيقونة حسب اسم الخدمة
                 $icon = '💎';
-                $n = mb_strtolower($s['name']);
-                if (strpos($n, 'instagram') !== false || strpos($n, 'انستجرام') !== false) $icon = '📸';
-                elseif (strpos($n, 'facebook') !== false || strpos($n, 'فيسبوك') !== false) $icon = '📘';
-                elseif (strpos($n, 'tiktok') !== false || strpos($n, 'تيك توك') !== false) $icon = '🎵';
-                elseif (strpos($n, 'youtube') !== false || strpos($n, 'يوتيوب') !== false) $icon = '📺';
-                elseif (strpos($n, 'twitter') !== false || strpos($n, 'تويتر') !== false || strpos($n, 'x ') !== false) $icon = '🐦';
-                elseif (strpos($n, 'telegram') !== false || strpos($n, 'تيليجرام') !== false) $icon = '✈️';
-                elseif (strpos($n, 'snapchat') !== false || strpos($n, 'سناب') !== false) $icon = '👻';
+                $cat = $s['category'] ?? '';
+                if ($cat === 'instagram') $icon = '📸';
+                elseif ($cat === 'facebook') $icon = '📘';
+                elseif ($cat === 'tiktok') $icon = '🎵';
+                elseif ($cat === 'youtube') $icon = '📺';
+                elseif ($cat === 'twitter') $icon = '🐦';
+                elseif ($cat === 'telegram') $icon = '✈️';
+                elseif ($cat === 'other') $icon = '🌐';
+                else {
+                    // Fallback logic based on name
+                    $n = mb_strtolower($s['name']);
+                    if (strpos($n, 'instagram') !== false || strpos($n, 'انستجرام') !== false) $icon = '📸';
+                    elseif (strpos($n, 'facebook') !== false || strpos($n, 'فيسبوك') !== false) $icon = '📘';
+                    elseif (strpos($n, 'tiktok') !== false || strpos($n, 'تيك توك') !== false) $icon = '🎵';
+                    elseif (strpos($n, 'youtube') !== false || strpos($n, 'يوتيوب') !== false) $icon = '📺';
+                    elseif (strpos($n, 'twitter') !== false || strpos($n, 'تويتر') !== false) $icon = '🐦';
+                    elseif (strpos($n, 'telegram') !== false || strpos($n, 'تيليجرام') !== false) $icon = '✈️';
+                }
                 
                 $msg .= "$icon <b>{$s['name']}</b>\n";
                 if ($s['price']) $msg .= "💰 السعر: {$s['price']}\n";
@@ -471,7 +482,19 @@ $services_list = $pdo->query("SELECT * FROM bot_services ORDER BY id DESC")->fet
             <form method="post" style="background: #f1f5f9; padding: 15px; border-radius: 10px; margin-bottom: 20px;">
                 <h3 style="margin-top:0; font-size:1rem;">إضافة خدمة جديدة</h3>
                 <div class="form-group">
-                    <input type="text" name="service_name" placeholder="اسم الخدمة (مثال: 1000 متابع انستجرام)" required>
+                    <select name="service_category" style="width:100%; padding:10px; border-radius:8px; border:1px solid #cbd5e1; margin-bottom:10px; font-family:inherit;" required>
+                        <option value="" disabled selected>-- اختر القسم (الزر) --</option>
+                        <option value="instagram">📸 انستجرام</option>
+                        <option value="facebook">📘 فيسبوك</option>
+                        <option value="tiktok">🎵 تيك توك</option>
+                        <option value="youtube">📺 يوتيوب</option>
+                        <option value="twitter">🐦 تويتر (X)</option>
+                        <option value="telegram">✈️ تيليجرام</option>
+                        <option value="other">🌐 خدمات أخرى</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <input type="text" name="service_name" placeholder="اسم الخدمة (مثال: 1000 متابع)" required>
                 </div>
                 <div class="form-group" style="display:flex; gap:10px;">
                     <input type="text" name="service_price" placeholder="السعر (مثال: 5$)" style="flex:1;" required>
@@ -488,13 +511,14 @@ $services_list = $pdo->query("SELECT * FROM bot_services ORDER BY id DESC")->fet
                     <?php
                         // تحديد الأيقونة للعرض في اللوحة
                         $icon = '💎';
-                        $n = mb_strtolower($srv['name']);
-                        if (strpos($n, 'instagram') !== false || strpos($n, 'انستجرام') !== false) $icon = '📸';
-                        elseif (strpos($n, 'facebook') !== false || strpos($n, 'فيسبوك') !== false) $icon = '📘';
-                        elseif (strpos($n, 'tiktok') !== false || strpos($n, 'تيك توك') !== false) $icon = '🎵';
-                        elseif (strpos($n, 'youtube') !== false || strpos($n, 'يوتيوب') !== false) $icon = '📺';
-                        elseif (strpos($n, 'twitter') !== false || strpos($n, 'تويتر') !== false) $icon = '🐦';
-                        elseif (strpos($n, 'telegram') !== false || strpos($n, 'تيليجرام') !== false) $icon = '✈️';
+                        $cat = $srv['category'] ?? '';
+                        if ($cat === 'instagram') $icon = '📸';
+                        elseif ($cat === 'facebook') $icon = '📘';
+                        elseif ($cat === 'tiktok') $icon = '🎵';
+                        elseif ($cat === 'youtube') $icon = '📺';
+                        elseif ($cat === 'twitter') $icon = '🐦';
+                        elseif ($cat === 'telegram') $icon = '✈️';
+                        elseif ($cat === 'other') $icon = '🌐';
                     ?>
                     <div class="service-item">
                         <div class="service-details">

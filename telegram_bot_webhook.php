@@ -85,10 +85,10 @@ if (isset($update['callback_query'])) {
         
         $platformAr = $platformNames[$platform] ?? $platform;
         
-        // البحث عن الخدمات في قاعدة البيانات
-        // نبحث عن الخدمات التي يحتوي اسمها أو وصفها على اسم المنصة
-        $stmt = $pdo->prepare("SELECT * FROM bot_services WHERE name LIKE ? OR description LIKE ?");
-        $stmt->execute(["%$platformAr%", "%$platformAr%"]);
+        // البحث عن الخدمات حسب التصنيف (category)
+        // ندعم أيضاً البحث القديم (بالاسم) للخدمات القديمة التي ليس لها تصنيف
+        $stmt = $pdo->prepare("SELECT * FROM bot_services WHERE category = ? OR (category IS NULL AND (name LIKE ? OR description LIKE ?))");
+        $stmt->execute([$platform, "%$platformAr%", "%$platformAr%"]);
         $services = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
         if (empty($services)) {
