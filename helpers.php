@@ -875,6 +875,7 @@ function get_match_details($url) {
         "//div[contains(@class, 'eventsTtl')]/following-sibling::ul/li", // الهيكل القياسي
         "//div[contains(@class, 'matchEvents')]//ul/li", // حاوية الأحداث العامة
         "//div[contains(@class, 'events')]//div[contains(@class, 'item')]", // هيكل جديد محتمل (divs بدل ul/li)
+        "//div[contains(@class, 'event')]//div[contains(@class, 'row')]", // هيكل الصفوف
         "//div[contains(@class, 'events')]//ul/li", // بحث عام عن كلاس events
         "//div[contains(@class, 'tabContent')][contains(@class, 'events')]//ul/li", // محتوى التبويب الجديد
         "//li[.//span[contains(@class, 'min')] and .//div[contains(@class, 'description')]]", // بحث عام ذكي عن أي سطر حدث في الصفحة
@@ -1003,31 +1004,46 @@ function get_match_details($url) {
         }
     }
     
-    // 3. استراتيجية البحث النصي الشامل (Nuclear Fallback) - للاستضافات التي قد تستقبل HTML مختلف
-    // إذا فشل كل شيء، نبحث عن أي عنصر يحتوي على توقيت (رقم + ')
+    // 3. استراتيجية "الصيد الحر" (Smart Hunting) - الحل الأقوى
+    // بدلاً من البحث عن حاويات، نبحث عن "نمط الحدث" في أي مكان في الصفحة
     if (empty($events)) {
         $dom = new DOMDocument();
         @$dom->loadHTML('<?xml encoding="UTF-8">' . $html);
         $xpath = new DOMXPath($dom);
         
-        // نبحث عن أي عنصر يحتوي على نص يشبه التوقيت (مثل 45' أو 90+2')
-        $timeNodes = $xpath->query("//*[contains(text(), \"'\")]");
+        // نبحث عن أي عنصر يحتوي على كلاس فيه كلمة 'min' أو 'time' ويحتوي على رقم
+        // هذا يغطي 99% من تصاميم المواقع الرياضية
+        $potentialTimeNodes = $xpath->query("//*[contains(@class, 'min') or contains(@class, 'time')] | //span[contains(text(), \"'\")]");
         
-        foreach ($timeNodes as $node) {
+        foreach ($potentialTimeNodes as $node) {
             $text = trim($node->textContent);
-            // التحقق من أن النص هو توقيت فقط (أرقام و ')
-            if (preg_match('/^(\d+(?:\+\d+)?)\'$/', $text)) {
+            
+            // هل النص يشبه التوقيت؟ (مثال: 45, 45', 90+3)
+            if (preg_match('/^(\d+(?:\+\d+)?)\'?$/', $text)) {
+                if (strpos($text, "'") === false) $text .= "'"; // إضافة الدقيقة إذا كانت ناقصة
                 $min = $text;
-                // البحث عن الوصف في العناصر المجاورة أو الآباء
-                $parent = $node->parentNode;
-                $fullText = $parent->textContent;
-                $cleanText = trim(str_replace($min, '', $fullText));
-                $cleanText = preg_replace('/\s+/', ' ', $cleanText);
                 
-                // إذا كان النص يحتوي على معلومات مفيدة، نعتبره حدثاً
-                if (mb_strlen($cleanText) > 5 && mb_strlen($cleanText) < 100) {
+                // الصعود للأب (Parent) للبحث عن تفاصيل الحدث بجانب التوقيت
+                $parent = $node->parentNode;
+                // أحياناً نحتاج للصعود مستويين (span -> div -> li)
+                if ($parent->nodeName === 'span' || $parent->nodeName === 'div') {
+                    if (mb_strlen($parent->textContent) < 10) $parent = $parent->parentNode;
+                }
+
+                $fullText = $parent->textContent;
+                // تنظيف النص من التوقيت للحصول على الوصف
+                $desc = trim(str_replace($node->textContent, '', $fullText));
+                $desc = preg_replace('/\s+/', ' ', $desc);
+                
+                // تصفية النصوص غير المفيدة
+                if (mb_strlen($desc) > 3 && mb_strlen($desc) < 150 && !is_numeric($desc)) {
+                    // تحديد الفريق بناءً على الكلاسات المحيطة
+                    $containerClass = $parent->getAttribute('class') . ' ' . $parent->parentNode->getAttribute('class');
+                    $side = (strpos($containerClass, 'left') !== false || strpos($containerClass, 'away') !== false || strpos($containerClass, 'teamB') !== false) ? '(ضيف)' : '(مستضيف)';
+                    
                     // محاولة تخمين النوع من الكلاسات أو النص (اختياري)
-                    $events[] = "$min ⚽ $cleanText (مستضيف)"; // افتراضي
+                    // الرموز سيتم معالجتها لاحقاً في view_match.php بناءً على النص
+                    $events[] = "$min $desc $side"; 
                 }
             }
         }
@@ -1101,6 +1117,7 @@ function get_match_details($url) {
         ['//div[contains(@class, "matchLineup")]//div[contains(@class, "teamA")]//*[contains(@class, "player")]', '//div[contains(@class, "matchLineup")]//div[contains(@class, "teamB")]//*[contains(@class, "player")]'],
         ['//div[contains(@class, "teamA")]//*[contains(@class, "player")]', '//div[contains(@class, "teamB")]//*[contains(@class, "player")]'],
         ['//div[contains(@class, "teamA")]//*[contains(@class, "item")]', '//div[contains(@class, "teamB")]//*[contains(@class, "item")]'],
+        ['//div[contains(@class, "home")]//*[contains(@class, "player")]', '//div[contains(@class, "away")]//*[contains(@class, "player")]'],
         // استراتيجية البحث العام: جلب كل اللاعبين في الحاوية وتقسيمهم لاحقاً
         ['//div[@id="squad"]//*[contains(@class, "player")]', ''],
         ['//div[@id="squad"]//*[contains(@class, "item")]', ''],
@@ -1148,7 +1165,7 @@ function get_match_details($url) {
         // استراتيجية التقسيم (Explode Strategy) - الحل الجذري
         // نقوم بتقسيم الكود بناءً على كلاس اللاعب، ثم نستخرج البيانات من كل جزء
         // هذا يتجاوز مشاكل تداخل HTML وتعقيد Regex
-        $playerChunks = preg_split('/class\s*=\s*["\'][^"\']*\b(?:player|item|squad-player)\b[^"\']*["\']/i', $html);
+        $playerChunks = preg_split('/class\s*=\s*["\'][^"\']*\b(?:player|item|squad-player|lineup-player)\b[^"\']*["\']/i', $html);
         
         // العنصر الأول هو ما قبل أول لاعب، نتجاهله
         array_shift($playerChunks);
@@ -1403,8 +1420,8 @@ function extract_players_from_formation($html) {
     $xpath = new DOMXPath($dom);
 
     $teams = [
-        'home' => '//div[contains(@class, "formation")]//div[contains(@class, "teamA")]//a[contains(@class, "player")]//',
-        'away' => '//div[contains(@class, "formation")]//div[contains(@class, "teamB")]//a[contains(@class, "player")]//',
+        'home' => '//div[contains(@class, "formation")]//div[contains(@class, "teamA")]//*[contains(@class, "player")]//',
+        'away' => '//div[contains(@class, "formation")]//div[contains(@class, "teamB")]//*[contains(@class, "player")]//',
     ];
 
     $out = ['home' => [], 'away' => []];
