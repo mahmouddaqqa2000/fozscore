@@ -42,8 +42,8 @@ if (isset($update['message'])) {
                     ['text' => '🔥 العروض الخاصة', 'callback_data' => 'platform_special_offers']
                 ],
                 [
-                    ['text' => '� انستجرام', 'callback_data' => 'platform_instagram'],
-                    ['text' => '📘 فيسبوك', 'callback_data' => 'platform_facebook']
+                    ['text' => '📸 انستجرام', 'callback_data' => 'platform_instagram'],
+                    ['text' => '� فيسبوك', 'callback_data' => 'platform_facebook']
                 ],
                 [
                     ['text' => '🎵 تيك توك', 'callback_data' => 'platform_tiktok'],
