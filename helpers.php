@@ -1113,6 +1113,17 @@ function get_match_details($url) {
         }
     }
 
+    // في نهاية منطق استخراج التشكيلة وقبل return الحالي، نضيف محاولة جديدة تعتمد على formation
+    // --- محاولة خاصة للهيكل الجديد للتشكيلة (formation / teamA / teamB) ---
+    if (empty($homePlayers) && empty($awayPlayers)) {
+        $formationPlayers = extract_players_from_formation($html);
+        if (!empty($formationPlayers['home']) || !empty($formationPlayers['away'])) {
+            $homePlayers = $formationPlayers['home'];
+            $awayPlayers = $formationPlayers['away'];
+            $lineupDebug = 'تم العثور عليها باستخدام formation/teamA-teamB (الهيكل الجديد)';
+        }
+    }
+
     return [
         'home' => !empty($homePlayers) ? implode("\n", $homePlayers) : null,
         'away' => !empty($awayPlayers) ? implode("\n", $awayPlayers) : null,
@@ -1206,4 +1217,48 @@ function slugify($text) {
     $text = preg_replace('~[^\p{L}\p{N}]+~u', '-', $text);
     // إزالة الشرطات من البداية والنهاية
     return trim($text, '-');
+}
+
+// دالة مساعدة داخلية لاستخراج قائمة اللاعبين من هيكل التشكيلة الجديد
+function extract_players_from_formation($html) {
+    $dom = new DOMDocument();
+    libxml_use_internal_errors(true);
+    $dom->loadHTML('<?xml encoding="UTF-8">' . $html);
+    libxml_clear_errors();
+    $xpath = new DOMXPath($dom);
+
+    $teams = [
+        'home' => '//div[contains(@class, "formation")]//div[contains(@class, "teamA")]//a[contains(@class, "player")]//',
+        'away' => '//div[contains(@class, "formation")]//div[contains(@class, "teamB")]//a[contains(@class, "player")]//',
+    ];
+
+    $out = ['home' => [], 'away' => []];
+
+    foreach ($teams as $sideKey => $base) {
+        $playerNodes = $xpath->query(str_replace('//', '', $base) ? substr($base, 0, -2) : $base);
+        if (!$playerNodes || $playerNodes->length === 0) continue;
+
+        foreach ($playerNodes as $aNode) {
+            $nameNode = $xpath->query('.//p[contains(@class, "playerName")]', $aNode)->item(0);
+            $numNode  = $xpath->query('.//p[contains(@class, "number")]', $aNode)->item(0);
+            $imgNode  = $xpath->query('.//img', $aNode)->item(0);
+
+            $name = trim($nameNode->textContent ?? '');
+            if ($name === '') continue;
+
+            $num  = trim($numNode->textContent ?? '');
+            $img  = $imgNode ? $imgNode->getAttribute('src') : null;
+            if ($img && strpos($img, 'http') !== 0) {
+                $img = 'https://www.yallakora.com' . $img;
+            }
+
+            $playerStr = $name;
+            if ($img) $playerStr .= ' | ' . $img;
+            if ($num !== '') $playerStr .= ' | ' . $num;
+
+            $out[$sideKey][] = $playerStr;
+        }
+    }
+
+    return $out;
 }
