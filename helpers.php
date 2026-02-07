@@ -874,6 +874,7 @@ function get_match_details($url) {
         "//div[@id='minbymin']//ul/li", // الأولوية 2: تبويب دقيقة بدقيقة (قد يحتوي على الأحداث أيضاً)
         "//div[contains(@class, 'eventsTtl')]/following-sibling::ul/li", // الهيكل القياسي
         "//div[contains(@class, 'matchEvents')]//ul/li", // حاوية الأحداث العامة
+        "//div[contains(@class, 'events')]//div[contains(@class, 'item')]", // هيكل جديد محتمل (divs بدل ul/li)
         "//div[contains(@class, 'events')]//ul/li", // بحث عام عن كلاس events
         "//div[contains(@class, 'tabContent')][contains(@class, 'events')]//ul/li", // محتوى التبويب الجديد
         "//li[.//span[contains(@class, 'min')] and .//div[contains(@class, 'description')]]", // بحث عام ذكي عن أي سطر حدث في الصفحة
@@ -1031,6 +1032,36 @@ function get_match_details($url) {
             }
         }
     }
+    
+    // 3. استراتيجية البحث النصي الشامل (Nuclear Fallback) - للاستضافات التي قد تستقبل HTML مختلف
+    // إذا فشل كل شيء، نبحث عن أي عنصر يحتوي على توقيت (رقم + ')
+    if (empty($events)) {
+        $dom = new DOMDocument();
+        @$dom->loadHTML('<?xml encoding="UTF-8">' . $html);
+        $xpath = new DOMXPath($dom);
+        
+        // نبحث عن أي عنصر يحتوي على نص يشبه التوقيت (مثل 45' أو 90+2')
+        $timeNodes = $xpath->query("//*[contains(text(), \"'\")]");
+        
+        foreach ($timeNodes as $node) {
+            $text = trim($node->textContent);
+            // التحقق من أن النص هو توقيت فقط (أرقام و ')
+            if (preg_match('/^(\d+(?:\+\d+)?)\'$/', $text)) {
+                $min = $text;
+                // البحث عن الوصف في العناصر المجاورة أو الآباء
+                $parent = $node->parentNode;
+                $fullText = $parent->textContent;
+                $cleanText = trim(str_replace($min, '', $fullText));
+                $cleanText = preg_replace('/\s+/', ' ', $cleanText);
+                
+                // إذا كان النص يحتوي على معلومات مفيدة، نعتبره حدثاً
+                if (mb_strlen($cleanText) > 5 && mb_strlen($cleanText) < 100) {
+                    // محاولة تخمين النوع من الكلاسات أو النص (اختياري)
+                    $events[] = "$min ⚽ $cleanText (مستضيف)"; // افتراضي
+                }
+            }
+        }
+    }
 
     // --- استخراج التشكيلة (Lineups) ---
     $homePlayers = [];
@@ -1043,7 +1074,9 @@ function get_match_details($url) {
         $nameNode = $xpath->query(".//p[contains(@class, 'playerName')]|.//span[contains(@class, 'name')]|.//p[contains(@class, 'name')]|.//div[contains(@class, 'name')]", $node)->item(0);
         $name = trim($nameNode->textContent ?? '');
         $num = trim($xpath->query(".//p[contains(@class, 'number')]|.//span[contains(@class, 'number')]", $node)->item(0)->textContent ?? '');
-        $img = $xpath->query(".//img", $node)->item(0)?->getAttribute('src');
+        
+        $imgNode = $xpath->query(".//img", $node)->item(0);
+        $img = $imgNode ? ($imgNode->getAttribute('data-src') ?: $imgNode->getAttribute('src')) : null;
         
         if ($name) {
             $playerStr = $name;
@@ -1070,6 +1103,7 @@ function get_match_details($url) {
         ['//div[contains(@class, "teamA")]//*[contains(@class, "item")]', '//div[contains(@class, "teamB")]//*[contains(@class, "item")]'],
         // استراتيجية البحث العام: جلب كل اللاعبين في الحاوية وتقسيمهم لاحقاً
         ['//div[@id="squad"]//*[contains(@class, "player")]', ''],
+        ['//div[@id="squad"]//*[contains(@class, "item")]', ''],
         ['//div[contains(@class, "squad")]//*[contains(@class, "player")]', ''],
         ['//div[contains(@class, "formation")]//*[contains(@class, "player")]', '']
     ];
@@ -1114,7 +1148,7 @@ function get_match_details($url) {
         // استراتيجية التقسيم (Explode Strategy) - الحل الجذري
         // نقوم بتقسيم الكود بناءً على كلاس اللاعب، ثم نستخرج البيانات من كل جزء
         // هذا يتجاوز مشاكل تداخل HTML وتعقيد Regex
-        $playerChunks = preg_split('/class\s*=\s*["\'][^"\']*\b(?:player|item)\b[^"\']*["\']/i', $html);
+        $playerChunks = preg_split('/class\s*=\s*["\'][^"\']*\b(?:player|item|squad-player)\b[^"\']*["\']/i', $html);
         
         // العنصر الأول هو ما قبل أول لاعب، نتجاهله
         array_shift($playerChunks);
@@ -1127,19 +1161,19 @@ function get_match_details($url) {
             
             // استخراج الاسم: نبحث عن كلاس name أو playerName
             $name = '';
-            if (preg_match('/class\s*=\s*["\'][^"\']*\b(?:name|playerName)\b[^"\']*["\'][^>]*>(.*?)<\//is', $chunk, $nMatch)) {
+            if (preg_match('/class\s*=\s*["\'][^"\']*\b(?:name|playerName|p-name)\b[^"\']*["\'][^>]*>([^<]+)<\//is', $chunk, $nMatch)) {
                 $name = trim(strip_tags($nMatch[1]));
             }
             
             // استخراج الرقم
             $num = '';
-            if (preg_match('/class\s*=\s*["\'][^"\']*\bnumber\b[^"\']*["\'][^>]*>(.*?)<\//is', $chunk, $numMatch)) {
+            if (preg_match('/class\s*=\s*["\'][^"\']*\b(?:number|num)\b[^"\']*["\'][^>]*>([^<]+)<\//is', $chunk, $numMatch)) {
                 $num = trim(strip_tags($numMatch[1]));
             }
             
             // استخراج الصورة
             $img = null;
-            if (preg_match('/<img[^>]*src\s*=\s*["\']([^"\']+)["\']/i', $chunk, $imgMatch)) {
+            if (preg_match('/<img[^>]*(?:src|data-src)\s*=\s*["\']([^"\']+)["\']/i', $chunk, $imgMatch)) {
                 $img = $imgMatch[1];
             }
             
@@ -1167,8 +1201,8 @@ function get_match_details($url) {
             
             // === الملاذ الأخير: استراتيجية البحث الشامل (Global Regex) ===
             // نبحث عن كل الأسماء والأرقام في الصفحة بغض النظر عن أماكنها
-            preg_match_all('/class\s*=\s*["\'][^"\']*\b(?:playerName|name)\b[^"\']*["\'][^>]*>([^<]+)/is', $html, $nameMatches);
-            preg_match_all('/class\s*=\s*["\'][^"\']*\bnumber\b[^"\']*["\'][^>]*>(.*?)<\//is', $html, $numMatches);
+            preg_match_all('/class\s*=\s*["\'][^"\']*\b(?:playerName|name|p-name)\b[^"\']*["\'][^>]*>([^<]+)/is', $html, $nameMatches);
+            preg_match_all('/class\s*=\s*["\'][^"\']*\b(?:number|num)\b[^"\']*["\'][^>]*>([^<]+)<\//is', $html, $numMatches);
             
             if (!empty($nameMatches[1])) {
                 $allPlayers = [];
