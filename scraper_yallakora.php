@@ -221,7 +221,7 @@ foreach ($leagues as $leagueNode) {
         // جلب التشكيلة فقط إذا كانت المباراة موجودة ولكن ليس لها تشكيلة، أو إذا كانت جديدة
         // تفعيل السحب التلقائي للتشكيلة والإحصائيات إذا كانت ناقصة
         // تم التعديل لسحب الأحداث فقط
-        $shouldFetchLineup = $fetch_details && $sourceUrl && (!$existing || empty($existing['match_events']) || empty($existing['lineup_home']));
+        $shouldFetchLineup = $sourceUrl && ($fetch_details || !$existing || empty($existing['match_events']) || empty($existing['lineup_home']));
         
         if ($shouldFetchLineup) {
             $details = get_match_details($sourceUrl);
@@ -235,6 +235,8 @@ foreach ($leagues as $leagueNode) {
             $streamUrl = $details['stream_url'];
             if ($lineupHome) {
                 echo " <span style='color:blue;font-size:0.8em;'>[تم جلب التشكيلة]</span>";
+            } else {
+                echo " <span style='color:gray;font-size:0.8em;'>[لا توجد تشكيلة]</span>";
             }
             usleep(200000); // انتظار بسيط لتجنب الحظر
         }
