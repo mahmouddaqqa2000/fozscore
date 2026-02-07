@@ -759,8 +759,14 @@ function get_match_details($url) {
         'Accept-Language: ar,en-US;q=0.9,en;q=0.8',
         'Cache-Control: max-age=0',
         'Connection: keep-alive',
-        'Upgrade-Insecure-Requests: 1'
+        'Upgrade-Insecure-Requests: 1',
+        'Sec-Fetch-Dest: document',
+        'Sec-Fetch-Mode: navigate',
+        'Sec-Fetch-Site: none',
+        'Sec-Fetch-User: ?1',
+        'Pragma: no-cache'
     ]);
+    curl_setopt($ch, CURLOPT_REFERER, 'https://www.yallakora.com/');
     $html = curl_exec($ch);
     $curl_error = curl_error($ch);
     
