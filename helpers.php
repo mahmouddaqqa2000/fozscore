@@ -1008,36 +1008,32 @@ function get_match_details($url) {
     if (empty($homePlayers)) {
         $lineupDebug = "فشل XPath. جاري تجربة Regex...";
         
-        // Regex محسن: يبحث عن حاوية اللاعب أولاً، ثم يستخرج التفاصيل منها بمرونة
-        preg_match_all('/class="[^"]*player[^"]*"[^>]*>(.*?)<\/(?:div|a|li|span)>/is', $html, $matches);
+        // Regex محسن 2.0: البحث عن الأسماء والأرقام بشكل منفصل (أكثر مرونة مع تداخل HTML)
+        // نبحث عن أي عنصر يحمل كلاس name أو playerName ويحتوي على نص عربي
+        preg_match_all('/class="[^"]*(?:name|playerName)[^"]*"[^>]*>\s*([^\d<]+?)\s*<\//iu', $html, $nameMatches);
         
-        if (!empty($matches[1])) {
+        if (!empty($nameMatches[1])) {
             $allPlayers = [];
-            foreach ($matches[1] as $playerHtml) {
-                // استخراج الاسم
-                $name = '';
-                if (preg_match('/class="[^"]*name[^"]*"[^>]*>(.*?)<\//is', $playerHtml, $nMatch)) {
-                    $name = trim(strip_tags($nMatch[1]));
-                }
-                
-                // استخراج الرقم
-                $num = '';
-                if (preg_match('/class="[^"]*number[^"]*"[^>]*>(.*?)<\//is', $playerHtml, $numMatch)) {
-                    $num = trim(strip_tags($numMatch[1]));
-                }
-                
-                // محاولة استخراج الصورة من النص المطابق
-                $img = null;
-                if (preg_match('/<img[^>]*src="([^"]+)"/i', $playerHtml, $imgMatch)) {
-                    $img = $imgMatch[1];
-                }
-                
-                if ($name) {
+            // تنظيف الأسماء
+            $names = array_map('trim', $nameMatches[1]);
+            // استبعاد الأسماء القصيرة جداً أو التي تحتوي على كلمات محجوزة
+            $names = array_filter($names, function($n) { 
+                return mb_strlen($n) > 2 && !in_array($n, ['التشكيل', 'دقيقة بدقيقة', 'إحصائيات', 'أحداث', 'صور', 'فيديو']); 
+            });
+            
+            // البحث عن الأرقام (اختياري) - نحاول ربطها بالترتيب
+            preg_match_all('/class="[^"]*number[^"]*"[^>]*>\s*(\d+)\s*<\//i', $html, $numMatches);
+            $numbers = $numMatches[1] ?? [];
+
+            // إعادة ترتيب المصفوفة
+            $names = array_values($names);
+            
+            // إذا وجدنا عدداً منطقياً من اللاعبين (مثلاً أكثر من 15 لفريقين)
+            if (count($names) >= 11) {
+                foreach ($names as $i => $name) {
+                    $num = $numbers[$i] ?? '';
+                    // لا يمكننا ربط الصور بدقة بهذه الطريقة، لذا نكتفي بالاسم والرقم
                     $playerStr = $name;
-                    if ($img) {
-                        if (strpos($img, 'http') !== 0) $img = "https://www.yallakora.com" . $img;
-                        $playerStr .= " | " . $img;
-                    }
                     if ($num) $playerStr .= " | " . $num;
                     $allPlayers[] = $playerStr;
                 }
@@ -1048,7 +1044,9 @@ function get_match_details($url) {
                 $half = ceil($total / 2);
                 $homePlayers = array_slice($allPlayers, 0, $half);
                 $awayPlayers = array_slice($allPlayers, $half);
-                $lineupDebug = "تم العثور عليها باستخدام Regex المحسن ($total لاعب)";
+                $lineupDebug = "تم العثور عليها باستخدام Regex المنفصل ($total لاعب)";
+            } else {
+                $lineupDebug .= " فشل Regex المنفصل (الأسماء غير كافية: " . count($names) . ")";
             }
         } else {
             // تشخيص سبب الفشل
