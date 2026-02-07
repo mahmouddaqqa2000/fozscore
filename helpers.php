@@ -843,12 +843,21 @@ function send_telegram_poll($pdo, $question, $options, $league_name = null) {
 // دالة مساعدة لجلب تفاصيل المباراة (التشكيلة) - منسوخة من scraper_all.php
 function get_match_details($url) {
     // استخدام CURL لسحب الصفحة
+    $cookieFile = __DIR__ . '/yallakora_cookie.txt';
+    if (!file_exists($cookieFile)) {
+        touch($cookieFile);
+    }
+    // التأكد من أن ملف الكوكيز قابل للكتابة
+    if (!is_writable($cookieFile)) @chmod($cookieFile, 0666);
+
     $ch = curl_init($url);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
     curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36');
     curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
     curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
     curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0); // ضروري لبعض الاستضافات
+    curl_setopt($ch, CURLOPT_COOKIEJAR, $cookieFile); // حفظ الكوكيز
+    curl_setopt($ch, CURLOPT_COOKIEFILE, $cookieFile); // إرسال الكوكيز
     curl_setopt($ch, CURLOPT_ENCODING, ''); 
     curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10); // تقليل المهلة إلى 10 ثواني
     curl_setopt($ch, CURLOPT_TIMEOUT, 30);        // تقليل مهلة القراءة إلى 30 ثانية
@@ -993,37 +1002,6 @@ function get_match_details($url) {
         }
     }
     
-    // 3. استراتيجية البحث النصي الشامل (Nuclear Fallback)
-    // إذا فشل كل شيء، نبحث عن أي عنصر يحتوي على توقيت (رقم + ')
-    if (empty($events)) {
-        $dom = new DOMDocument();
-        @$dom->loadHTML('<?xml encoding="UTF-8">' . $html);
-        $xpath = new DOMXPath($dom);
-        
-        // نبحث عن أي عنصر يحتوي على نص يشبه التوقيت (مثل 45' أو 90+2')
-        $timeNodes = $xpath->query("//*[contains(text(), \"'\")]");
-        
-        foreach ($timeNodes as $node) {
-            $text = trim($node->textContent);
-            // التحقق من أن النص هو توقيت فقط (أرقام و ')
-            if (preg_match('/^(\d+(?:\+\d+)?)\'$/', $text)) {
-                $min = $text;
-                // البحث عن الوصف في العناصر المجاورة أو الآباء
-                // عادة الوصف يكون في عنصر مجاور أو في نفس الحاوية الأب
-                $parent = $node->parentNode;
-                $fullText = $parent->textContent;
-                $cleanText = trim(str_replace($min, '', $fullText));
-                $cleanText = preg_replace('/\s+/', ' ', $cleanText);
-                
-                // إذا كان النص يحتوي على معلومات مفيدة، نعتبره حدثاً
-                if (mb_strlen($cleanText) > 5 && mb_strlen($cleanText) < 100) {
-                    // محاولة تخمين النوع من الكلاسات أو النص (اختياري)
-                    $events[] = "$min ⚽ $cleanText (مستضيف)"; // افتراضي، سيتم تصحيحه يدوياً أو تحسينه لاحقاً
-                }
-            }
-        }
-    }
-    
     // 3. استراتيجية "الصيد الحر" (Smart Hunting) - الحل الأقوى
     // بدلاً من البحث عن حاويات، نبحث عن "نمط الحدث" في أي مكان في الصفحة
     if (empty($events)) {
@@ -1069,36 +1047,6 @@ function get_match_details($url) {
         }
     }
     
-    // 3. استراتيجية البحث النصي الشامل (Nuclear Fallback) - للاستضافات التي قد تستقبل HTML مختلف
-    // إذا فشل كل شيء، نبحث عن أي عنصر يحتوي على توقيت (رقم + ')
-    if (empty($events)) {
-        $dom = new DOMDocument();
-        @$dom->loadHTML('<?xml encoding="UTF-8">' . $html);
-        $xpath = new DOMXPath($dom);
-        
-        // نبحث عن أي عنصر يحتوي على نص يشبه التوقيت (مثل 45' أو 90+2')
-        $timeNodes = $xpath->query("//*[contains(text(), \"'\")]");
-        
-        foreach ($timeNodes as $node) {
-            $text = trim($node->textContent);
-            // التحقق من أن النص هو توقيت فقط (أرقام و ')
-            if (preg_match('/^(\d+(?:\+\d+)?)\'$/', $text)) {
-                $min = $text;
-                // البحث عن الوصف في العناصر المجاورة أو الآباء
-                $parent = $node->parentNode;
-                $fullText = $parent->textContent;
-                $cleanText = trim(str_replace($min, '', $fullText));
-                $cleanText = preg_replace('/\s+/', ' ', $cleanText);
-                
-                // إذا كان النص يحتوي على معلومات مفيدة، نعتبره حدثاً
-                if (mb_strlen($cleanText) > 5 && mb_strlen($cleanText) < 100) {
-                    // محاولة تخمين النوع من الكلاسات أو النص (اختياري)
-                    $events[] = "$min ⚽ $cleanText (مستضيف)"; // افتراضي
-                }
-            }
-        }
-    }
-
     // --- استخراج التشكيلة (Lineups) ---
     $homePlayers = [];
     $awayPlayers = [];
