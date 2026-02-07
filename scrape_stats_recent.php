@@ -4,13 +4,18 @@ require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/helpers.php';
 
 header('Content-Type: text/html; charset=utf-8');
+
+// إعدادات لمنع التوقف وعرض الأخطاء
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
 set_time_limit(0); // منع توقف السكربت
+ignore_user_abort(true); // استمرار العمل حتى لو أغلق المستخدم الصفحة
 
 // إجبار السيرفر على إرسال المخرجات فوراً (مثل scraper_all.php)
 if (function_exists('apache_setenv')) @apache_setenv('no-gzip', 1);
 @ini_set('zlib.output_compression', 0);
 @ini_set('implicit_flush', 1);
-for ($i = 0; $i < ob_get_level(); $i++) { ob_end_flush(); }
+while (ob_get_level() > 0) { ob_end_flush(); }
 ob_implicit_flush(1);
 
 $type = $_GET['type'] ?? 'events'; // 'events' or 'full'
@@ -29,7 +34,12 @@ echo '<style>
     .date-header { background: #e2e8f0; padding: 8px 12px; border-radius: 6px; margin: 20px 0 10px; font-weight: bold; color: #475569; }
     .btn { display: inline-block; padding: 10px 20px; background: #2563eb; color: white; text-decoration: none; border-radius: 6px; margin-top: 20px; font-weight: bold; }
     .btn:hover { background: #1d4ed8; }
-</style>';
+</style>
+<script>
+// التمرير التلقائي للأسفل لمتابعة التحديثات
+setInterval(function() { window.scrollTo(0, document.body.scrollHeight); }, 1000);
+</script>
+';
 echo '</head><body><div class="container">';
 
 $title = ($type === 'events') ? 'سحب أحداث المباريات (أهداف، بطاقات، تبديلات)' : 'سحب التفاصيل الكاملة (إحصائيات وتشكيلات)';
@@ -50,6 +60,8 @@ $total_updated = 0;
 
 foreach ($dates as $date) {
     echo "<div class='date-header'>📅 $date</div>";
+    echo str_repeat(" ", 1024); // حشو بسيط
+    flush();
     
     // جلب المباريات التي لها رابط مصدر
     $stmt = $pdo->prepare("SELECT id, team_home, team_away, source_url, match_events, match_stats FROM matches WHERE match_date = ? AND source_url IS NOT NULL AND source_url != ''");
@@ -58,10 +70,13 @@ foreach ($dates as $date) {
     
     if (empty($matches)) {
         echo "<div class='log-item' style='justify-content:center; color:#94a3b8;'>لا توجد مباريات مرتبطة برابط مصدر.</div>";
+        echo str_repeat(" ", 4096); // حشو لإجبار العرض
+        flush();
         continue;
     }
 
     echo "<div style='padding:5px 10px; font-size:0.9em; color:#64748b;'>تم العثور على " . count($matches) . " مباراة. جاري المعالجة...</div>";
+    echo str_repeat(" ", 4096); // حشو لإجبار العرض
     flush();
     
     foreach ($matches as $match) {
@@ -70,6 +85,15 @@ foreach ($dates as $date) {
         echo str_repeat(" ", 1024); // حشو إضافي لكل سطر
         flush(); // إرسال النص فوراً قبل بدء السحب
         
+        // التحقق من صحة الرابط قبل السحب لتجنب الأخطاء
+        if (!filter_var($match['source_url'], FILTER_VALIDATE_URL)) {
+             echo "<span class='status-skip' style='color:orange'>رابط غير صالح</span>";
+             echo "</div>";
+             echo str_repeat(" ", 1024);
+             flush();
+             continue;
+        }
+
         // سحب التفاصيل
         $details = get_match_details($match['source_url']);
         
