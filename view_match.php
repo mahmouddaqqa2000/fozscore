@@ -820,10 +820,11 @@ if (!$match) {
                         $display_channel = format_channel_name($match['channel']);
                         $logo_url = get_channel_logo_url($display_channel);
                         if ($logo_url): ?>
-                            <img src="<?php echo $logo_url; ?>" alt="<?php echo htmlspecialchars($display_channel); ?>" title="<?php echo htmlspecialchars($display_channel); ?>">
+                            <img src="<?php echo $logo_url; ?>" alt="logo">
                         <?php else: ?>
-                            📺 <?php echo htmlspecialchars($display_channel); ?>
+                            📺
                         <?php endif; ?>
+                        <?php echo htmlspecialchars($display_channel); ?>
                     </span>
                     <?php endif; ?>
                     <?php if (!empty($match['commentator'])): ?>

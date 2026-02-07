@@ -108,6 +108,14 @@ function get_channel_logo_url($channel_name) {
     $channel_map = [
         'ssc sport 1 hd' => 'ssc-1.png',
         'ssc 1 hd' => 'ssc-1.png',
+        // Bein Sports
+        'beinsports 1' => 'beinsports-1.png',
+        'beinsports 2' => 'beinsports-2.png',
+        'beinsports 3' => 'beinsports-3.png',
+        'beinsports 4' => 'beinsports-4.png',
+        'beinsports 5' => 'beinsports-5.png',
+        'beinsports 6' => 'beinsports-6.png',
+        'beinsports news' => 'beinsports-news.png',
     ];
 
     $normalized_name = strtolower(trim($channel_name));
