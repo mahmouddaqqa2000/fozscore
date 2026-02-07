@@ -31,6 +31,14 @@ function league_logo_html($name, $size = 28, $logo_url = null) {
     if (!empty($logo_url)) {
         return "<img src=\"" . htmlspecialchars($logo_url) . "\" alt=\"" . htmlspecialchars($name) . "\" style=\"width:{$size}px;height:{$size}px;object-fit:contain;display:inline-block;vertical-align:middle;flex-shrink:0;margin-inline-end:6px;\">";
     }
+    
+    // شعارات احتياطية للدوريات التي قد لا يتم سحب شعارها
+    $fallbacks = [
+        'الدوري الدنماركي' => 'https://images.fotmob.com/image_resources/logo/leaguelogo/56.png',
+    ];
+    if (isset($fallbacks[$name])) {
+        return "<img src=\"" . htmlspecialchars($fallbacks[$name]) . "\" alt=\"" . htmlspecialchars($name) . "\" style=\"width:{$size}px;height:{$size}px;object-fit:contain;display:inline-block;vertical-align:middle;flex-shrink:0;margin-inline-end:6px;\">";
+    }
 
     $initials = '';
     $parts = preg_split('/\s+/', trim($name));
