@@ -29,10 +29,47 @@ $seo_image = !empty($news['image_url']) ? $news['image_url'] : ((isset($_SERVER[
 $pub_date = date('c', strtotime($news['created_at']));
 // -------------------
 
-// جلب آخر 3 أخبار ذات صلة (باستثناء الخبر الحالي)
-$stmt_related_news = $pdo->prepare("SELECT id, title, image_url, created_at FROM news WHERE id != ? ORDER BY created_at DESC LIMIT 3");
-$stmt_related_news->execute([$id]);
-$related_news = $stmt_related_news->fetchAll(PDO::FETCH_ASSOC);
+// --- جلب أخبار ذات صلة بناءً على الكلمات المفتاحية ---
+$keywords = [];
+$words = explode(' ', $news['title']);
+foreach ($words as $word) {
+    $word = trim($word);
+    // استبعاد الكلمات القصيرة (حروف الجر وغيرها) والرموز
+    if (mb_strlen($word, 'UTF-8') >= 4) {
+        $keywords[] = $word;
+    }
+}
+
+$related_news = [];
+$exclude_ids = [$id];
+
+if (!empty($keywords)) {
+    $sql = "SELECT id, title, image_url, created_at FROM news WHERE id != ?";
+    $params = [$id];
+    $conditions = [];
+    foreach ($keywords as $word) {
+        $conditions[] = "title LIKE ?";
+        $params[] = "%$word%";
+    }
+    if (!empty($conditions)) {
+        $sql .= " AND (" . implode(' OR ', $conditions) . ")";
+    }
+    $sql .= " ORDER BY created_at DESC LIMIT 3";
+    $stmt_related = $pdo->prepare($sql);
+    $stmt_related->execute($params);
+    $related_news = $stmt_related->fetchAll(PDO::FETCH_ASSOC);
+}
+
+// إذا لم نجد ما يكفي من الأخبار ذات الصلة، نكمل العدد من أحدث الأخبار
+if (count($related_news) < 3) {
+    foreach ($related_news as $r) $exclude_ids[] = $r['id'];
+    $limit = 3 - count($related_news);
+    $placeholders = implode(',', array_fill(0, count($exclude_ids), '?'));
+    $stmt_latest = $pdo->prepare("SELECT id, title, image_url, created_at FROM news WHERE id NOT IN ($placeholders) ORDER BY created_at DESC LIMIT $limit");
+    $stmt_latest->execute($exclude_ids);
+    $latest_fallback = $stmt_latest->fetchAll(PDO::FETCH_ASSOC);
+    $related_news = array_merge($related_news, $latest_fallback);
+}
 ?>
 <!doctype html>
 <html lang="ar" dir="rtl">
@@ -208,7 +245,7 @@ $related_news = $stmt_related_news->fetchAll(PDO::FETCH_ASSOC);
     <div class="container">
         <div class="news-section-container">
             <div class="section-title-news">
-                <span>آخر الأخبار</span>
+                <span>أخبار ذات صلة</span>
                 <a href="news.php" class="view-all-btn">عرض الكل &larr;</a>
             </div>
             <div class="news-grid-news-page">
