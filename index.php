@@ -544,6 +544,12 @@ $important_matches = array_filter($matches, function($m) use ($important_teams) 
                             </div>
                         </div>
 
+                    <?php if (!empty($settings['ad_code_body'])): ?>
+                        <div class="container" style="text-align:center; margin: 20px 0;">
+                            <?php echo $settings['ad_code_body']; ?>
+                        </div>
+                    <?php endif; ?>
+
                     <?php foreach ($grouped_by_championship as $championship => $championship_matches): ?>
                         <?php 
                             $major_leagues_keywords = ['أبطال أوروبا', 'الإنجليزي', 'الإسباني', 'الإيطالي', 'الألماني', 'الفرنسي'];
