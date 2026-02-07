@@ -754,6 +754,11 @@ function get_match_details($url) {
     if (!$html) {
         return ['home' => null, 'away' => null, 'coach_home' => null, 'coach_away' => null, 'stats' => null, 'match_events' => null, 'stream_url' => null, 'html_preview' => 'فشل الاتصال'];
     }
+    
+    // التحقق من الحظر (Cloudflare / WAF)
+    if (strpos($html, 'Just a moment') !== false || strpos($html, 'Attention Required') !== false) {
+        return ['home' => null, 'away' => null, 'coach_home' => null, 'coach_away' => null, 'stats' => null, 'match_events' => null, 'stream_url' => null, 'html_preview' => 'تم حظر الطلب (Cloudflare)'];
+    }
 
     $dom = new DOMDocument();
     libxml_use_internal_errors(true);
@@ -763,37 +768,117 @@ function get_match_details($url) {
 
     // --- استخراج أحداث المباراة ---
     $events = [];
-    // البحث عن قائمة الأحداث (عادة تكون تحت عنوان eventsTtl)
-    $eventNodes = $xpath->query("//div[contains(@class, 'eventsTtl')]/following-sibling::ul/li");
     
-    if ($eventNodes->length == 0) {
-        // محاولة بديلة
-        $eventNodes = $xpath->query("//div[@id='events']//ul/li");
+    // 1. استراتيجية XPath: محاولات متعددة للبحث عن قائمة الأحداث
+    $eventQueries = [
+        "//div[contains(@class, 'eventsTtl')]/following-sibling::ul/li", // الهيكل القياسي
+        "//div[@id='events']//ul/li", // هيكل التبويبات القديم
+        "//div[contains(@class, 'matchEvents')]//ul/li", // حاوية الأحداث العامة
+        "//div[contains(@class, 'events')]//ul/li", // بحث عام عن كلاس events
+        "//div[contains(@class, 'tabContent')][contains(@class, 'events')]//ul/li", // محتوى التبويب الجديد
+        "//li[.//span[contains(@class, 'min')] and .//div[contains(@class, 'description')]]", // بحث عام ذكي عن أي سطر حدث في الصفحة
+        "//div[contains(@class, 'item')][.//span[contains(@class, 'min')] and .//div[contains(@class, 'description')]]" // بحث عن div بدلاً من li
+    ];
+
+    $eventNodes = null;
+    foreach ($eventQueries as $query) {
+        $nodes = $xpath->query($query);
+        if ($nodes && $nodes->length > 0) {
+            $eventNodes = $nodes;
+            break;
+        }
     }
 
-    foreach ($eventNodes as $node) {
-        $class = $node->getAttribute('class');
-        if (strpos($class, 'referee') !== false) continue; // تخطي الحكم
+    if ($eventNodes) {
+        foreach ($eventNodes as $node) {
+            $class = $node->getAttribute('class');
+            if (strpos($class, 'referee') !== false) continue; // تخطي الحكم
 
-        $min = trim($xpath->query(".//span[contains(@class, 'min')]", $node)->item(0)->textContent ?? '');
-        $desc = trim($xpath->query(".//div[contains(@class, 'description')]", $node)->item(0)->textContent ?? '');
-        $desc = preg_replace('/\s+/', ' ', $desc); // تنظيف المسافات
+            $min = trim($xpath->query(".//span[contains(@class, 'min')]", $node)->item(0)->textContent ?? '');
+            $desc = trim($xpath->query(".//div[contains(@class, 'description')]", $node)->item(0)->textContent ?? '');
+            $desc = preg_replace('/\s+/', ' ', $desc); // تنظيف المسافات
 
-        $type = '';
-        if (strpos($class, 'goal') !== false) $type = '⚽';
-        elseif (strpos($class, 'yellowCard') !== false) $type = '🟨';
-        elseif (strpos($class, 'redCard') !== false) $type = '🟥';
-        elseif (strpos($class, 'sub') !== false) {
-            $type = '🔄';
-            $subIn = trim($xpath->query(".//span[contains(@class, 'subIn')]", $node)->item(0)->textContent ?? '');
-            $subOut = trim($xpath->query(".//span[contains(@class, 'subOut')]", $node)->item(0)->textContent ?? '');
-            if ($subIn && $subOut) $desc = "دخول: $subIn | خروج: $subOut";
+            $type = '';
+            if (strpos($class, 'goal') !== false) $type = '⚽';
+            elseif (strpos($class, 'yellowCard') !== false) $type = '🟨';
+            elseif (strpos($class, 'redCard') !== false) $type = '🟥';
+            elseif (strpos($class, 'sub') !== false) {
+                $type = '🔄';
+                $subIn = trim($xpath->query(".//span[contains(@class, 'subIn')]", $node)->item(0)->textContent ?? '');
+                $subOut = trim($xpath->query(".//span[contains(@class, 'subOut')]", $node)->item(0)->textContent ?? '');
+                if ($subIn && $subOut) $desc = "دخول: $subIn | خروج: $subOut";
+            }
+            elseif (strpos($class, 'penOut') !== false) $type = '❌ ركلة جزاء ضائعة:';
+
+            if ($desc) {
+                $side = strpos($class, 'left') !== false ? '(ضيف)' : '(مستضيف)';
+                $events[] = "$min' $type $desc $side";
+            }
         }
-        elseif (strpos($class, 'penOut') !== false) $type = '❌ ركلة جزاء ضائعة:';
+    }
+    
+    // 2. استراتيجية Regex (احتياطية قوية): إذا فشل XPath، نبحث في النص مباشرة
+    if (empty($events)) {
+        // تحسين Regex ليكون أكثر مرونة (لا يعتمد على ترتيب العناصر بدقة)
+        // نبحث عن حاوية تحتوي على كلاس حدث، وبداخلها دقيقة ووصف
+        preg_match_all('/class="([^"]*(?:goal|yellowCard|redCard|sub)[^"]*)"[^>]*>.*?class="min"[^>]*>([^<]+)<.*?class="description"[^>]*>(.*?)<\/div>/is', $html, $matches_regex, PREG_SET_ORDER);
+        
+        foreach ($matches_regex as $m) {
+            $class = $m[1];
+            $min = trim(strip_tags($m[2])); // الدقيقة
+            $desc = trim(strip_tags($m[3]));
+            $desc = preg_replace('/\s+/', ' ', $desc);
+            
+            if (strpos($class, 'referee') !== false) continue;
 
-        if ($desc) {
+            $type = '';
+            if (strpos($class, 'goal') !== false) $type = '⚽';
+            elseif (strpos($class, 'yellowCard') !== false) $type = '🟨';
+            elseif (strpos($class, 'redCard') !== false) $type = '🟥';
+            elseif (strpos($class, 'sub') !== false) {
+                $type = '🔄';
+                // محاولة استخراج التبديل من الوصف إذا لم يكن واضحاً
+                if (preg_match('/<span[^>]*class="subIn"[^>]*>(.*?)<\/span>.*?<span[^>]*class="subOut"[^>]*>(.*?)<\/span>/is', $m[0], $subMatch)) {
+                    $desc = "دخول: " . trim(strip_tags($subMatch[1])) . " | خروج: " . trim(strip_tags($subMatch[2]));
+                }
+            }
+            
             $side = strpos($class, 'left') !== false ? '(ضيف)' : '(مستضيف)';
-            $events[] = "$min' $type $desc $side";
+            
+            if ($type && $desc) {
+                $events[] = "$min' $type $desc $side";
+            }
+        }
+    }
+    
+    // 3. استراتيجية البحث النصي الشامل (Nuclear Fallback)
+    // إذا فشل كل شيء، نبحث عن أي عنصر يحتوي على توقيت (رقم + ')
+    if (empty($events)) {
+        $dom = new DOMDocument();
+        @$dom->loadHTML('<?xml encoding="UTF-8">' . $html);
+        $xpath = new DOMXPath($dom);
+        
+        // نبحث عن أي عنصر يحتوي على نص يشبه التوقيت (مثل 45' أو 90+2')
+        $timeNodes = $xpath->query("//*[contains(text(), \"'\")]");
+        
+        foreach ($timeNodes as $node) {
+            $text = trim($node->textContent);
+            // التحقق من أن النص هو توقيت فقط (أرقام و ')
+            if (preg_match('/^(\d+(?:\+\d+)?)\'$/', $text)) {
+                $min = $text;
+                // البحث عن الوصف في العناصر المجاورة أو الآباء
+                // عادة الوصف يكون في عنصر مجاور أو في نفس الحاوية الأب
+                $parent = $node->parentNode;
+                $fullText = $parent->textContent;
+                $cleanText = trim(str_replace($min, '', $fullText));
+                $cleanText = preg_replace('/\s+/', ' ', $cleanText);
+                
+                // إذا كان النص يحتوي على معلومات مفيدة، نعتبره حدثاً
+                if (mb_strlen($cleanText) > 5 && mb_strlen($cleanText) < 100) {
+                    // محاولة تخمين النوع من الكلاسات أو النص (اختياري)
+                    $events[] = "$min ⚽ $cleanText (مستضيف)"; // افتراضي، سيتم تصحيحه يدوياً أو تحسينه لاحقاً
+                }
+            }
         }
     }
 

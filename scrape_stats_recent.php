@@ -1,182 +1,103 @@
 <?php
+// scrape_stats_recent.php - سحب الأحداث والإحصائيات للمباريات القريبة
 require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/helpers.php';
+
 header('Content-Type: text/html; charset=utf-8');
-set_time_limit(0);
+set_time_limit(0); // منع توقف السكربت
 
-$type = $_GET['type'] ?? 'full'; // 'full' or 'events'
+$type = $_GET['type'] ?? 'events'; // 'events' or 'full'
 
-echo "<h3>بدء عملية سحب " . ($type === 'events' ? "الأحداث فقط" : "الإحصائيات والتشكيلات") . " (أمس، اليوم، غداً)...</h3>";
+echo '<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><title>تحديث الأحداث</title>';
+echo '<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">';
+echo '<style>
+    body { font-family: "Tajawal", sans-serif; background: #f8fafc; padding: 20px; color: #1e293b; }
+    .container { max-width: 800px; margin: auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+    h2 { color: #1e293b; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; margin-top: 0; }
+    .log-item { padding: 8px 10px; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; }
+    .log-item:last-child { border-bottom: none; }
+    .status-ok { color: #10b981; font-weight: bold; }
+    .status-skip { color: #64748b; font-size: 0.9em; }
+    .status-fail { color: #ef4444; font-weight: bold; }
+    .date-header { background: #e2e8f0; padding: 8px 12px; border-radius: 6px; margin: 20px 0 10px; font-weight: bold; color: #475569; }
+    .btn { display: inline-block; padding: 10px 20px; background: #2563eb; color: white; text-decoration: none; border-radius: 6px; margin-top: 20px; font-weight: bold; }
+    .btn:hover { background: #1d4ed8; }
+</style>';
+echo '</head><body><div class="container">';
 
-// تحديد النطاق الزمني
+$title = ($type === 'events') ? 'سحب أحداث المباريات (أهداف، بطاقات، تبديلات)' : 'سحب التفاصيل الكاملة (إحصائيات وتشكيلات)';
+echo "<h2>🔄 $title</h2>";
+echo "<p>جاري تحديث البيانات للمباريات (أمس، اليوم، غداً)...</p>";
+
+// التواريخ المستهدفة
 $dates = [
     date('Y-m-d', strtotime('-1 day')),
     date('Y-m-d'),
     date('Y-m-d', strtotime('+1 day'))
 ];
 
-$placeholders = implode(',', array_fill(0, count($dates), '?'));
-// نبحث عن المباريات التي لها رابط مصدر ولكن تنقصها التشكيلة أو الإحصائيات
-if ($type === 'events') {
-    // في وضع الأحداث، نبحث عن المباريات التي تنقصها الأحداث
-    $stmt = $pdo->prepare("SELECT * FROM matches WHERE match_date IN ($placeholders) AND source_url IS NOT NULL AND (match_events IS NULL OR match_events = '')");
-} else {
-    $stmt = $pdo->prepare("SELECT * FROM matches WHERE match_date IN ($placeholders) AND source_url IS NOT NULL AND (match_stats IS NULL OR match_stats = '' OR lineup_home IS NULL OR lineup_home = '')");
-}
-$stmt->execute($dates);
-$matches_to_check = $stmt->fetchAll(PDO::FETCH_ASSOC);
+$total_updated = 0;
 
-if (empty($matches_to_check)) {
-    echo "لا توجد مباريات بحاجة لتحديث الإحصائيات في الفترة المحددة.<br>";
-    echo '<br><a href="bot_dashboard.php" style="padding:10px; background:#2563eb; color:white; text-decoration:none; border-radius:5px;">العودة للوحة التحكم</a>';
-    exit;
-}
-
-echo "تم العثور على " . count($matches_to_check) . " مباراة للتحقق منها...<br><hr>";
-
-$count_updated = 0;
-
-foreach ($matches_to_check as $match) {
-    echo "جاري فحص مباراة: <strong>" . htmlspecialchars($match['team_home']) . " ضد " . htmlspecialchars($match['team_away']) . "</strong> (" . $match['match_date'] . ")... ";
-
-    $details = get_match_details($match['source_url'], $type === 'events' ? 'events_only' : 'full');
+foreach ($dates as $date) {
+    echo "<div class='date-header'>📅 $date</div>";
     
-    $updated = false;
-    $update_fields = [];
-    $params = [];
-
-    if ($type !== 'events' && !empty($details['home'])) {
-        $update_fields[] = "lineup_home = ?";
-        $params[] = $details['home'];
-        $update_fields[] = "lineup_away = ?";
-        $params[] = $details['away'];
-        $update_fields[] = "coach_home = COALESCE(?, coach_home)";
-        $params[] = $details['coach_home'];
-        $update_fields[] = "coach_away = COALESCE(?, coach_away)";
-        $params[] = $details['coach_away'];
-        $updated = true;
-        echo "<span style='color:blue; font-size:0.8em;'>[تشكيلة] </span>";
-    }
-
-    if ($type !== 'events' && !empty($details['stats'])) {
-        $update_fields[] = "match_stats = ?";
-        $params[] = $details['stats'];
-        $updated = true;
-        echo "<span style='color:purple; font-size:0.8em;'>[إحصائيات] </span>";
+    // جلب المباريات التي لها رابط مصدر
+    $stmt = $pdo->prepare("SELECT id, team_home, team_away, source_url, match_events, match_stats FROM matches WHERE match_date = ? AND source_url IS NOT NULL AND source_url != ''");
+    $stmt->execute([$date]);
+    $matches = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    if (empty($matches)) {
+        echo "<div class='log-item' style='justify-content:center; color:#94a3b8;'>لا توجد مباريات مرتبطة برابط مصدر.</div>";
+        continue;
     }
     
-    if (!empty($details['events'])) {
-        $update_fields[] = "match_events = ?";
-        $params[] = $details['events'];
-        $updated = true;
-        echo "<span style='color:orange; font-size:0.8em;'>[أحداث] </span>";
-    }
-
-    if ($updated) {
-        $sql = "UPDATE matches SET " . implode(', ', $update_fields) . " WHERE id = ?";
-        $params[] = $match['id'];
+    foreach ($matches as $match) {
+        echo "<div class='log-item'>";
+        echo "<span>{$match['team_home']} 🆚 {$match['team_away']}</span>";
         
-        try {
-            $update = $pdo->prepare($sql);
-            $update->execute($params);
-            echo "<span style='color:green;'>✔ تم التحديث!</span>";
-            $count_updated++;
-        } catch (PDOException $e) {
-            echo "<span style='color:red;'>خطأ: " . $e->getMessage() . "</span>";
+        // سحب التفاصيل
+        $details = get_match_details($match['source_url']);
+        
+        $updates = [];
+        $params = [];
+        
+        // تحديث الأحداث
+        if (!empty($details['match_events'])) {
+            // مقارنة بسيطة لتجنب التحديث غير الضروري
+            $new_events_clean = preg_replace('/\s+/', '', $details['match_events']);
+            $old_events_clean = preg_replace('/\s+/', '', $match['match_events'] ?? '');
+            
+            if ($new_events_clean !== $old_events_clean) {
+                $updates[] = "match_events = ?";
+                $params[] = $details['match_events'];
+            }
         }
-    } else {
-        echo "<span style='color:gray;'>لا توجد بيانات جديدة.</span>";
-    }
-    echo "<br>";
-    
-    // إجبار المتصفح على عرض المخرجات فوراً
-    if (function_exists('flush')) flush();
-    if (function_exists('ob_flush') && ob_get_level() > 0) ob_flush();
-    
-    usleep(300000); // انتظار 0.3 ثانية
-}
-
-echo "<hr>تم الانتهاء. تم تحديث <strong>$count_updated</strong> مباراة.<br>";
-echo '<br><a href="bot_dashboard.php" style="padding:10px; background:#2563eb; color:white; text-decoration:none; border-radius:5px;">العودة للوحة التحكم</a>';
-
-// دالة مساعدة لجلب تفاصيل المباراة
-function get_match_details($url, $mode = 'full') {
-    // =================================================================
-    // تم تعطيل هذه الميزة لأنها تتطلب Node.js وهو غير مدعوم على خطة الاستضافة الحالية
-    // =================================================================
-    return ['home' => null, 'away' => null, 'coach_home' => null, 'coach_away' => null, 'stats' => null, 'events' => null];
-
-    $nodeScript = __DIR__ . '/scraper_lineup.js';
-    $html = null;
-    $extracted_events = [];
-
-    if (file_exists($nodeScript)) {
-        $cmd = "node " . escapeshellarg($nodeScript) . " " . escapeshellarg($url) . " " . escapeshellarg($mode) . " 2>&1";
-        $output = shell_exec($cmd);
         
-        // محاولة فك تشفير JSON الناتج من Node.js
-        $json_output = json_decode($output, true);
-        if (json_last_error() === JSON_ERROR_NONE && isset($json_output['html'])) {
-            $html = $json_output['html'];
-            $extracted_events = $json_output['extracted_events'] ?? [];
+        if (!empty($updates)) {
+            $sql = "UPDATE matches SET " . implode(', ', $updates) . " WHERE id = ?";
+            $params[] = $match['id'];
+            $pdo->prepare($sql)->execute($params);
+            echo "<span class='status-ok'>تم التحديث ✅</span>";
+            $total_updated++;
         } else {
-            // fallback للنسخ القديمة
-            $html = $output;
+            if (empty($details['match_events'])) {
+                echo "<span class='status-skip' style='color:#d97706;'>لا توجد أحداث (أو لم تبدأ)</span>";
+            } else {
+                echo "<span class='status-skip'>لا تغيير</span>";
+            }
         }
+        
+        echo "</div>";
+        flush(); // إرسال المخرجات للمتصفح فوراً
+        usleep(100000); // انتظار 0.1 ثانية لتخفيف الحمل
     }
-
-    if (!$html || strlen($html) < 100 || stripos($html, '<html') === false) {
-        return ['home' => null, 'away' => null, 'coach_home' => null, 'coach_away' => null, 'stats' => null, 'events' => null];
-    }
-
-    $dom = new DOMDocument();
-    libxml_use_internal_errors(true);
-    $dom->loadHTML('<?xml encoding="UTF-8">' . $html);
-    libxml_clear_errors();
-    $xpath = new DOMXPath($dom);
-
-    $homePlayers = [];
-    $awayPlayers = [];
-
-    $extractPlayer = function($node, $xpath) {
-        $nameNode = $xpath->query(".//p[contains(@class, 'playerName')]|.//span[contains(@class, 'name')]|.//p[not(contains(@class, 'number'))]", $node)->item(0);
-        $name = trim($nameNode->textContent ?? '');
-        $num = trim($xpath->query(".//p[contains(@class, 'number')]|.//span[contains(@class, 'number')]", $node)->item(0)->textContent ?? '');
-        $img = $xpath->query(".//img", $node)->item(0)?->getAttribute('src');
-        if ($name) {
-            $playerStr = $name;
-            if ($img) $playerStr .= " | " . $img;
-            if ($num) $playerStr .= " | " . $num;
-            return $playerStr;
-        }
-        return null;
-    };
-
-    // منطق YallaKora
-    $queries = [
-        ['//div[contains(@class, "formation")]//div[contains(@class, "teamA")]//*[contains(@class, "player")]', '//div[contains(@class, "formation")]//div[contains(@class, "teamB")]//*[contains(@class, "player")]'],
-        ['//div[@id="squad"]//div[contains(@class, "teamA")]//div[contains(@class, "player")]', '//div[@id="squad"]//div[contains(@class, "teamB")]//div[contains(@class, "player")]'],
-        ['//div[contains(@class, "teamA")]//div[contains(@class, "player")]', '//div[contains(@class, "teamB")]//div[contains(@class, "player")]']
-    ];
-    foreach ($queries as $q) {
-        $homeNodes = $xpath->query($q[0]); $awayNodes = $xpath->query($q[1]);
-        if ($homeNodes->length > 0) break;
-    }
-    foreach ($homeNodes as $node) { $p = $extractPlayer($node, $xpath); if ($p) $homePlayers[] = $p; }
-    foreach ($awayNodes as $node) { $p = $extractPlayer($node, $xpath); if ($p) $awayPlayers[] = $p; }
-
-    $coachHome = trim($xpath->query("//div[contains(@class, 'teamA')]//div[contains(@class, 'manager')]//p")->item(0)->textContent ?? '');
-    $coachAway = trim($xpath->query("//div[contains(@class, 'teamB')]//div[contains(@class, 'manager')]//p")->item(0)->textContent ?? '');
-
-    // استخراج الإحصائيات
-    $stats = [];
-    $statsNodes = $xpath->query("//div[contains(@class, 'statsDiv')]//ul//li");
-    foreach ($statsNodes as $node) {
-        $label = trim($xpath->query(".//div[contains(@class, 'desc')]", $node)->item(0)->textContent ?? '');
-        $homeVal = trim($xpath->query(".//div[contains(@class, 'teamA')]", $node)->item(0)->textContent ?? '');
-        $awayVal = trim($xpath->query(".//div[contains(@class, 'teamB')]", $node)->item(0)->textContent ?? '');
-        if ($label && ($homeVal !== '' || $awayVal !== '')) $stats[] = ['label' => $label, 'home' => $homeVal, 'away' => $awayVal];
-    }
-
-    return ['home' => !empty($homePlayers) ? implode("\n", $homePlayers) : null, 'away' => !empty($awayPlayers) ? implode("\n", $awayPlayers) : null, 'coach_home' => $coachHome ?: null, 'coach_away' => $coachAway ?: null, 'stats' => !empty($stats) ? json_encode($stats, JSON_UNESCAPED_UNICODE) : null, 'events' => !empty($extracted_events) ? implode("\n", $extracted_events) : null];
 }
+
+echo "<div style='margin-top:30px; text-align:center;'>";
+echo "<div style='font-size:1.2rem; font-weight:bold; color:#1e293b; margin-bottom:10px;'>تم الانتهاء!</div>";
+echo "<div>تم تحديث بيانات <strong>$total_updated</strong> مباراة.</div>";
+echo '<a href="bot_dashboard.php" class="btn">العودة للوحة التحكم</a>';
+echo "</div>";
+
+echo '</div></body></html>';
 ?>
