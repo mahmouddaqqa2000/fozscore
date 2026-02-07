@@ -471,7 +471,6 @@ $important_matches = array_filter($matches, function($m) use ($important_teams) 
                         <div class="championship-group">
                             <div class="championship-header" style="background: linear-gradient(to left, #1e293b, #334155); color: #fff; border-bottom: none; border-radius: 8px;">
                                 <span class="league-name">أهم مباريات اليوم</span>
-                                <span class="fire-icon">🔥</span>
                             </div>
                             <div class="match-card">
                                 <?php if (empty($important_matches)): ?>
