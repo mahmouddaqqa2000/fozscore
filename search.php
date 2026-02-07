@@ -29,6 +29,7 @@ if (!empty($query)) {
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>بحث <?php echo $query ? '- ' . htmlspecialchars($query) : ''; ?> - FozScore</title>
+    <base href="/">
     <?php if ($favicon): ?><link rel="icon" href="<?php echo htmlspecialchars($favicon); ?>"><?php endif; ?>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
     <style>
@@ -302,7 +303,7 @@ if (!empty($query)) {
                     <div class="match-card">
                         <?php foreach ($matches as $m): ?>
                             <div class="match-item">
-                                <a href="view_match.php?id=<?php echo $m['id']; ?>" class="match-link">
+                                <a href="مباراة/<?php echo $m['id']; ?>-<?php echo slugify($m['team_home'] . '-ضد-' . $m['team_away']); ?>" class="match-link">
                                     <div class="match-info">
                                         <div class="team home">
                                             <?php echo team_logo_html($m['team_home'], 40, $m['team_home_logo'] ?? null); ?> 
@@ -332,7 +333,7 @@ if (!empty($query)) {
                     <div class="section-title">📰 الأخبار</div>
                     <div class="news-grid">
                         <?php foreach ($news_results as $news): ?>
-                            <a href="view_news.php?id=<?php echo $news['id']; ?>" class="news-card">
+                            <a href="خبر/<?php echo $news['id']; ?>-<?php echo slugify($news['title']); ?>" class="news-card">
                                 <?php if ($news['image_url']): ?>
                                     <img src="<?php echo htmlspecialchars($news['image_url']); ?>" alt="صورة الخبر" class="news-img">
                                 <?php else: ?>

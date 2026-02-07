@@ -11,3 +11,7 @@ RewriteRule ^الدوريات/?$ leagues.php [L]
 RewriteRule ^مباريات-الغد/?$ tomorrow.php [L]
 RewriteRule ^مباريات-الامس/?$ yesterday.php [L]
 RewriteRule ^اتصل-بنا/?$ contact.php [L]
+
+# تحويل روابط المباريات والأخبار (مثال: /مباراة/123-الاهلي-ضد-الزمالك)
+RewriteRule ^مباراة/([0-9]+)(?:-.*)?$ view_match.php?id=$1 [L,QSA]
+RewriteRule ^خبر/([0-9]+)(?:-.*)?$ view_news.php?id=$1 [L,QSA]

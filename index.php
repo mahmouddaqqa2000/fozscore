@@ -84,6 +84,7 @@ $grouped_by_championship = $live_groups + $other_groups;
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>شاهد مباريات اليوم مباشرة - <?php echo htmlspecialchars($site_name); ?></title>
+    <base href="/">
     <?php if ($favicon): ?><link rel="icon" href="<?php echo htmlspecialchars($favicon); ?>"><?php endif; ?>
     <meta name="description" content="تابع أحدث نتائج مباريات كرة القدم، جداول المباريات، أخبار الرياضة، والبث المباشر لأهم الدوريات العالمية والعربية على FozScore.">
     <meta name="keywords" content="كرة قدم, مباريات اليوم, نتائج مباريات, بث مباشر, أخبار رياضة, الدوري الإنجليزي, الدوري الإسباني, دوري أبطال أوروبا">
@@ -467,7 +468,7 @@ $grouped_by_championship = $live_groups + $other_groups;
                             <div class="match-card">
                                 <?php foreach ($championship_matches as $m): ?>
                                     <div class="match-item">
-                                        <a href="view_match.php?id=<?php echo $m['id']; ?>" class="match-link">
+                                        <a href="مباراة/<?php echo $m['id']; ?>-<?php echo slugify($m['team_home'] . '-ضد-' . $m['team_away']); ?>" class="match-link">
                                              <div class="match-info">
                                                  <div class="team home"><?php echo team_logo_html($m['team_home'], 50, $m['team_home_logo'] ?? null); ?> <?php echo htmlspecialchars($m['team_home']); ?></div>
                                                 <?php
@@ -545,7 +546,7 @@ $grouped_by_championship = $live_groups + $other_groups;
                         <a href="news.php" class="view-all-btn">عرض الكل &larr;</a>
                     </div>
                     <?php foreach ($latest_news as $news): ?>
-                        <a href="view_news.php?id=<?php echo $news['id']; ?>" class="news-card">
+                        <a href="خبر/<?php echo $news['id']; ?>-<?php echo slugify($news['title']); ?>" class="news-card">
                             <?php if ($news['image_url']): ?>
                                 <img src="<?php echo htmlspecialchars($news['image_url']); ?>" alt="صورة الخبر" class="news-img">
                             <?php else: ?>

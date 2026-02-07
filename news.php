@@ -22,6 +22,7 @@ $seo_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title><?php echo $seo_title; ?></title>
+    <base href="/">
     <?php if ($favicon): ?><link rel="icon" href="<?php echo htmlspecialchars($favicon); ?>"><?php endif; ?>
     <meta name="description" content="<?php echo htmlspecialchars($seo_desc); ?>">
     <meta name="keywords" content="<?php echo htmlspecialchars($seo_keywords); ?>">
@@ -53,7 +54,7 @@ $seo_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "
           $list_items = [];
           $pos = 1;
           foreach (array_slice($news_list, 0, 10) as $news) {
-              $news_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http") . "://$_SERVER[HTTP_HOST]/view_news.php?id=" . $news['id'];
+              $news_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http") . "://$_SERVER[HTTP_HOST]/خبر/" . $news['id'] . '-' . slugify($news['title']);
               $list_items[] = '{ "@type": "ListItem", "position": ' . $pos++ . ', "url": "' . $news_url . '", "name": "' . htmlspecialchars($news['title']) . '" }';
           }
           echo implode(',', $list_items);
@@ -117,7 +118,7 @@ $seo_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "
         <?php else: ?>
             <div class="news-grid">
                 <?php foreach ($news_list as $news): ?>
-                    <a href="view_news.php?id=<?php echo $news['id']; ?>" class="news-card">
+                    <a href="خبر/<?php echo $news['id']; ?>-<?php echo slugify($news['title']); ?>" class="news-card">
                         <?php if ($news['image_url']): ?>
                             <img src="<?php echo htmlspecialchars($news['image_url']); ?>" alt="صورة الخبر" class="news-img">
                         <?php else: ?>

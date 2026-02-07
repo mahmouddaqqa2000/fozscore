@@ -58,6 +58,7 @@ if (!$match) {
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title><?php echo isset($match) ? htmlspecialchars($match['team_home']) . ' ضد ' . htmlspecialchars($match['team_away']) : 'تفاصيل المباراة'; ?> - FozScore</title>
+    <base href="/">
     <?php if ($favicon): ?><link rel="icon" href="<?php echo htmlspecialchars($favicon); ?>"><?php endif; ?>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1165,7 +1166,7 @@ if (!$match) {
                 <div class="stream-title">📰 آخر الأخبار</div>
                 <div class="news-grid-match">
                     <?php foreach ($latest_news as $news): ?>
-                        <a href="view_news.php?id=<?php echo $news['id']; ?>" class="news-card-match">
+                        <a href="خبر/<?php echo $news['id']; ?>-<?php echo slugify($news['title']); ?>" class="news-card-match">
                             <?php if ($news['image_url']): ?>
                                 <img src="<?php echo htmlspecialchars($news['image_url']); ?>" alt="صورة الخبر" class="news-img-match">
                             <?php else: ?>

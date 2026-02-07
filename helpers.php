@@ -896,3 +896,13 @@ function get_stream_iframe($url) {
     }
     return ['success' => false, 'message' => 'لم يتم العثور على iframe مناسب'];
 }
+
+/**
+ * تحويل النص إلى صيغة مناسبة للروابط (Slug)
+ */
+function slugify($text) {
+    // استبدال أي شيء ليس حرفاً أو رقماً بشرطة
+    $text = preg_replace('~[^\p{L}\p{N}]+~u', '-', $text);
+    // إزالة الشرطات من البداية والنهاية
+    return trim($text, '-');
+}
