@@ -69,50 +69,48 @@ $dates = [
     date('Y-m-d', strtotime('+1 day'))
 ];
 
-$total_updated = 0;
+$all_matches = [];
 
+// 1. تجميع كل المباريات من جميع التواريخ في قائمة واحدة
 foreach ($dates as $date) {
-    echo "<div class='date-header'>📅 $date</div>";
-    echo str_repeat(" ", 1024); // حشو بسيط
-    flush();
-    
-    // جلب المباريات التي لها رابط مصدر
     $stmt = $pdo->prepare("SELECT id, team_home, team_away, source_url, match_events, match_stats, lineup_home, match_time, match_date FROM matches WHERE match_date = ? AND source_url IS NOT NULL AND source_url != ''");
     $stmt->execute([$date]);
     $matches = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    
-    if (empty($matches)) {
-        echo "<div class='log-item' style='justify-content:center; color:#94a3b8;'>لا توجد مباريات مرتبطة برابط مصدر.</div>";
-        echo str_repeat(" ", 4096); // حشو لإجبار العرض
-        flush();
-        continue;
+    foreach ($matches as $m) {
+        $all_matches[] = $m;
     }
+}
 
-    // --- تحسين: ترتيب المباريات لإعطاء الأولوية للمباريات الجارية ---
-    usort($matches, function($a, $b) {
-        $statusA = get_match_status($a)['key'];
-        $statusB = get_match_status($b)['key'];
+$total_updated = 0;
 
-        // الترتيب: جارية (0) < منتهية (1) < لم تبدأ (2)
-        $prio = ['live' => 0, 'finished' => 1, 'not_started' => 2];
-        
-        $pa = $prio[$statusA] ?? 3;
-        $pb = $prio[$statusB] ?? 3;
+// 2. ترتيب شامل: المباريات الجارية أولاً، ثم المنتهية، ثم التي لم تبدأ
+usort($all_matches, function($a, $b) {
+    $statusA = get_match_status($a)['key'];
+    $statusB = get_match_status($b)['key'];
 
-        if ($pa === $pb) return 0;
-        return $pa <=> $pb;
-    });
-
-    echo "<div style='padding:5px 10px; font-size:0.9em; color:#64748b;'>تم العثور على " . count($matches) . " مباراة. جاري المعالجة...</div>";
-    echo str_repeat(" ", 4096); // حشو لإجبار العرض
-    flush();
+    // الترتيب: جارية (0) < منتهية (1) < لم تبدأ (2)
+    $prio = ['live' => 0, 'finished' => 1, 'not_started' => 2];
     
-    foreach ($matches as $match) {
+    $pa = $prio[$statusA] ?? 3;
+    $pb = $prio[$statusB] ?? 3;
+
+    if ($pa === $pb) return 0;
+    return $pa <=> $pb;
+});
+
+if (empty($all_matches)) {
+    echo "<div class='log-item' style='justify-content:center; color:#94a3b8;'>لا توجد مباريات مرتبطة برابط مصدر في النطاق الزمني المحدد.</div>";
+} else {
+    echo "<div style='padding:5px 10px; font-size:0.9em; color:#64748b;'>تم العثور على " . count($all_matches) . " مباراة (أمس، اليوم، غداً). جاري المعالجة حسب الأولوية (المباشر أولاً)...</div>";
+    echo str_repeat(" ", 4096);
+    flush();
+
+    foreach ($all_matches as $match) {
         echo "<div class='log-item'>";
         
         $status = get_match_status($match);
         $live_badge = ($status['key'] === 'live') ? " <span style='color:red;font-weight:bold;animation:blink 1s infinite;'>[مباشر]</span>" : "";
-        echo "<span>{$match['team_home']} 🆚 {$match['team_away']}$live_badge</span>";
+        echo "<span>{$match['team_home']} 🆚 {$match['team_away']}$live_badge <span style='font-size:0.8em;color:#94a3b8;'>({$match['match_date']})</span></span>";
         echo str_repeat(" ", 1024); // حشو إضافي لكل سطر
         flush(); // إرسال النص فوراً قبل بدء السحب
         
@@ -131,7 +129,7 @@ foreach ($dates as $date) {
         // --- تدقيق إضافي للمباريات الجارية ---
         // إذا كانت المباراة جارية ولم نجد أحداثاً، نحاول مرة أخرى فوراً (قد يكون خطأ اتصال عابر)
         if ($status['key'] === 'live' && empty($details['match_events'])) {
-            usleep(500000); // انتظار نصف ثانية
+            sleep(1); // انتظار ثانية كاملة لضمان استقرار الاتصال
             $details = get_match_details($match['source_url']); // إعادة المحاولة
         }
         
