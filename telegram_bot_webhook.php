@@ -144,7 +144,14 @@ if (isset($update['message'])) {
                                 $msg .= "💰 رصيدك الحالي: $" . number_format($current_balance, 2) . "\n\n";
                                 $contact = $settings['contact_user'] ?? 'الإدارة';
                                 $msg .= "💳 لشحن الرصيد، تواصل مع: $contact";
-                                sendMessage($token, $chat_id, $msg);
+                                
+                                $keyboard = null;
+                                if ($contact && strpos($contact, '@') === 0) {
+                                    $adminUser = substr($contact, 1);
+                                    $keyboard = ['inline_keyboard' => [[['text' => '💳 شحن الرصيد', 'url' => "https://t.me/$adminUser"]]]];
+                                }
+                                
+                                sendMessage($token, $chat_id, $msg, $keyboard);
                                 clearUserState($pdo, $chat_id);
                                 return; // إيقاف العملية
                             }
@@ -168,9 +175,16 @@ if (isset($update['message'])) {
                     
                     if ($current_balance <= 0) {
                         $msg = "🚫 **عذراً، رصيدك صفر!**\n\n";
+                        $contact = $settings['contact_user'] ?? 'الإدارة';
                         $msg .= "لا يمكنك طلب خدمات حتى تقوم بشحن رصيدك.\n";
-                        $msg .= "💳 لشحن الرصيد، يرجى إرسال الـ ID الخاص بك للإدارة:\n`$chat_id`";
-                        sendMessage($token, $chat_id, $msg);
+                        $msg .= "💳 لشحن الرصيد، تواصل مع: $contact";
+                        
+                        $keyboard = null;
+                        if ($contact && strpos($contact, '@') === 0) {
+                            $adminUser = substr($contact, 1);
+                            $keyboard = ['inline_keyboard' => [[['text' => '💳 شحن الرصيد', 'url' => "https://t.me/$adminUser"]]]];
+                        }
+                        sendMessage($token, $chat_id, $msg, $keyboard);
                         clearUserState($pdo, $chat_id);
                         return; // إيقاف العملية
                     }
@@ -354,7 +368,13 @@ if (isset($update['callback_query'])) {
         if ($current_balance <= 0) {
             $contact = $settings['contact_user'] ?? 'الإدارة';
             $msg = "🚫 **عذراً، رصيدك صفر!**\n\nلا يمكنك طلب خدمات حتى تقوم بشحن رصيدك.\n💳 لشحن الرصيد، تواصل مع: $contact";
-            sendMessage($token, $chat_id, $msg);
+            
+            $keyboard = null;
+            if ($contact && strpos($contact, '@') === 0) {
+                $adminUser = substr($contact, 1);
+                $keyboard = ['inline_keyboard' => [[['text' => '💳 شحن الرصيد', 'url' => "https://t.me/$adminUser"]]]];
+            }
+            sendMessage($token, $chat_id, $msg, $keyboard);
             return;
         }
         
@@ -381,7 +401,13 @@ if (isset($update['callback_query'])) {
             if ($current_balance <= 0) {
                 $contact = $settings['contact_user'] ?? 'الإدارة';
                 $msg = "🚫 **عذراً، رصيدك صفر!**\n\nلا يمكنك طلب خدمات حتى تقوم بشحن رصيدك.\n💳 لشحن الرصيد، تواصل مع: $contact";
-                sendMessage($token, $chat_id, $msg);
+                
+                $keyboard = null;
+                if ($contact && strpos($contact, '@') === 0) {
+                    $adminUser = substr($contact, 1);
+                    $keyboard = ['inline_keyboard' => [[['text' => '💳 شحن الرصيد', 'url' => "https://t.me/$adminUser"]]]];
+                }
+                sendMessage($token, $chat_id, $msg, $keyboard);
                 return;
             }
 
