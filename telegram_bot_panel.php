@@ -327,6 +327,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $msg_type = "error";
         }
     }
+
+    // 6. تعيين Webhook (تفعيل البوت)
+    if (isset($_POST['set_webhook'])) {
+        $settings = get_sec_bot_settings($pdo);
+        $token = $settings['bot_token'] ?? '';
+        
+        // تحديد رابط الويب هوك تلقائياً
+        $protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http");
+        $current_dir = dirname("$protocol://$_SERVER[HTTP_HOST]$_SERVER[REQUEST_URI]");
+        $webhook_url = $current_dir . '/telegram_bot_webhook.php';
+        
+        if ($token) {
+            $url = "https://api.telegram.org/bot$token/setWebhook?url=" . urlencode($webhook_url);
+            $res = file_get_contents($url);
+            $json = json_decode($res, true);
+            
+            if ($json && $json['ok']) {
+                $message = "تم تفعيل البوت بنجاح! ✅<br>الرابط: $webhook_url";
+                $msg_type = "success";
+            } else {
+                $message = "فشل تفعيل البوت: " . ($json['description'] ?? 'خطأ غير معروف');
+                $msg_type = "error";
+            }
+        } else {
+            $message = "يرجى حفظ توكن البوت أولاً.";
+            $msg_type = "error";
+        }
+    }
 }
 
 $settings = get_sec_bot_settings($pdo);
@@ -404,6 +432,11 @@ $services_list = $pdo->query("SELECT * FROM bot_services ORDER BY id DESC")->fet
                     <input type="text" name="contact_user" value="<?php echo htmlspecialchars($settings['contact_user'] ?? ''); ?>" placeholder="@username">
                 </div>
                 <button type="submit" name="save_settings" class="btn btn-save">حفظ الإعدادات</button>
+                
+                <div style="margin-top: 15px; border-top: 1px solid #e2e8f0; padding-top: 15px;">
+                    <button type="submit" name="set_webhook" class="btn" style="background:#0891b2; width:100%;">🔗 تفعيل البوت (Set Webhook)</button>
+                    <p style="font-size:0.8rem; color:#64748b; margin-top:5px; text-align:center;">اضغط هنا لربط البوت بالموقع وجعله يرد تلقائياً.</p>
+                </div>
             </form>
         </div>
 
