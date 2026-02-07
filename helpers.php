@@ -960,15 +960,16 @@ function get_match_details($url) {
     $lineupDebug = "لم يتم العثور على التشكيلة";
     
     $lineupQueries = [
-        ['//div[@id="squad"]//div[contains(@class, "teamA")]//div[contains(@class, "player")]', '//div[@id="squad"]//div[contains(@class, "teamB")]//div[contains(@class, "player")]'],
-        ['//div[contains(@class, "squad")]//div[contains(@class, "teamA")]//div[contains(@class, "player")]', '//div[contains(@class, "squad")]//div[contains(@class, "teamB")]//div[contains(@class, "player")]'],
-        ['//div[@id="squad"]//div[contains(@class, "team1")]//div[contains(@class, "player")]', '//div[@id="squad"]//div[contains(@class, "team2")]//div[contains(@class, "player")]'],
-        ['//div[contains(@class, "formation")]//div[contains(@class, "teamA")]//div[contains(@class, "player")]', '//div[contains(@class, "formation")]//div[contains(@class, "teamB")]//div[contains(@class, "player")]'],
-        ['//div[contains(@class, "matchLineup")]//div[contains(@class, "teamA")]//div[contains(@class, "player")]', '//div[contains(@class, "matchLineup")]//div[contains(@class, "teamB")]//div[contains(@class, "player")]'],
-        ['//div[contains(@class, "teamA")]//div[contains(@class, "player")]', '//div[contains(@class, "teamB")]//div[contains(@class, "player")]'],
+        ['//div[@id="squad"]//div[contains(@class, "teamA")]//*[contains(@class, "player")]', '//div[@id="squad"]//div[contains(@class, "teamB")]//*[contains(@class, "player")]'],
+        ['//div[contains(@class, "squad")]//div[contains(@class, "teamA")]//*[contains(@class, "player")]', '//div[contains(@class, "squad")]//div[contains(@class, "teamB")]//*[contains(@class, "player")]'],
+        ['//div[@id="squad"]//div[contains(@class, "team1")]//*[contains(@class, "player")]', '//div[@id="squad"]//div[contains(@class, "team2")]//*[contains(@class, "player")]'],
+        ['//div[contains(@class, "formation")]//div[contains(@class, "teamA")]//*[contains(@class, "player")]', '//div[contains(@class, "formation")]//div[contains(@class, "teamB")]//*[contains(@class, "player")]'],
+        ['//div[contains(@class, "matchLineup")]//div[contains(@class, "teamA")]//*[contains(@class, "player")]', '//div[contains(@class, "matchLineup")]//div[contains(@class, "teamB")]//*[contains(@class, "player")]'],
+        ['//div[contains(@class, "teamA")]//*[contains(@class, "player")]', '//div[contains(@class, "teamB")]//*[contains(@class, "player")]'],
         // استراتيجية البحث العام: جلب كل اللاعبين في الحاوية وتقسيمهم لاحقاً
         ['//div[@id="squad"]//*[contains(@class, "player")]', ''],
-        ['//div[contains(@class, "squad")]//*[contains(@class, "player")]', '']
+        ['//div[contains(@class, "squad")]//*[contains(@class, "player")]', ''],
+        ['//div[contains(@class, "formation")]//*[contains(@class, "player")]', '']
     ];
 
     foreach ($lineupQueries as $idx => $q) {
