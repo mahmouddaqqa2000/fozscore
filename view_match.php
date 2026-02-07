@@ -814,6 +814,22 @@ if (!$match) {
         
         body.dark-mode .btn-predict:hover { background: #334155; }
         body.dark-mode .progress-track { background: #334155; }
+
+        /* H2H Summary Styles */
+        .h2h-summary-card {
+            display: flex; align-items: center; justify-content: space-between;
+            background: #f8fafc; padding: 20px; border-radius: 12px;
+            margin-bottom: 20px; border: 1px solid var(--border);
+        }
+        .h2h-team-col { display: flex; align-items: center; justify-content: center; }
+        .h2h-stats-row { flex: 1; display: flex; justify-content: center; align-items: center; gap: 20px; }
+        .h2h-stat-item { display: flex; flex-direction: column; align-items: center; text-align: center; min-width: 60px; }
+        .stat-count { font-size: 1.4rem; font-weight: 800; color: var(--primary); line-height: 1; }
+        .stat-label { font-size: 0.85rem; color: var(--text-light); margin: 4px 0; }
+        .stat-pct { font-size: 0.8rem; font-weight: 700; color: var(--secondary); }
+        
+        body.dark-mode .h2h-summary-card { background: #2d3748; border-color: var(--border); }
+        body.dark-mode .stat-pct { color: #60a5fa; }
     </style>
 </head>
 <body>
@@ -1139,6 +1155,45 @@ if (!$match) {
                 <?php if (empty($h2h_matches)): ?>
                     <p class="placeholder-text">لا توجد مواجهات سابقة مسجلة بين الفريقين.</p>
                 <?php else: ?>
+                    <?php
+                    // حساب إحصائيات المواجهات المباشرة
+                    $h2h_stats = ['home' => 0, 'draw' => 0, 'away' => 0, 'total' => 0];
+                    $h2h_stats['total'] = count($h2h_matches);
+                    
+                    foreach ($h2h_matches as $m) {
+                        if ($m['score_home'] == $m['score_away']) {
+                            $h2h_stats['draw']++;
+                        } else {
+                            $winner_is_home_in_record = ($m['score_home'] > $m['score_away']);
+                            // تنظيف الأسماء للمقارنة
+                            $rec_home = trim($m['team_home']);
+                            $cur_home = trim($match['team_home']);
+                            
+                            if ($rec_home == $cur_home) {
+                                if ($winner_is_home_in_record) $h2h_stats['home']++;
+                                else $h2h_stats['away']++;
+                            } else {
+                                if ($winner_is_home_in_record) $h2h_stats['away']++;
+                                else $h2h_stats['home']++;
+                            }
+                        }
+                    }
+                    
+                    $home_pct = $h2h_stats['total'] > 0 ? round(($h2h_stats['home'] / $h2h_stats['total']) * 100, 1) : 0;
+                    $draw_pct = $h2h_stats['total'] > 0 ? round(($h2h_stats['draw'] / $h2h_stats['total']) * 100, 1) : 0;
+                    $away_pct = $h2h_stats['total'] > 0 ? round(($h2h_stats['away'] / $h2h_stats['total']) * 100, 1) : 0;
+                    ?>
+                    
+                    <div class="h2h-summary-card">
+                        <div class="h2h-team-col"><?php echo team_logo_html($match['team_home'], 50, $match['team_home_logo'] ?? null); ?></div>
+                        <div class="h2h-stats-row">
+                            <div class="h2h-stat-item"><span class="stat-count"><?php echo $h2h_stats['home']; ?></span><span class="stat-label">فاز</span><span class="stat-pct"><?php echo $home_pct; ?>%</span></div>
+                            <div class="h2h-stat-item"><span class="stat-count"><?php echo $h2h_stats['draw']; ?></span><span class="stat-label">تعادل</span><span class="stat-pct"><?php echo $draw_pct; ?>%</span></div>
+                            <div class="h2h-stat-item"><span class="stat-count"><?php echo $h2h_stats['away']; ?></span><span class="stat-label">فاز</span><span class="stat-pct"><?php echo $away_pct; ?>%</span></div>
+                        </div>
+                        <div class="h2h-team-col"><?php echo team_logo_html($match['team_away'], 50, $match['team_away_logo'] ?? null); ?></div>
+                    </div>
+
                     <?php foreach ($h2h_matches as $h2h_match): ?>
                         <div class="h2h-item">
                             <span class="h2h-date"><?php echo htmlspecialchars($h2h_match['match_date']); ?></span>
