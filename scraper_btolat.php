@@ -27,7 +27,7 @@ if (!$html) {
 
 // 2. تحليل HTML
 $dom = new DOMDocument();
-@$dom->loadHTML($html);
+@$dom->loadHTML('<?xml encoding="UTF-8">' . $html);
 $xpath = new DOMXPath($dom);
 
 // البحث عن كروت المباريات - توسيع نطاق البحث
@@ -48,17 +48,19 @@ $stmtCheck = $pdo->prepare("SELECT id FROM matches WHERE team_home = ? AND team_
 $stmtInsert = $pdo->prepare("INSERT INTO matches (match_date, match_time, team_home, team_away, score_home, score_away, championship) VALUES (?, ?, ?, ?, ?, ?, ?)");
 $stmtUpdate = $pdo->prepare("UPDATE matches SET score_home = ?, score_away = ?, match_time = ?, championship = ? WHERE id = ?");
 
+$first_failed_html = null;
+
 foreach ($match_cards as $card) {
     // استخراج البيانات - محاولات متعددة للأسماء
     // تم التحديث لدعم a.team1 و div.team1
-    $home_queries = [".//*[contains(@class, 'team1')]", ".//*[contains(@class, 'teamA')]", ".//*[contains(@class, 'home')]"];
+    $home_queries = [".//*[contains(@class, 'team1')]//h3", ".//*[contains(@class, 'team1')]", ".//*[contains(@class, 'teamA')]", ".//*[contains(@class, 'home')]"];
     $team_home = null;
     foreach ($home_queries as $q) {
         $node = $xpath->query($q, $card)->item(0);
         if ($node) { $team_home = trim($node->textContent); break; }
     }
 
-    $away_queries = [".//*[contains(@class, 'team2')]", ".//*[contains(@class, 'teamB')]", ".//*[contains(@class, 'away')]"];
+    $away_queries = [".//*[contains(@class, 'team2')]//h3", ".//*[contains(@class, 'team2')]", ".//*[contains(@class, 'teamB')]", ".//*[contains(@class, 'away')]"];
     $team_away = null;
     foreach ($away_queries as $q) {
         $node = $xpath->query($q, $card)->item(0);
@@ -117,6 +119,10 @@ foreach ($match_cards as $card) {
             $stmtInsert->execute([$today, $match_time, $team_home, $team_away, $score_home, $score_away, $championship]);
             $count_added++;
         }
+    } else {
+        if (!$first_failed_html) {
+            $first_failed_html = $dom->saveHTML($card);
+        }
     }
 }
 
@@ -124,12 +130,9 @@ echo "<div style='margin-top: 20px; padding: 15px; background: #dcfce7; border-r
 echo "<strong>تمت العملية بنجاح!</strong><br>تم إضافة: $count_added | تم تحديث: $count_updated";
 echo "</div>";
 
-if ($count_added == 0 && $count_updated == 0 && $match_cards->length > 0) {
-    echo "<div style='color:red; margin-top:10px; padding:10px; border:1px solid red; background:#fff0f0;'>⚠️ تنبيه: تم العثور على عناصر ولكن لم يتم استخراج البيانات. إليك عينة من الكود المصدري لأول عنصر للمساعدة في التشخيص:</div>";
-    if ($match_cards->length > 0) {
-        $first = $match_cards->item(0);
-        echo "<textarea style='width:100%;height:200px;direction:ltr;font-family:monospace;margin-top:10px;'>" . htmlspecialchars($dom->saveHTML($first)) . "</textarea>";
-    }
+if ($first_failed_html) {
+    echo "<div style='color:red; margin-top:10px; padding:10px; border:1px solid red; background:#fff0f0;'>⚠️ تنبيه: فشل استخراج البيانات من بعض العناصر. إليك عينة من الكود المصدري لأول عنصر فاشل:</div>";
+    echo "<textarea style='width:100%;height:200px;direction:ltr;font-family:monospace;margin-top:10px;'>" . htmlspecialchars($first_failed_html) . "</textarea>";
 }
 
 echo '<br><br><a href="bot_dashboard.php" style="display: inline-block; padding: 10px 20px; background: #2563eb; color: white; text-decoration: none; border-radius: 5px; font-weight: bold;">العودة للوحة التحكم</a>';
