@@ -280,9 +280,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $name = $_POST['service_name'];
         $price = $_POST['service_price'];
         $desc = $_POST['service_desc'];
+        $cost = $_POST['service_cost'];
         $category = $_POST['service_category'];
-        $stmt = $pdo->prepare("INSERT INTO bot_services (name, price, description, category) VALUES (?, ?, ?, ?)");
-        $stmt->execute([$name, $price, $desc, $category]);
+        $stmt = $pdo->prepare("INSERT INTO bot_services (name, price, description, category, cost) VALUES (?, ?, ?, ?, ?)");
+        $stmt->execute([$name, $price, $desc, $category, $cost]);
         $message = "تم إضافة الخدمة للمتجر ✅";
         $msg_type = "success";
     }
@@ -292,6 +293,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $id = $_POST['service_id'];
         $pdo->prepare("DELETE FROM bot_services WHERE id = ?")->execute([$id]);
         $message = "تم حذف الخدمة 🗑️";
+        $msg_type = "success";
+    }
+
+    // 4.5 تحديث سعر وتكلفة الخدمة
+    if (isset($_POST['update_service_price'])) {
+        $id = $_POST['service_id'];
+        $new_price = $_POST['new_price'];
+        $new_cost = $_POST['new_cost'];
+        $pdo->prepare("UPDATE bot_services SET price = ?, cost = ? WHERE id = ?")->execute([$new_price, $new_cost, $id]);
+        $message = "تم تحديث سعر وتكلفة الخدمة بنجاح 💰";
         $msg_type = "success";
     }
 
@@ -583,14 +594,22 @@ $services_list = $pdo->query("SELECT * FROM bot_services ORDER BY id DESC")->fet
                     <div class="service-item">
                         <div class="service-details">
                             <strong><?php echo $icon; ?> <?php echo htmlspecialchars($srv['name']); ?></strong>
-                            <br><span class="service-price"><?php echo htmlspecialchars($srv['price']); ?></span>
-                            <span style="font-size:0.8em; color:#64748b;">(التكلفة: $<?php echo htmlspecialchars($srv['cost'] ?? 0); ?>)</span>
                             <?php if ($srv['description']): ?> - <span style="color:#64748b;"><?php echo htmlspecialchars($srv['description']); ?></span><?php endif; ?>
                         </div>
-                        <form method="post" style="margin:0;">
-                            <input type="hidden" name="service_id" value="<?php echo $srv['id']; ?>">
-                            <button type="submit" name="delete_service" style="background:none; border:none; cursor:pointer; font-size:1.2rem;" title="حذف">🗑️</button>
-                        </form>
+                        
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <form method="post" style="margin:0; display:flex; gap:5px; align-items:center;">
+                                <input type="hidden" name="service_id" value="<?php echo $srv['id']; ?>">
+                                <input type="text" name="new_price" value="<?php echo htmlspecialchars($srv['price']); ?>" style="width:80px; padding:5px; font-size:0.8rem; border:1px solid #cbd5e1; border-radius:4px;" placeholder="السعر" title="نص السعر المعروض">
+                                <input type="number" step="0.01" name="new_cost" value="<?php echo htmlspecialchars($srv['cost'] ?? 0); ?>" style="width:60px; padding:5px; font-size:0.8rem; border:1px solid #cbd5e1; border-radius:4px;" placeholder="التكلفة" title="التكلفة الرقمية">
+                                <button type="submit" name="update_service_price" class="btn" style="background:#0891b2; padding:5px 10px; font-size:0.8rem; width:auto;">تحديث</button>
+                            </form>
+                            
+                            <form method="post" style="margin:0;">
+                                <input type="hidden" name="service_id" value="<?php echo $srv['id']; ?>">
+                                <button type="submit" name="delete_service" style="background:none; border:none; cursor:pointer; font-size:1.2rem;" title="حذف" onclick="return confirm('هل أنت متأكد؟');">🗑️</button>
+                            </form>
+                        </div>
                     </div>
                 <?php endforeach; ?>
                 <form method="post" style="margin-top:20px;">

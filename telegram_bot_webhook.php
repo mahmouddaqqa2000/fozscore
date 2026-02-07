@@ -167,8 +167,8 @@ if (isset($update['message'])) {
                             
                             if ($current_balance < $total_cost) {
                                 $msg = "🚫 **عذراً، رصيدك غير كافٍ!**\n\n";
-                                $msg .= "💵 تكلفة الطلب: $" . number_format($total_cost, 2) . "\n";
-                                $msg .= "💰 رصيدك الحالي: $" . number_format($current_balance, 2) . "\n\n";
+                                $msg .= "💵 تكلفة الطلب: $" . number_format($total_cost, 2) . " (لعدد $qty)\n";
+                                $msg .= "� رصيدك الحالي: $" . number_format($current_balance, 2) . "\n\n";
                                 
                                 $keyboard = ['inline_keyboard' => [[['text' => '⭐️ شحن الرصيد (نجوم)', 'callback_data' => 'recharge_stars_menu']]]];
                                 
