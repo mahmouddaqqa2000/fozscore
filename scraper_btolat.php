@@ -31,11 +31,11 @@ $dom = new DOMDocument();
 $xpath = new DOMXPath($dom);
 
 // البحث عن كروت المباريات - توسيع نطاق البحث
-$match_cards = $xpath->query("//div[contains(@class, 'matchCard')] | //div[contains(@class, 'match-card')] | //div[contains(@class, 'liItem')]");
+$match_cards = $xpath->query("//div[contains(@class, 'matchCard')] | //div[contains(@class, 'match-card')] | //div[contains(@class, 'liItem')] | //div[contains(@class, 'matchRow')]");
 
 if ($match_cards->length === 0) {
     echo "<div style='color:orange; margin: 10px 0;'>لم يتم العثور على مباريات باستخدام المحددات الافتراضية. جاري محاولة البحث العام...</div>";
-    $match_cards = $xpath->query("//div[contains(@class, 'match')][not(contains(@class, 'matches'))] | //li[contains(@class, 'match')]");
+    $match_cards = $xpath->query("//div[contains(@class, 'match')][not(contains(@class, 'matches'))][not(contains(@class, 'matchsDays'))][not(contains(@class, 'day'))] | //li[contains(@class, 'match')]");
 }
 
 echo "<p>تم العثور على " . $match_cards->length . " مباراة.</p>";
