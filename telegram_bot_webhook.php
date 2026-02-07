@@ -133,6 +133,46 @@ if (isset($update['message'])) {
                     $qty = intval($text);
                     $newData = $stateData['data'];
                     $newData['qty'] = $qty;
+                    
+                    // --- حساب التكلفة والتحقق من الرصيد فوراً ---
+                    if (isset($newData['service_id'])) {
+                        $stmtSrv = $pdo->prepare("SELECT * FROM bot_services WHERE id = ?");
+                        $stmtSrv->execute([$newData['service_id']]);
+                        $service = $stmtSrv->fetch(PDO::FETCH_ASSOC);
+                        
+                        if ($service) {
+                            $cost_per_1k = floatval($service['cost'] ?? 0);
+                            if ($cost_per_1k > 0) {
+                                $total_cost = ($qty / 1000) * $cost_per_1k;
+                                
+                                // التحقق من الرصيد
+                                $stmtUser = $pdo->prepare("SELECT balance FROM bot_users WHERE chat_id = ?");
+                                $stmtUser->execute([$chat_id]);
+                                $current_balance = $stmtUser->fetchColumn();
+                                
+                                if ($current_balance < $total_cost) {
+                                    $msg = "🚫 **عذراً، رصيدك غير كافٍ!**\n\n";
+                                    $msg .= "💵 تكلفة الطلب: $" . number_format($total_cost, 2) . " (لعدد $qty)\n";
+                                    $msg .= "💰 رصيدك الحالي: $" . number_format($current_balance, 2) . "\n\n";
+                                    $keyboard = ['inline_keyboard' => [[['text' => '⭐️ شحن الرصيد (نجوم)', 'callback_data' => 'recharge_stars_menu']]]];
+                                    sendMessage($token, $chat_id, $msg, $keyboard);
+                                    return; // إيقاف العملية هنا
+                                }
+                                
+                                // الرصيد كافٍ: عرض التكلفة وطلب الرابط
+                                $msg = "💵 **تكلفة الطلب:** $" . number_format($total_cost, 2) . "\n";
+                                $msg .= "💰 **رصيدك الحالي:** $" . number_format($current_balance, 2) . "\n";
+                                $msg .= "📉 **الرصيد بعد الخصم:** $" . number_format($current_balance - $total_cost, 2) . "\n\n";
+                                $msg .= "🔗 **رابط الحساب أو المنشور:**\nيرجى إرسال الرابط المطلوب.";
+                                
+                                setUserState($pdo, $chat_id, 'WAITING_LINK', $newData);
+                                sendMessage($token, $chat_id, $msg);
+                                return;
+                            }
+                        }
+                    }
+                    // -------------------------------------------
+
                     setUserState($pdo, $chat_id, 'WAITING_LINK', $newData);
                     
                     $msg = "🔗 **رابط الحساب أو المنشور:**\n\nيرجى إرسال الرابط المطلوب تنفيذ الخدمة عليه.";
@@ -380,16 +420,12 @@ if (isset($update['callback_query'])) {
         }
 
         if (count($services) > 0) {
-            // وجدنا خدمات محددة، نعرضها للمستخدم ليختار منها (وبالتالي نضمن وجود سعر)
-            $msg = "👇 **اختر الخدمة المناسبة:**";
-            $keyboard = ['inline_keyboard' => []];
-            foreach ($services as $s) {
-                $btnText = $s['name'] . " ($" . ($s['cost'] ?? 0) . "/1k)";
-                $keyboard['inline_keyboard'][] = [['text' => $btnText, 'callback_data' => "srv_" . $s['id']]];
-            }
-            $keyboard['inline_keyboard'][] = [['text' => '🔙 رجوع', 'callback_data' => "platform_$platform"]];
-            sendMessage($token, $chat_id, $msg, $keyboard);
-            return; // نتوقف هنا وننتظر اختيار المستخدم للخدمة
+            // تخطي القائمة واختيار أول خدمة تلقائياً
+            $service = $services[0];
+            setUserState($pdo, $chat_id, 'WAITING_QTY', ['platform' => $platform, 'type' => $type, 'type_label' => $service['name'], 'service_id' => $service['id']]);
+            $msg = "🔢 **الكمية المطلوبة ({$service['name']}):**\n\nيرجى كتابة العدد الذي تريده (أرقام فقط).";
+            sendMessage($token, $chat_id, $msg);
+            return;
         }
         // ----------------------------------------------------------------
 
