@@ -71,7 +71,12 @@ $settings = get_site_settings($pdo);
             document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
             document.getElementById(tabName).classList.add('active');
             document.getElementById('btn-' + tabName).classList.add('active');
+            localStorage.setItem('active_bot_tab', tabName);
         }
+        document.addEventListener('DOMContentLoaded', function() {
+            const activeTab = localStorage.getItem('active_bot_tab') || 'settings';
+            openTab(activeTab);
+        });
     </script>
 </head>
 <body>
@@ -378,6 +383,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $msg_type = "error";
         }
     }
+
+    // 7. شحن رصيد مستخدم
+    if (isset($_POST['update_balance'])) {
+        $target_chat_id = $_POST['target_chat_id'];
+        $amount = floatval($_POST['amount']);
+        $operation = $_POST['operation']; // add or deduct
+        
+        $stmt = $pdo->prepare("SELECT balance FROM bot_users WHERE chat_id = ?");
+        $stmt->execute([$target_chat_id]);
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($user) {
+            $new_balance = $user['balance'];
+            if ($operation === 'add') $new_balance += $amount;
+            elseif ($operation === 'deduct') $new_balance -= $amount;
+            
+            $pdo->prepare("UPDATE bot_users SET balance = ? WHERE chat_id = ?")->execute([$new_balance, $target_chat_id]);
+            $message = "تم تحديث رصيد المستخدم بنجاح. الرصيد الجديد: $$new_balance";
+            $msg_type = "success";
+        } else {
+            $message = "المستخدم غير موجود.";
+            $msg_type = "error";
+        }
+    }
 }
 
 $settings = get_sec_bot_settings($pdo);
@@ -475,6 +504,31 @@ $services_list = $pdo->query("SELECT * FROM bot_services ORDER BY id DESC")->fet
             </form>
         </div>
 
+        <!-- إدارة الرصيد -->
+        <div class="card">
+            <h2>💰 إدارة رصيد المستخدمين</h2>
+            <form method="post" style="background: #f1f5f9; padding: 15px; border-radius: 10px;">
+                <div class="form-group">
+                    <label>ID المستخدم (Chat ID)</label>
+                    <input type="text" name="target_chat_id" placeholder="مثال: 123456789" required>
+                </div>
+                <div class="form-group" style="display:flex; gap:10px;">
+                    <div style="flex:1;">
+                        <label>المبلغ ($)</label>
+                        <input type="number" step="0.01" name="amount" placeholder="0.00" required>
+                    </div>
+                    <div style="flex:1;">
+                        <label>العملية</label>
+                        <select name="operation" style="width:100%; padding:12px; border:1px solid #cbd5e1; border-radius:8px; font-family:inherit;">
+                            <option value="add">➕ إضافة رصيد</option>
+                            <option value="deduct">➖ خصم رصيد</option>
+                        </select>
+                    </div>
+                </div>
+                <button type="submit" name="update_balance" class="btn" style="background:#0891b2; width:100%;">تحديث الرصيد</button>
+            </form>
+        </div>
+
         <!-- إدارة المتجر -->
         <div class="card">
             <h2>🛒 متجر الخدمات الرقمية</h2>
@@ -499,7 +553,10 @@ $services_list = $pdo->query("SELECT * FROM bot_services ORDER BY id DESC")->fet
                     <input type="text" name="service_name" placeholder="اسم الخدمة (مثال: 1000 متابع)" required>
                 </div>
                 <div class="form-group" style="display:flex; gap:10px;">
-                    <input type="text" name="service_price" placeholder="السعر (مثال: 5$)" style="flex:1;" required>
+                    <input type="text" name="service_price" placeholder="نص السعر للعرض (مثال: 5$ لكل 1k)" style="flex:1;" required>
+                    <input type="number" step="0.01" name="service_cost" placeholder="التكلفة الرقمية (لكل 1000)" style="flex:1;" title="السعر الرقمي للحساب (مثال: 5)" required>
+                </div>
+                <div class="form-group">
                     <input type="text" name="service_desc" placeholder="وصف قصير (اختياري)" style="flex:2;">
                 </div>
                 <button type="submit" name="add_service" class="btn" style="background:#16a34a; width:100%;">إضافة للقائمة ➕</button>
@@ -527,6 +584,7 @@ $services_list = $pdo->query("SELECT * FROM bot_services ORDER BY id DESC")->fet
                         <div class="service-details">
                             <strong><?php echo $icon; ?> <?php echo htmlspecialchars($srv['name']); ?></strong>
                             <br><span class="service-price"><?php echo htmlspecialchars($srv['price']); ?></span>
+                            <span style="font-size:0.8em; color:#64748b;">(التكلفة: $<?php echo htmlspecialchars($srv['cost'] ?? 0); ?>)</span>
                             <?php if ($srv['description']): ?> - <span style="color:#64748b;"><?php echo htmlspecialchars($srv['description']); ?></span><?php endif; ?>
                         </div>
                         <form method="post" style="margin:0;">

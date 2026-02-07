@@ -31,9 +31,27 @@ if (isset($update['message'])) {
     $text = $update['message']['text'] ?? '';
     $username = $update['message']['from']['first_name'] ?? 'مستخدم';
 
+    // --- تسجيل المستخدم أو تحديث بياناته ---
+    $stmtUser = $pdo->prepare("SELECT * FROM bot_users WHERE chat_id = ?");
+    $stmtUser->execute([$chat_id]);
+    $user = $stmtUser->fetch(PDO::FETCH_ASSOC);
+    
+    if (!$user) {
+        $pdo->prepare("INSERT INTO bot_users (chat_id, username, balance, created_at) VALUES (?, ?, 0.00, ?)")->execute([$chat_id, $username, time()]);
+        $balance = 0.00;
+    } else {
+        $balance = $user['balance'];
+        // تحديث الاسم إذا تغير
+        if ($user['username'] !== $username) {
+            $pdo->prepare("UPDATE bot_users SET username = ? WHERE chat_id = ?")->execute([$username, $chat_id]);
+        }
+    }
+
     if ($text === '/start') {
         clearUserState($pdo, $chat_id); // إعادة تعيين الحالة عند البدء
         $msg = "👋 **أهلاً بك يا $username في بوت خدمات السوشيال ميديا!** 🚀\n\n";
+        $msg .= "🆔 **ID الخاص بك:** `$chat_id`\n";
+        $msg .= "💰 **رصيدك الحالي:** $" . number_format($balance, 2) . "\n\n";
         $msg .= "✨ **نقدم لك أفضل الحلول لزيادة التفاعل والمتابعين على جميع المنصات.**\n";
         $msg .= "✅ خدمات سريعة ومضمونة.\n";
         $msg .= "✅ أسعار منافسة.\n";
@@ -99,12 +117,54 @@ if (isset($update['message'])) {
                     }
                 }
                 // -----------------------------------------
+                
+                // --- التحقق من الرصيد وخصم التكلفة (للخدمات المسعرة) ---
+                if (isset($data['service_id'])) {
+                    $service_id = $data['service_id'];
+                    $qty = $data['qty'];
+                    
+                    $stmtSrv = $pdo->prepare("SELECT * FROM bot_services WHERE id = ?");
+                    $stmtSrv->execute([$service_id]);
+                    $service = $stmtSrv->fetch(PDO::FETCH_ASSOC);
+                    
+                    if ($service) {
+                        $cost_per_1k = floatval($service['cost'] ?? 0);
+                        // إذا كانت الخدمة لها تكلفة محددة
+                        if ($cost_per_1k > 0) {
+                            $total_cost = ($qty / 1000) * $cost_per_1k;
+                            
+                            // التحقق من الرصيد الحالي
+                            $stmtUser = $pdo->prepare("SELECT balance FROM bot_users WHERE chat_id = ?");
+                            $stmtUser->execute([$chat_id]);
+                            $current_balance = $stmtUser->fetchColumn();
+                            
+                            if ($current_balance < $total_cost) {
+                                $msg = "🚫 **عذراً، رصيدك غير كافٍ!**\n\n";
+                                $msg .= "💵 تكلفة الطلب: $" . number_format($total_cost, 2) . "\n";
+                                $msg .= "💰 رصيدك الحالي: $" . number_format($current_balance, 2) . "\n\n";
+                                $msg .= "💳 لشحن الرصيد، يرجى إرسال الـ ID الخاص بك للإدارة:\n`$chat_id`";
+                                sendMessage($token, $chat_id, $msg);
+                                clearUserState($pdo, $chat_id);
+                                return; // إيقاف العملية
+                            }
+                            
+                            // خصم الرصيد
+                            $new_balance = $current_balance - $total_cost;
+                            $pdo->prepare("UPDATE bot_users SET balance = ? WHERE chat_id = ?")->execute([$new_balance, $chat_id]);
+                            
+                            // إضافة معلومات التكلفة للبيانات لعرضها في الرسالة النهائية
+                            $data['total_cost'] = $total_cost;
+                            $data['new_balance'] = $new_balance;
+                        }
+                    }
+                }
+                // -------------------------------------------------------
 
                 clearUserState($pdo, $chat_id); // انتهت المحادثة
                 
                 // تجهيز ملخص الطلب
                 $platform = ucfirst($data['platform']);
-                $type = $data['type_label'];
+                $type = $data['type_label'] ?? ($service['name'] ?? 'خدمة');
                 $qty = $data['qty'];
                 $contact = $settings['contact_user'] ?? 'الإدارة';
                 
@@ -113,8 +173,12 @@ if (isset($update['message'])) {
                 $msg .= "📱 **المنصة:** $platform\n";
                 $msg .= "🔧 **الخدمة:** $type\n";
                 $msg .= "🔢 **العدد:** $qty\n";
+                if (isset($data['total_cost'])) {
+                    $msg .= "💵 **التكلفة:** $" . number_format($data['total_cost'], 2) . "\n";
+                    $msg .= "💰 **الرصيد المتبقي:** $" . number_format($data['new_balance'], 2) . "\n";
+                }
                 $msg .= "🔗 **الرابط:** $link\n\n";
-                $msg .= "💰 **لإتمام الدفع (إذا لم يتم مسبقاً)، يرجى التواصل مع:**\n$contact";
+                if (!isset($data['total_cost'])) $msg .= "💰 **لإتمام الدفع، تواصل مع:** $contact";
                 
                 sendMessage($token, $chat_id, $msg);
             }

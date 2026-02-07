@@ -146,6 +146,12 @@ $cols = $pdo->query("PRAGMA table_info(bot_services)")->fetchAll(PDO::FETCH_COLU
 if (!in_array('category', $cols)) {
     $pdo->exec("ALTER TABLE bot_services ADD COLUMN category TEXT");
 }
+// إضافة عمود التكلفة الرقمية (cost) للحسابات
+if (!in_array('cost', $cols)) {
+    $pdo->exec("ALTER TABLE bot_services ADD COLUMN cost REAL DEFAULT 0");
+}
+// إضافة عمود الحد الأدنى (min_qty) والاقصى (max_qty) - اختياري للمستقبل
+if (!in_array('min_qty', $cols)) $pdo->exec("ALTER TABLE bot_services ADD COLUMN min_qty INTEGER DEFAULT 100");
 
 // إنشاء جدول حالة المستخدمين للبوت (للمحادثات التفاعلية)
 $pdo->exec("CREATE TABLE IF NOT EXISTS bot_users_state (
@@ -153,6 +159,14 @@ $pdo->exec("CREATE TABLE IF NOT EXISTS bot_users_state (
   state TEXT,
   data TEXT,
   updated_at INTEGER
+)");
+
+// إنشاء جدول المستخدمين (للرصيد)
+$pdo->exec("CREATE TABLE IF NOT EXISTS bot_users (
+  chat_id INTEGER PRIMARY KEY,
+  username TEXT,
+  balance REAL DEFAULT 0.00,
+  created_at INTEGER
 )");
 
 ?>
