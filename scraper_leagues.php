@@ -122,8 +122,6 @@ if ($httpCode === 200 && $response) {
             'Super League 1' => 'الدوري اليوناني',
             'Swiss Super League' => 'الدوري السويسري',
             'Austrian Bundesliga' => 'الدوري النمساوي',
-            'Superliga' => 'الدوري الدنماركي',
-            '3F Superliga' => 'الدوري الدنماركي',
             'Eliteserien' => 'الدوري النرويجي',
             'Allsvenskan' => 'الدوري السويدي',
             
