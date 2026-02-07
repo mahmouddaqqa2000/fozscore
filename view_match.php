@@ -616,14 +616,14 @@ if (!$match) {
         /* Timeline Styling */
         .timeline { position: relative; padding: 20px 0 40px 0; max-width: 100%; }
         .timeline::before { content: ''; position: absolute; top: 0; bottom: 0; left: 50%; width: 4px; background: #e2e8f0; transform: translateX(-50%); border-radius: 2px; }
-        .timeline-row { display: flex; align-items: center; margin-bottom: 25px; width: 100%; position: relative; z-index: 1; }
+        .timeline-row { display: flex; align-items: center; margin-bottom: 25px; width: 100%; position: relative; z-index: 1; flex-wrap: nowrap; }
         .timeline-time { 
             width: 50px; height: 50px; background: #fff; border: 3px solid #e2e8f0; color: var(--primary);
             border-radius: 50%; display: flex; align-items: center; justify-content: center; 
             font-weight: 800; font-size: 0.9rem; z-index: 2; flex-shrink: 0;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
-        .timeline-content { flex: 1; display: flex; align-items: center; }
+        .timeline-content { flex: 1 1 0; width: 0; min-width: 0; display: flex; align-items: center; gap: 10px; }
         .timeline-content.home { justify-content: flex-start; padding-right: 20px; }
         .timeline-content.away { justify-content: flex-end; padding-left: 20px; }
         
@@ -634,6 +634,8 @@ if (!$match) {
         }
         
         @media (max-width: 600px) {
+            .timeline-content { gap: 6px; }
+            .timeline-row { flex-direction: row; }
             .timeline-content.home { padding-right: 8px; }
             .timeline-content.away { padding-left: 8px; }
             .timeline-card { padding: 8px 10px; font-size: 0.85rem; min-height: 35px; gap: 8px; }
@@ -1203,6 +1205,9 @@ if (!$match) {
                 <div class="timeline-row">
                     <div class="timeline-content away">
                         <?php if ($ev['side'] === 'away'): ?>
+                            <div class="event-logo">
+                                <?php echo team_logo_html($match['team_away'], 32, $match['team_away_logo'] ?? null); ?>
+                            </div>
                             <div class="timeline-card <?php echo $type_class; ?>">
                                 <?php echo $icon_html; ?>
                                 <div class="event-text"><?php echo $clean_text; ?></div>
@@ -1215,6 +1220,9 @@ if (!$match) {
                             <div class="timeline-card <?php echo $type_class; ?>">
                                 <?php echo $icon_html; ?>
                                 <div class="event-text"><?php echo $clean_text; ?></div>
+                            </div>
+                            <div class="event-logo">
+                                <?php echo team_logo_html($match['team_home'], 32, $match['team_home_logo'] ?? null); ?>
                             </div>
                         <?php endif; ?>
                     </div>
