@@ -158,6 +158,22 @@ if (isset($update['message'])) {
                         }
                     }
                 }
+                else {
+                    // --- حالة الطلب العام (بدون خدمة محددة) ---
+                    // نتحقق فقط من أن الرصيد أكبر من صفر للسماح بالطلب
+                    $stmtUser = $pdo->prepare("SELECT balance FROM bot_users WHERE chat_id = ?");
+                    $stmtUser->execute([$chat_id]);
+                    $current_balance = $stmtUser->fetchColumn();
+                    
+                    if ($current_balance <= 0) {
+                        $msg = "🚫 **عذراً، رصيدك صفر!**\n\n";
+                        $msg .= "لا يمكنك طلب خدمات حتى تقوم بشحن رصيدك.\n";
+                        $msg .= "💳 لشحن الرصيد، يرجى إرسال الـ ID الخاص بك للإدارة:\n`$chat_id`";
+                        sendMessage($token, $chat_id, $msg);
+                        clearUserState($pdo, $chat_id);
+                        return; // إيقاف العملية
+                    }
+                }
                 // -------------------------------------------------------
 
                 clearUserState($pdo, $chat_id); // انتهت المحادثة
@@ -287,17 +303,68 @@ if (isset($update['callback_query'])) {
         $platform = $parts[1];
         $type = $parts[2];
         
+        // --- محاولة العثور على خدمات مسجلة في قاعدة البيانات لهذا النوع ---
+        $searchTerms = [];
+        if ($type == 'followers') $searchTerms = ['متابعين', 'followers', 'متابع'];
+        elseif ($type == 'likes') $searchTerms = ['لايكات', 'likes', 'لايك'];
+        elseif ($type == 'views') $searchTerms = ['مشاهدات', 'views', 'مشاهدة'];
+        elseif ($type == 'comments') $searchTerms = ['تعليقات', 'comments', 'تعليق'];
+        
+        $services = [];
+        if (!empty($searchTerms)) {
+            $sql = "SELECT * FROM bot_services WHERE category = ? AND (";
+            $params = [$platform];
+            $conds = [];
+            foreach ($searchTerms as $term) {
+                $conds[] = "name LIKE ?";
+                $params[] = "%$term%";
+            }
+            $sql .= implode(' OR ', $conds) . ")";
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute($params);
+            $services = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        }
+
+        if (count($services) > 0) {
+            // وجدنا خدمات محددة، نعرضها للمستخدم ليختار منها (وبالتالي نضمن وجود سعر)
+            $msg = "👇 **اختر الخدمة المناسبة:**";
+            $keyboard = ['inline_keyboard' => []];
+            foreach ($services as $s) {
+                $btnText = $s['name'] . " (" . $s['price'] . ")";
+                $keyboard['inline_keyboard'][] = [['text' => $btnText, 'callback_data' => "srv_" . $s['id']]];
+            }
+            $keyboard['inline_keyboard'][] = [['text' => '🔙 رجوع', 'callback_data' => "platform_$platform"]];
+            sendMessage($token, $chat_id, $msg, $keyboard);
+            return; // نتوقف هنا وننتظر اختيار المستخدم للخدمة
+        }
+        // ----------------------------------------------------------------
+
         $typeLabels = [
             'followers' => 'متابعين', 'likes' => 'لايكات', 
             'views' => 'مشاهدات', 'comments' => 'تعليقات'
             ];
         $typeLabel = $typeLabels[$type] ?? $type;
         
-        // حفظ الحالة: ننتظر العدد
+        // حفظ الحالة (طلب عام): ننتظر العدد
         setUserState($pdo, $chat_id, 'WAITING_QTY', ['platform' => $platform, 'type' => $type, 'type_label' => $typeLabel]);
         
         $msg = "🔢 **الكمية المطلوبة ($typeLabel):**\n\nيرجى كتابة العدد الذي تريده (أرقام فقط، مثال: 1000).";
         sendMessage($token, $chat_id, $msg);
+    }
+
+    // معالجة اختيار خدمة محددة (srv_)
+    if (strpos($data, 'srv_') === 0) {
+        $service_id = str_replace('srv_', '', $data);
+        $stmt = $pdo->prepare("SELECT * FROM bot_services WHERE id = ?");
+        $stmt->execute([$service_id]);
+        $service = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($service) {
+            // حفظ الحالة مع service_id ليتم خصم الرصيد لاحقاً
+            setUserState($pdo, $chat_id, 'WAITING_QTY', ['platform' => $service['category'], 'type_label' => $service['name'], 'service_id' => $service['id']]);
+            $msg = "🔢 **الكمية المطلوبة ({$service['name']}):**\n\nيرجى كتابة العدد الذي تريده (أرقام فقط).";
+            sendMessage($token, $chat_id, $msg);
+        }
     }
     
     if ($data === 'back_to_main') {
