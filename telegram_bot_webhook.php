@@ -142,12 +142,14 @@ if (isset($update['message'])) {
                                 $msg = "🚫 **عذراً، رصيدك غير كافٍ!**\n\n";
                                 $msg .= "💵 تكلفة الطلب: $" . number_format($total_cost, 2) . "\n";
                                 $msg .= "💰 رصيدك الحالي: $" . number_format($current_balance, 2) . "\n\n";
-                                $contact = $settings['contact_user'] ?? 'الإدارة';
+                                $contact = $settings['contact_user'] ?? '';
                                 
                                 $keyboard = null;
-                                if ($contact && strpos($contact, '@') === 0) {
-                                    $adminUser = substr($contact, 1);
-                                    $keyboard = ['inline_keyboard' => [[['text' => '💳 شحن الرصيد', 'url' => "https://t.me/$adminUser"]]]];
+                                if ($contact) {
+                                    $adminUser = trim(str_replace('@', '', $contact));
+                                    if ($adminUser) {
+                                        $keyboard = ['inline_keyboard' => [[['text' => '💳 شحن الرصيد', 'url' => "https://t.me/$adminUser"]]]];
+                                    }
                                 }
                                 
                                 sendMessage($token, $chat_id, $msg, $keyboard);
@@ -365,13 +367,15 @@ if (isset($update['callback_query'])) {
         $current_balance = $stmtUser->fetchColumn();
         
         if ($current_balance <= 0) {
-            $contact = $settings['contact_user'] ?? 'الإدارة';
+            $contact = $settings['contact_user'] ?? '';
             $msg = "🚫 **عذراً، رصيدك صفر!**\n\nلا يمكنك طلب خدمات حتى تقوم بشحن رصيدك.";
             
             $keyboard = null;
-            if ($contact && strpos($contact, '@') === 0) {
-                $adminUser = substr($contact, 1);
-                $keyboard = ['inline_keyboard' => [[['text' => '💳 شحن الرصيد', 'url' => "https://t.me/$adminUser"]]]];
+            if ($contact) {
+                $adminUser = trim(str_replace('@', '', $contact));
+                if ($adminUser) {
+                    $keyboard = ['inline_keyboard' => [[['text' => '💳 شحن الرصيد', 'url' => "https://t.me/$adminUser"]]]];
+                }
             }
             sendMessage($token, $chat_id, $msg, $keyboard);
             return;
@@ -398,13 +402,15 @@ if (isset($update['callback_query'])) {
             $current_balance = $stmtUser->fetchColumn();
             
             if ($current_balance <= 0) {
-                $contact = $settings['contact_user'] ?? 'الإدارة';
+                $contact = $settings['contact_user'] ?? '';
                 $msg = "🚫 **عذراً، رصيدك صفر!**\n\nلا يمكنك طلب خدمات حتى تقوم بشحن رصيدك.";
                 
                 $keyboard = null;
-                if ($contact && strpos($contact, '@') === 0) {
-                    $adminUser = substr($contact, 1);
-                    $keyboard = ['inline_keyboard' => [[['text' => '💳 شحن الرصيد', 'url' => "https://t.me/$adminUser"]]]];
+                if ($contact) {
+                    $adminUser = trim(str_replace('@', '', $contact));
+                    if ($adminUser) {
+                        $keyboard = ['inline_keyboard' => [[['text' => '💳 شحن الرصيد', 'url' => "https://t.me/$adminUser"]]]];
+                    }
                 }
                 sendMessage($token, $chat_id, $msg, $keyboard);
                 return;
