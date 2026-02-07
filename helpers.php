@@ -84,6 +84,18 @@ function format_channel_name($name) {
     // استبدال بي ان سبورت بـ BeinSports
     $name = preg_replace('/(بى|بي)\s*(ان|إن)\s*سبورت/iu', 'BeinSports', $name);
     
+    // استبدال اس اس سي بـ SSC
+    $name = preg_replace('/(اس|إس)\s*(اس|إس)\s*(سي|سى)/iu', 'SSC', $name);
+    
+    // استبدال الكاس بـ Alkass
+    $name = preg_replace('/(الكاس|الكأس)/iu', 'Alkass', $name);
+
+    // استبدال ابو ظبي بـ AD Sports
+    $name = preg_replace('/(ابو|أبو)\s*(ظبي|ظبى)/iu', 'AD Sports', $name);
+
+    // استبدال اون تايم بـ OnTime
+    $name = preg_replace('/(اون|أون)\s*(تايم)/iu', 'OnTime', $name);
+
     // إزالة HD
     $name = str_ireplace('HD', '', $name);
     
@@ -155,6 +167,23 @@ function get_channel_logo_url($channel_name) {
         if (file_exists(__DIR__ . '/' . $logo_path)) {
             return $logo_path;
         }
+    }
+    
+    // --- روابط خارجية (Fallback) في حال عدم وجود الملف محلياً ---
+    if (strpos($normalized_name, 'bein') !== false) {
+        return 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2e/BeIN_Sports_Logo.svg/100px-BeIN_Sports_Logo.svg.png';
+    }
+    if (strpos($normalized_name, 'ssc') !== false) {
+        return 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/62/SSC_Channels_Logo.png/100px-SSC_Channels_Logo.png';
+    }
+    if (strpos($normalized_name, 'ad sport') !== false || strpos($normalized_name, 'abu dhabi') !== false) {
+        return 'https://upload.wikimedia.org/wikipedia/ar/thumb/9/98/Abu_Dhabi_Sports_Logo.png/100px-Abu_Dhabi_Sports_Logo.png';
+    }
+    if (strpos($normalized_name, 'alkass') !== false) {
+        return 'https://upload.wikimedia.org/wikipedia/en/thumb/2/22/Alkass_Sports_Channels_logo.png/100px-Alkass_Sports_Channels_logo.png';
+    }
+    if (strpos($normalized_name, 'ontime') !== false) {
+        return 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e6/On_Time_Sports_logo.svg/100px-On_Time_Sports_logo.svg.png';
     }
     
     return false;
