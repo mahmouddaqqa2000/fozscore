@@ -134,7 +134,20 @@ if (isset($update['callback_query'])) {
             ]
         ];
 
-        sendMessage($token, $chat_id, $msg, $keyboard);
+        // إذا كانت المنصة انستجرام، نرسل الصورة بدلاً من الرسالة النصية فقط
+        if ($platform === 'instagram') {
+            // بناء رابط الصورة تلقائياً (يفترض وجود instagram.png في نفس المجلد)
+            $protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http");
+            $host = $_SERVER['HTTP_HOST'];
+            $uri = dirname($_SERVER['REQUEST_URI']);
+            // إزالة الشرطة المائلة في النهاية إذا وجدت لتجنب الازدواج
+            $uri = rtrim($uri, '/');
+            $photoUrl = "$protocol://$host$uri/instagram.png";
+            
+            sendPhoto($token, $chat_id, $photoUrl, $msg, $keyboard);
+        } else {
+            sendMessage($token, $chat_id, $msg, $keyboard);
+        }
     }
     
     if ($data === 'back_to_main') {
@@ -185,6 +198,20 @@ function sendMessage($token, $chat_id, $text, $keyboard = null) {
 function answerCallbackQuery($token, $callback_query_id) {
     $url = "https://api.telegram.org/bot$token/answerCallbackQuery";
     $data = ['callback_query_id' => $callback_query_id];
+    $ch = curl_init($url);
+    curl_setopt($ch, CURLOPT_POST, 1);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    curl_exec($ch);
+    curl_close($ch);
+}
+
+function sendPhoto($token, $chat_id, $photo, $caption, $keyboard = null) {
+    $url = "https://api.telegram.org/bot$token/sendPhoto";
+    $data = ['chat_id' => $chat_id, 'photo' => $photo, 'caption' => $caption, 'parse_mode' => 'HTML'];
+    if ($keyboard) $data['reply_markup'] = json_encode($keyboard);
+    
     $ch = curl_init($url);
     curl_setopt($ch, CURLOPT_POST, 1);
     curl_setopt($ch, CURLOPT_POSTFIELDS, $data);

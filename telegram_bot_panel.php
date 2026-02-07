@@ -514,7 +514,7 @@ $services_list = $pdo->query("SELECT * FROM bot_services ORDER BY id DESC")->fet
                         // تحديد الأيقونة للعرض في اللوحة
                         $icon = '💎';
                         $cat = $srv['category'] ?? '';
-                        if ($cat === 'instagram') $icon = '📸';
+                        if ($cat === 'instagram') $icon = '<img src="instagram.png" alt="IG" style="width:20px;height:20px;vertical-align:middle;">';
                         elseif ($cat === 'facebook') $icon = '📘';
                         elseif ($cat === 'tiktok') $icon = '🎵';
                         elseif ($cat === 'youtube') $icon = '📺';
