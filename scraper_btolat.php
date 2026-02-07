@@ -7,48 +7,58 @@ echo '<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&
 echo '<body style="font-family: \'Tajawal\', sans-serif; direction: rtl; text-align: center; background: #f8fafc; color: #1e293b; padding: 20px;">';
 echo "<h3>جاري سحب جدول المباريات من Btolat.com...</h3>";
 
-$url = "https://www.btolat.com/matches-center";
-$today = date('Y-m-d');
-
-// 1. جلب محتوى الصفحة
-$ch = curl_init();
-curl_setopt($ch, CURLOPT_URL, $url);
-curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36');
-curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-$html = curl_exec($ch);
-$error = curl_error($ch);
-curl_close($ch);
-
-if (!$html) {
-    die("<div style='color:red; background: #fee2e2; padding: 10px; border-radius: 8px;'>فشل الاتصال بالموقع: $error</div>");
-}
-
-// 2. تحليل HTML
-$dom = new DOMDocument();
-@$dom->loadHTML('<?xml encoding="UTF-8">' . $html);
-$xpath = new DOMXPath($dom);
-
-// البحث عن كروت المباريات - توسيع نطاق البحث
-$match_cards = $xpath->query("//li[contains(@class, 'fullMatchBox')] | //div[contains(@class, 'matchCard')] | //div[contains(@class, 'liItem')]");
-
-if ($match_cards->length === 0) {
-    echo "<div style='color:orange; margin: 10px 0;'>لم يتم العثور على مباريات باستخدام المحددات الافتراضية. جاري محاولة البحث العام...</div>";
-    $match_cards = $xpath->query("//li[contains(@class, 'match')] | //div[contains(@class, 'match')][not(contains(@class, 'matches'))]");
-}
-
-echo "<p>تم العثور على " . $match_cards->length . " مباراة.</p>";
-
-$count_added = 0;
-$count_updated = 0;
+// تحديد التواريخ: اليوم وغداً
+$dates_to_scrape = [
+    date('Y-m-d'),
+    date('Y-m-d', strtotime('+1 day'))
+];
 
 // تحضير الاستعلامات
 $stmtCheck = $pdo->prepare("SELECT id FROM matches WHERE team_home = ? AND team_away = ? AND match_date = ?");
 $stmtInsert = $pdo->prepare("INSERT INTO matches (match_date, match_time, team_home, team_away, score_home, score_away, championship, team_home_logo, team_away_logo, championship_logo) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
 $stmtUpdate = $pdo->prepare("UPDATE matches SET score_home = ?, score_away = ?, match_time = ?, championship = ?, team_home_logo = ?, team_away_logo = ?, championship_logo = ? WHERE id = ?");
 
+$total_added = 0;
+$total_updated = 0;
 $first_failed_html = null;
+
+foreach ($dates_to_scrape as $current_date) {
+    echo "<hr><h4>جاري سحب مباريات تاريخ: $current_date</h4>";
+    $url = "https://www.btolat.com/matches-center?date=" . $current_date;
+
+    // 1. جلب محتوى الصفحة
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, $url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36');
+    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    $html = curl_exec($ch);
+    $error = curl_error($ch);
+    curl_close($ch);
+
+    if (!$html) {
+        echo "<div style='color:red; background: #fee2e2; padding: 10px; border-radius: 8px;'>فشل الاتصال بالموقع ($current_date): $error</div>";
+        continue;
+    }
+
+    // 2. تحليل HTML
+    $dom = new DOMDocument();
+    @$dom->loadHTML('<?xml encoding="UTF-8">' . $html);
+    $xpath = new DOMXPath($dom);
+
+    // البحث عن كروت المباريات
+    $match_cards = $xpath->query("//li[contains(@class, 'fullMatchBox')] | //div[contains(@class, 'matchCard')] | //div[contains(@class, 'liItem')]");
+
+    if ($match_cards->length === 0) {
+        echo "<div style='color:orange; margin: 10px 0;'>لم يتم العثور على مباريات باستخدام المحددات الافتراضية. جاري محاولة البحث العام...</div>";
+        $match_cards = $xpath->query("//li[contains(@class, 'match')] | //div[contains(@class, 'match')][not(contains(@class, 'matches'))]");
+    }
+
+    echo "<p>تم العثور على " . $match_cards->length . " مباراة.</p>";
+
+    $count_added = 0;
+    $count_updated = 0;
 
 foreach ($match_cards as $card) {
     // استخراج البيانات - محاولات متعددة للأسماء
@@ -126,14 +136,14 @@ foreach ($match_cards as $card) {
             }
         }
 
-        $stmtCheck->execute([$team_home, $team_away, $today]);
+        $stmtCheck->execute([$team_home, $team_away, $current_date]);
         $existing = $stmtCheck->fetch();
 
         if ($existing) {
             $stmtUpdate->execute([$score_home, $score_away, $match_time, $championship, $team_home_logo, $team_away_logo, $championship_logo, $existing['id']]);
             $count_updated++;
         } else {
-            $stmtInsert->execute([$today, $match_time, $team_home, $team_away, $score_home, $score_away, $championship, $team_home_logo, $team_away_logo, $championship_logo]);
+            $stmtInsert->execute([$current_date, $match_time, $team_home, $team_away, $score_home, $score_away, $championship, $team_home_logo, $team_away_logo, $championship_logo]);
             $count_added++;
         }
     } else {
@@ -143,8 +153,15 @@ foreach ($match_cards as $card) {
     }
 }
 
+    $total_added += $count_added;
+    $total_updated += $count_updated;
+    
+    // فاصل زمني بسيط
+    usleep(500000);
+}
+
 echo "<div style='margin-top: 20px; padding: 15px; background: #dcfce7; border-radius: 8px; color: #166534;'>";
-echo "<strong>تمت العملية بنجاح!</strong><br>تم إضافة: $count_added | تم تحديث: $count_updated";
+echo "<strong>تمت العملية بنجاح!</strong><br>الإجمالي: تم إضافة: $total_added | تم تحديث: $total_updated";
 echo "</div>";
 
 if ($first_failed_html) {
