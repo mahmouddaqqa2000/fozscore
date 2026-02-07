@@ -1,6 +1,5 @@
 <?php
 session_start();
-// حماية الصفحة: التحقق من تسجيل الدخول
 if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
     header('Location: login.php');
     exit;
@@ -11,84 +10,26 @@ require_once __DIR__ . '/helpers.php';
 
 $message = '';
 
-// معالجة النموذج عند الإرسال
+// معالجة الحفظ
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $site_name = trim($_POST['site_name'] ?? '');
-    $favicon_url = trim($_POST['favicon_url'] ?? '');
-    $site_url = trim($_POST['site_url'] ?? '');
-    $primary_color = trim($_POST['primary_color'] ?? '');
-    $site_description = trim($_POST['site_description'] ?? '');
-    $social_twitter = trim($_POST['social_twitter'] ?? '');
-    $social_facebook = trim($_POST['social_facebook'] ?? '');
-    $social_youtube = trim($_POST['social_youtube'] ?? '');
-    $social_instagram = trim($_POST['social_instagram'] ?? '');
-    $telegram_bot_token = trim($_POST['telegram_bot_token'] ?? '');
-    $telegram_chat_id = trim($_POST['telegram_chat_id'] ?? '');
-    $twitter_api_key = trim($_POST['twitter_api_key'] ?? '');
-    $twitter_api_secret = trim($_POST['twitter_api_secret'] ?? '');
-    $twitter_access_token = trim($_POST['twitter_access_token'] ?? '');
-    $twitter_access_token_secret = trim($_POST['twitter_access_token_secret'] ?? '');
+    $settings_to_save = [
+        'site_name', 'site_description', 'site_url', 'favicon', 'primary_color',
+        'social_twitter', 'social_facebook', 'social_youtube', 'social_instagram',
+        'telegram_bot_token', 'telegram_chat_id',
+        'twitter_api_key', 'twitter_api_secret', 'twitter_access_token', 'twitter_access_token_secret',
+        'ad_code_header', 'ad_code_body', 'ad_code_footer'
+    ];
 
-    // معالجة رفع ملف الشعار (إذا تم اختيار ملف)
-    if (isset($_FILES['favicon_file']) && $_FILES['favicon_file']['error'] === UPLOAD_ERR_OK) {
-        $uploadDir = __DIR__ . '/assets/uploads/';
-        if (!is_dir($uploadDir)) {
-            mkdir($uploadDir, 0755, true);
-        }
-        
-        $fileInfo = pathinfo($_FILES['favicon_file']['name']);
-        $extension = strtolower($fileInfo['extension']);
-        $allowedExtensions = ['png', 'jpg', 'jpeg', 'gif', 'ico', 'svg'];
-        
-        if (in_array($extension, $allowedExtensions)) {
-            $newFileName = 'favicon_' . time() . '.' . $extension;
-            $targetPath = $uploadDir . $newFileName;
-            
-            if (move_uploaded_file($_FILES['favicon_file']['tmp_name'], $targetPath)) {
-                $favicon_url = 'assets/uploads/' . $newFileName;
-            } else {
-                $message = '<div class="alert alert-danger">حدث خطأ أثناء رفع الملف.</div>';
-            }
-        } else {
-            $message = '<div class="alert alert-danger">نوع الملف غير مدعوم. يرجى رفع صورة (PNG, JPG, ICO, SVG).</div>';
+    $stmt = $pdo->prepare("INSERT OR REPLACE INTO settings (key_name, value) VALUES (?, ?)");
+    
+    foreach ($settings_to_save as $key) {
+        if (isset($_POST[$key])) {
+            $stmt->execute([$key, $_POST[$key]]);
         }
     }
-
-    // حفظ الإعدادات في قاعدة البيانات
-    try {
-        $stmt = $pdo->prepare("INSERT OR REPLACE INTO settings (key_name, value) VALUES (?, ?)");
-        
-        if (!empty($site_name)) {
-            $stmt->execute(['site_name', $site_name]);
-        }
-        
-        // تحديث الشعار فقط إذا تم إدخال رابط جديد أو رفع ملف
-        if (!empty($favicon_url)) {
-            $stmt->execute(['favicon', $favicon_url]);
-        }
-        
-        // حفظ باقي الإعدادات
-        if (!empty($site_url)) $stmt->execute(['site_url', rtrim($site_url, '/')]); // نحفظ الرابط بدون الشرطة في النهاية
-        $stmt->execute(['primary_color', $primary_color]);
-        $stmt->execute(['site_description', $site_description]);
-        $stmt->execute(['social_twitter', $social_twitter]);
-        $stmt->execute(['social_facebook', $social_facebook]);
-        $stmt->execute(['social_youtube', $social_youtube]);
-        $stmt->execute(['social_instagram', $social_instagram]);
-        $stmt->execute(['telegram_bot_token', $telegram_bot_token]);
-        $stmt->execute(['telegram_chat_id', $telegram_chat_id]);
-        $stmt->execute(['twitter_api_key', $twitter_api_key]);
-        $stmt->execute(['twitter_api_secret', $twitter_api_secret]);
-        $stmt->execute(['twitter_access_token', $twitter_access_token]);
-        $stmt->execute(['twitter_access_token_secret', $twitter_access_token_secret]);
-
-        $message = '<div class="alert alert-success">تم حفظ الإعدادات بنجاح!</div>';
-    } catch (PDOException $e) {
-        $message = '<div class="alert alert-danger">خطأ في قاعدة البيانات: ' . htmlspecialchars($e->getMessage()) . '</div>';
-    }
+    $message = 'تم حفظ الإعدادات بنجاح ✅';
 }
 
-// جلب الإعدادات الحالية لعرضها في النموذج
 $settings = get_site_settings($pdo);
 ?>
 <!doctype html>
@@ -99,126 +40,158 @@ $settings = get_site_settings($pdo);
     <title>إعدادات الموقع - FozScore</title>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
     <style>
-        :root { --primary: #1e293b; --secondary: #2563eb; --bg: #f1f5f9; --card: #ffffff; --text: #0f172a; --border: #e2e8f0; }
-        body { font-family: 'Tajawal', sans-serif; background-color: var(--bg); color: var(--text); margin: 0; padding: 0; }
-        .navbar { background-color: var(--primary); color: #fff; padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; }
-        .navbar .brand { font-size: 1.5rem; font-weight: 800; text-decoration: none; color: #fff; }
-        .navbar .nav-links a { color: #cbd5e1; text-decoration: none; margin-left: 15px; font-weight: 500; }
-        .navbar .nav-links a:hover { color: #fff; }
-        .container { max-width: 800px; margin: 3rem auto; padding: 0 1.5rem; }
-        .card { background: var(--card); border-radius: 16px; padding: 2rem; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); border: 1px solid var(--border); }
-        .form-group { margin-bottom: 1.5rem; }
-        .form-label { display: block; margin-bottom: 0.5rem; font-weight: 700; }
-        .form-input { width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; font-family: inherit; box-sizing: border-box; }
-        .btn-save { background: var(--secondary); color: white; border: none; padding: 12px 24px; border-radius: 8px; font-weight: 700; cursor: pointer; width: 100%; font-size: 1rem; }
-        .btn-save:hover { background: #1d4ed8; }
-        .alert { padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; }
-        .alert-success { background: #dcfce7; color: #166534; }
-        .alert-danger { background: #fee2e2; color: #991b1b; }
-        .preview-img { max-width: 100px; max-height: 100px; margin-top: 10px; border: 1px solid var(--border); padding: 5px; border-radius: 8px; }
+        body { font-family: 'Tajawal', sans-serif; background-color: #f1f5f9; color: #1e293b; margin: 0; padding: 20px; }
+        .container { max-width: 900px; margin: 0 auto; background: #fff; padding: 30px; border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+        h1 { margin-top: 0; border-bottom: 2px solid #e2e8f0; padding-bottom: 15px; color: #0f172a; }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 8px; font-weight: 700; color: #334155; }
+        input[type="text"], input[type="url"], input[type="color"], textarea {
+            width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px;
+            font-family: inherit; font-size: 1rem; box-sizing: border-box;
+        }
+        textarea { min-height: 120px; resize: vertical; direction: ltr; font-family: monospace; font-size: 0.9rem; }
+        .btn-save {
+            background-color: #2563eb; color: white; padding: 12px 30px; border: none;
+            border-radius: 8px; font-weight: 700; cursor: pointer; font-size: 1rem;
+            transition: background 0.2s; display: block; width: 100%;
+        }
+        .btn-save:hover { background-color: #1d4ed8; }
+        .alert { padding: 15px; background-color: #dcfce7; color: #166534; border-radius: 8px; margin-bottom: 20px; font-weight: 700; text-align: center; }
+        .section-title { margin-top: 40px; margin-bottom: 20px; font-size: 1.3rem; color: #2563eb; font-weight: 800; display: flex; align-items: center; gap: 10px; }
+        .back-link { display: inline-block; margin-bottom: 20px; color: #64748b; text-decoration: none; font-weight: 600; }
+        .nav-tabs { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px; }
+        .nav-tab { padding: 10px 20px; cursor: pointer; border-radius: 8px; font-weight: 600; color: #64748b; }
+        .nav-tab.active { background-color: #eff6ff; color: #2563eb; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
     </style>
+    <script>
+        function openTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
+            document.getElementById(tabName).classList.add('active');
+            document.getElementById('btn-' + tabName).classList.add('active');
+        }
+    </script>
 </head>
 <body>
-    <div class="navbar">
-        <a class="brand" href="bot_dashboard.php">🤖 لوحة التحكم</a>
-        <div class="nav-links">
-            <a href="bot_dashboard.php">الرئيسية</a>
-            <a href="./" target="_blank">عرض الموقع</a>
-        </div>
-    </div>
     <div class="container">
-        <h1 style="margin-bottom: 2rem; color: var(--primary);">⚙️ إعدادات الموقع</h1>
-        <?php echo $message; ?>
-        <div class="card">
-            <form method="post" enctype="multipart/form-data">
-                <div class="form-group">
-                    <label class="form-label">اسم الموقع</label>
-                    <input type="text" name="site_name" class="form-input" value="<?php echo htmlspecialchars($settings['site_name']); ?>" required>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">شعار الموقع (Favicon)</label>
-                    <div style="margin-bottom: 10px; font-size: 0.9rem; color: #64748b;">يمكنك وضع رابط مباشر للصورة أو رفع ملف من جهازك.</div>
-                    <input type="text" name="favicon_url" class="form-input" placeholder="https://example.com/favicon.ico" value="<?php echo htmlspecialchars($settings['favicon']); ?>" style="direction: ltr;">
-                    <div style="margin-top: 10px;">
-                        <label style="cursor: pointer; background: #f1f5f9; padding: 8px 15px; border-radius: 6px; border: 1px solid var(--border); display: inline-block;">
-                            📂 رفع صورة من الجهاز
-                            <input type="file" name="favicon_file" style="display: none;" onchange="document.getElementById('file-name').textContent = this.files[0].name">
-                        </label>
-                        <span id="file-name" style="margin-right: 10px; font-size: 0.9rem;"></span>
-                    </div>
-                    <?php if (!empty($settings['favicon'])): ?>
-                        <div style="margin-top: 15px;">
-                            <div>المعاينة الحالية:</div>
-                            <img src="<?php echo htmlspecialchars($settings['favicon']); ?>" class="preview-img" alt="Favicon">
-                        </div>
-                    <?php endif; ?>
-                </div>
-                
-                <div class="form-group">
-                    <label class="form-label">رابط الموقع الأساسي (URL)</label>
-                    <input type="url" name="site_url" class="form-input" value="<?php echo htmlspecialchars($settings['site_url']); ?>" placeholder="https://example.com" required style="direction: ltr;">
-                </div>
-                
-                <div class="form-group">
-                    <label class="form-label">اللون الرئيسي للموقع</label>
-                    <input type="color" name="primary_color" class="form-input" value="<?php echo htmlspecialchars($settings['primary_color']); ?>" style="height: 50px; padding: 5px;">
-                </div>
-                
-                <div class="form-group">
-                    <label class="form-label">وصف الموقع (يظهر في الفوتر)</label>
-                    <textarea name="site_description" class="form-input" rows="3"><?php echo htmlspecialchars($settings['site_description']); ?></textarea>
-                </div>
+        <a href="bot_dashboard.php" class="back-link">← العودة للوحة التحكم</a>
+        <h1>⚙️ إعدادات الموقع</h1>
+        
+        <?php if ($message): ?>
+            <div class="alert"><?php echo $message; ?></div>
+        <?php endif; ?>
 
-                <h3 style="margin-top: 2rem; margin-bottom: 1rem; color: var(--primary); border-bottom: 1px solid var(--border); padding-bottom: 10px;">🔗 روابط التواصل الاجتماعي</h3>
-                
-                <div class="form-group">
-                    <label class="form-label">رابط فيسبوك</label>
-                    <input type="text" name="social_facebook" class="form-input" value="<?php echo htmlspecialchars($settings['social_facebook']); ?>" placeholder="https://facebook.com/..." style="direction: ltr;">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">رابط تويتر (X)</label>
-                    <input type="text" name="social_twitter" class="form-input" value="<?php echo htmlspecialchars($settings['social_twitter']); ?>" placeholder="https://twitter.com/..." style="direction: ltr;">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">رابط يوتيوب</label>
-                    <input type="text" name="social_youtube" class="form-input" value="<?php echo htmlspecialchars($settings['social_youtube']); ?>" placeholder="https://youtube.com/..." style="direction: ltr;">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">رابط انستجرام</label>
-                    <input type="text" name="social_instagram" class="form-input" value="<?php echo htmlspecialchars($settings['social_instagram']); ?>" placeholder="https://instagram.com/..." style="direction: ltr;">
-                </div>
-
-                <h3 style="margin-top: 2rem; margin-bottom: 1rem; color: var(--primary); border-bottom: 1px solid var(--border); padding-bottom: 10px;">🤖 إعدادات بوت تيليجرام</h3>
-                <div class="form-group">
-                    <label class="form-label">توكن البوت (Bot Token)</label>
-                    <input type="text" name="telegram_bot_token" class="form-input" value="<?php echo htmlspecialchars($settings['telegram_bot_token']); ?>" placeholder="123456789:ABC..." style="direction: ltr;">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">معرف المجموعة (Chat ID)</label>
-                    <input type="text" name="telegram_chat_id" class="form-input" value="<?php echo htmlspecialchars($settings['telegram_chat_id']); ?>" placeholder="-100..." style="direction: ltr;">
-                </div>
-
-                <h3 style="margin-top: 2rem; margin-bottom: 1rem; color: var(--primary); border-bottom: 1px solid var(--border); padding-bottom: 10px;">🐦 إعدادات النشر التلقائي على تويتر (X)</h3>
-                <div class="form-group">
-                    <label class="form-label">API Key (Consumer Key)</label>
-                    <input type="text" name="twitter_api_key" class="form-input" value="<?php echo htmlspecialchars($settings['twitter_api_key']); ?>" style="direction: ltr;">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">API Secret (Consumer Secret)</label>
-                    <input type="text" name="twitter_api_secret" class="form-input" value="<?php echo htmlspecialchars($settings['twitter_api_secret']); ?>" style="direction: ltr;">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Access Token</label>
-                    <input type="text" name="twitter_access_token" class="form-input" value="<?php echo htmlspecialchars($settings['twitter_access_token']); ?>" style="direction: ltr;">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Access Token Secret</label>
-                    <input type="text" name="twitter_access_token_secret" class="form-input" value="<?php echo htmlspecialchars($settings['twitter_access_token_secret']); ?>" style="direction: ltr;">
-                </div>
-
-                <button type="submit" class="btn-save">حفظ التغييرات</button>
-            </form>
+        <div class="nav-tabs">
+            <div id="btn-general" class="nav-tab active" onclick="openTab('general')">عامة</div>
+            <div id="btn-ads" class="nav-tab" onclick="openTab('ads')">الإعلانات (AdSense)</div>
+            <div id="btn-social" class="nav-tab" onclick="openTab('social')">التواصل الاجتماعي</div>
+            <div id="btn-api" class="nav-tab" onclick="openTab('api')">API وربط الخدمات</div>
         </div>
+
+        <form method="post">
+            <!-- تبويب عام -->
+            <div id="general" class="tab-content active">
+                <div class="form-group">
+                    <label>اسم الموقع</label>
+                    <input type="text" name="site_name" value="<?php echo htmlspecialchars($settings['site_name']); ?>">
+                </div>
+                <div class="form-group">
+                    <label>وصف الموقع (SEO)</label>
+                    <textarea name="site_description" style="min-height: 80px; direction: rtl; font-family: inherit;"><?php echo htmlspecialchars($settings['site_description']); ?></textarea>
+                </div>
+                <div class="form-group">
+                    <label>رابط الموقع (URL)</label>
+                    <input type="url" name="site_url" value="<?php echo htmlspecialchars($settings['site_url']); ?>" placeholder="https://example.com">
+                </div>
+                <div class="form-group">
+                    <label>رابط أيقونة الموقع (Favicon)</label>
+                    <input type="text" name="favicon" value="<?php echo htmlspecialchars($settings['favicon']); ?>">
+                </div>
+                <div class="form-group">
+                    <label>اللون الرئيسي</label>
+                    <input type="color" name="primary_color" value="<?php echo htmlspecialchars($settings['primary_color']); ?>" style="height: 50px;">
+                </div>
+            </div>
+
+            <!-- تبويب الإعلانات -->
+            <div id="ads" class="tab-content">
+                <div style="background: #fffbeb; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #fcd34d; color: #92400e;">
+                    💡 ضع أكواد HTML/JS الخاصة بالإعلانات (مثل Google AdSense) في الحقول أدناه. ستظهر تلقائياً في الأماكن المخصصة.
+                </div>
+                <div class="form-group">
+                    <label>إعلان الهيدر (أعلى جميع الصفحات)</label>
+                    <textarea name="ad_code_header" placeholder="<script>...</script>"><?php echo htmlspecialchars($settings['ad_code_header']); ?></textarea>
+                </div>
+                <div class="form-group">
+                    <label>إعلان وسط المحتوى (داخل صفحة المباراة)</label>
+                    <textarea name="ad_code_body" placeholder="<script>...</script>"><?php echo htmlspecialchars($settings['ad_code_body']); ?></textarea>
+                </div>
+                <div class="form-group">
+                    <label>إعلان الفوتر (أسفل جميع الصفحات)</label>
+                    <textarea name="ad_code_footer" placeholder="<script>...</script>"><?php echo htmlspecialchars($settings['ad_code_footer']); ?></textarea>
+                </div>
+            </div>
+
+            <!-- تبويب التواصل -->
+            <div id="social" class="tab-content">
+                <div class="form-group">
+                    <label>رابط تويتر (X)</label>
+                    <input type="text" name="social_twitter" value="<?php echo htmlspecialchars($settings['social_twitter']); ?>">
+                </div>
+                <div class="form-group">
+                    <label>رابط فيسبوك</label>
+                    <input type="text" name="social_facebook" value="<?php echo htmlspecialchars($settings['social_facebook']); ?>">
+                </div>
+                <div class="form-group">
+                    <label>رابط يوتيوب</label>
+                    <input type="text" name="social_youtube" value="<?php echo htmlspecialchars($settings['social_youtube']); ?>">
+                </div>
+                <div class="form-group">
+                    <label>رابط انستجرام</label>
+                    <input type="text" name="social_instagram" value="<?php echo htmlspecialchars($settings['social_instagram']); ?>">
+                </div>
+            </div>
+
+            <!-- تبويب API -->
+            <div id="api" class="tab-content">
+                <div class="section-title">إعدادات تيليجرام</div>
+                <div class="form-group">
+                    <label>Bot Token</label>
+                    <input type="text" name="telegram_bot_token" value="<?php echo htmlspecialchars($settings['telegram_bot_token']); ?>">
+                </div>
+                <div class="form-group">
+                    <label>Chat ID (القناة أو المجموعة)</label>
+                    <input type="text" name="telegram_chat_id" value="<?php echo htmlspecialchars($settings['telegram_chat_id']); ?>">
+                </div>
+
+                <div class="section-title">إعدادات تويتر (X API)</div>
+                <div class="form-group">
+                    <label>API Key</label>
+                    <input type="text" name="twitter_api_key" value="<?php echo htmlspecialchars($settings['twitter_api_key']); ?>">
+                </div>
+                <div class="form-group">
+                    <label>API Secret</label>
+                    <input type="text" name="twitter_api_secret" value="<?php echo htmlspecialchars($settings['twitter_api_secret']); ?>">
+                </div>
+                <div class="form-group">
+                    <label>Access Token</label>
+                    <input type="text" name="twitter_access_token" value="<?php echo htmlspecialchars($settings['twitter_access_token']); ?>">
+                </div>
+                <div class="form-group">
+                    <label>Access Token Secret</label>
+                    <input type="text" name="twitter_access_token_secret" value="<?php echo htmlspecialchars($settings['twitter_access_token_secret']); ?>">
+                </div>
+            </div>
+
+            <button type="submit" class="btn-save">حفظ التغييرات</button>
+        </form>
     </div>
 </body>
 </html>
+```
+
+### 3. تعديل `index.php` (لعرض الإعلانات)
+
+```diff

@@ -846,6 +846,11 @@ if (!$match) {
 </head>
 <body>
     <?php include __DIR__ . '/header.php'; ?>
+    <?php if (!empty($settings['ad_code_header'])): ?>
+        <div class="container" style="text-align:center; margin-top: 20px;">
+            <?php echo $settings['ad_code_header']; ?>
+        </div>
+    <?php endif; ?>
     <div class="container">
         <?php if (isset($error_message)): ?>
             <div class="error-message">
@@ -952,6 +957,12 @@ if (!$match) {
                 <p style="font-size: 0.8rem; text-align: center; color: var(--text-light); margin-top: 1rem;">
                     ملاحظة: البث مقدم من طرف ثالث، والموقع غير مسؤول عن جودة البث أو استمراريته.
                 </p>
+            </div>
+            <?php endif; ?>
+
+            <?php if (!empty($settings['ad_code_body'])): ?>
+            <div style="text-align:center; margin: 2rem 0;">
+                <?php echo $settings['ad_code_body']; ?>
             </div>
             <?php endif; ?>
 
@@ -1521,6 +1532,11 @@ if (!$match) {
         <?php endif; ?>
     </div>
     <?php include __DIR__ . '/footer.php'; ?>
+    <?php if (!empty($settings['ad_code_footer'])): ?>
+        <div class="container" style="text-align:center; margin-bottom: 20px;">
+            <?php echo $settings['ad_code_footer']; ?>
+        </div>
+    <?php endif; ?>
 </body>
 </html>
 <script>

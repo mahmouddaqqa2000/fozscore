@@ -448,6 +448,11 @@ $important_matches = array_filter($matches, function($m) use ($important_teams) 
 </head>
 <body>
     <?php include __DIR__ . '/header.php'; ?>
+    <?php if (!empty($settings['ad_code_header'])): ?>
+        <div class="container" style="text-align:center; margin-top: 20px;">
+            <?php echo $settings['ad_code_header']; ?>
+        </div>
+    <?php endif; ?>
     <div class="container">
         <div class="site-hero">
             <h2>شاهد مباريات اليوم مباشرة</h2>
@@ -664,6 +669,11 @@ $important_matches = array_filter($matches, function($m) use ($important_teams) 
         </div>
     </div>
     <?php include __DIR__ . '/footer.php'; ?>
+    <?php if (!empty($settings['ad_code_footer'])): ?>
+        <div class="container" style="text-align:center; margin-bottom: 20px;">
+            <?php echo $settings['ad_code_footer']; ?>
+        </div>
+    <?php endif; ?>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             const toggleBtn = document.createElement('button');

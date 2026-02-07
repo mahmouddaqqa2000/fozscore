@@ -687,7 +687,10 @@ function get_site_settings($pdo) {
         'twitter_api_key' => '',
         'twitter_api_secret' => '',
         'twitter_access_token' => '',
-        'twitter_access_token_secret' => ''
+        'twitter_access_token_secret' => '',
+        'ad_code_header' => '',
+        'ad_code_body' => '',
+        'ad_code_footer' => ''
     ];
 
     return array_merge($defaults, $db_settings);
