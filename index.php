@@ -428,9 +428,9 @@ $grouped_by_championship = $live_groups + $other_groups;
         </div>
         <h2 class="page-title">جدول مباريات اليوم</h2>
         <div class="day-buttons">
-            <a class="day-button" href="yesterday.php">الامس</a>
+            <a class="day-button" href="مباريات-الامس">الامس</a>
             <a class="day-button active" href="./">اليوم</a>
-            <a class="day-button" href="tomorrow.php">غدا</a>
+            <a class="day-button" href="مباريات-الغد">غدا</a>
         </div>
 
         <div class="content-grid">

@@ -332,9 +332,9 @@ foreach ($matches as $m) {
         </div>
         <h2 class="page-title">نتائج مباريات الأمس</h2>
         <div class="day-buttons">
-            <a class="day-button active" href="yesterday.php">الامس</a>
+            <a class="day-button active" href="مباريات-الامس">الامس</a>
             <a class="day-button" href="index.php">اليوم</a>
-            <a class="day-button" href="tomorrow.php">غدا</a>
+            <a class="day-button" href="مباريات-الغد">غدا</a>
         </div>
         <div class="content-grid">
             <div class="main-column">

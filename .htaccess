@@ -1,0 +1,13 @@
+RewriteEngine On
+RewriteBase /
+
+# منع عرض محتويات المجلدات
+Options -Indexes
+
+# تحويل الروابط العربية إلى ملفات PHP
+RewriteRule ^الأخبار/?$ news.php [L]
+RewriteRule ^الفرق/?$ teams.php [L]
+RewriteRule ^الدوريات/?$ leagues.php [L]
+RewriteRule ^مباريات-الغد/?$ tomorrow.php [L]
+RewriteRule ^مباريات-الامس/?$ yesterday.php [L]
+RewriteRule ^اتصل-بنا/?$ contact.php [L]

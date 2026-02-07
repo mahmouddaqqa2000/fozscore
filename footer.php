@@ -125,10 +125,10 @@ $social_instagram = $settings['social_instagram'] ?? '';
         </div>
         <div class="site-footer-links">
             <a href="./">الرئيسية</a>
-            <a href="news.php">الأخبار</a>
-            <a href="yesterday.php">مباريات الأمس</a>
-            <a href="tomorrow.php">مباريات الغد</a>
-            <a href="contact.php">اتصل بنا</a>
+            <a href="الأخبار">الأخبار</a>
+            <a href="مباريات-الامس">مباريات الأمس</a>
+            <a href="مباريات-الغد">مباريات الغد</a>
+            <a href="اتصل-بنا">اتصل بنا</a>
         </div>
 
         <div class="social-icons">
