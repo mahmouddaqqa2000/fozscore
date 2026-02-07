@@ -39,8 +39,10 @@ $total_updated = 0;
 $first_failed_html = null;
 
 foreach ($dates_to_scrape as $current_date) {
-    echo "<hr><h4>جاري سحب مباريات تاريخ: $current_date</h4>";
-    $url = "https://www.btolat.com/matches-center?date=" . $current_date;
+    // تحويل التاريخ للصيغة التي يقبلها الموقع (j.n.Y) مثل 2.8.2026
+    $url_date = date('j.n.Y', strtotime($current_date));
+    echo "<hr><h4>جاري سحب مباريات تاريخ: $current_date (الرابط: d=$url_date)</h4>";
+    $url = "https://www.btolat.com/matches-center?d=" . $url_date;
 
     // 1. جلب محتوى الصفحة
     $ch = curl_init();
