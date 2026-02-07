@@ -816,12 +816,13 @@ if (!$match) {
                     <?php endif; ?>
                     <?php if (!empty($match['channel'])): ?>
                     <span>
-                        <?php 
-                        $logo_url = get_channel_logo_url($match['channel']);
+                        <?php
+                        $display_channel = format_channel_name($match['channel']);
+                        $logo_url = get_channel_logo_url($display_channel);
                         if ($logo_url): ?>
-                            <img src="<?php echo $logo_url; ?>" alt="<?php echo htmlspecialchars($match['channel']); ?>" title="<?php echo htmlspecialchars($match['channel']); ?>">
+                            <img src="<?php echo $logo_url; ?>" alt="<?php echo htmlspecialchars($display_channel); ?>" title="<?php echo htmlspecialchars($display_channel); ?>">
                         <?php else: ?>
-                            📺 <?php echo htmlspecialchars($match['channel']); ?>
+                            📺 <?php echo htmlspecialchars($display_channel); ?>
                         <?php endif; ?>
                     </span>
                     <?php endif; ?>

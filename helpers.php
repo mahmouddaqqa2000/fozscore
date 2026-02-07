@@ -76,6 +76,21 @@ function format_time_ar($time, $date = null) {
 }
 
 /**
+ * تنسيق اسم القناة (تحويل بي ان سبورت للعربية وإزالة HD)
+ */
+function format_channel_name($name) {
+    if (empty($name)) return '';
+    
+    // استبدال بي ان سبورت بـ BeinSports
+    $name = preg_replace('/(بى|بي)\s*(ان|إن)\s*سبورت/iu', 'BeinSports', $name);
+    
+    // إزالة HD
+    $name = str_ireplace('HD', '', $name);
+    
+    return trim($name);
+}
+
+/**
  * يبحث عن رابط شعار القناة.
  * لكي تعمل هذه الدالة، يجب إنشاء مجلد `assets/channels/` في جذر المشروع.
  * يجب أن تكون أسماء ملفات الشعارات باللغة الإنجليزية وبأحرف صغيرة، مع استبدال المسافات بـ "-".
