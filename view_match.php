@@ -624,8 +624,8 @@ if (!$match) {
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
         .timeline-content { flex: 1; display: flex; align-items: center; }
-        .timeline-content.home { justify-content: flex-end; padding-left: 20px; }
-        .timeline-content.away { justify-content: flex-start; padding-right: 20px; }
+        .timeline-content.home { justify-content: flex-start; padding-right: 20px; }
+        .timeline-content.away { justify-content: flex-end; padding-left: 20px; }
         
         .timeline-card { 
             background: #fff; padding: 12px 18px; border-radius: 12px; 
@@ -1202,8 +1202,8 @@ if (!$match) {
                     }
                 ?>
                 <div class="timeline-row">
-                    <div class="timeline-content home">
-                        <?php if ($ev['side'] === 'home'): ?>
+                    <div class="timeline-content away">
+                        <?php if ($ev['side'] === 'away'): ?>
                             <div class="timeline-card <?php echo $type_class; ?>">
                                 <?php echo $icon_html; ?>
                                 <div class="event-text"><?php echo $clean_text; ?></div>
@@ -1211,8 +1211,8 @@ if (!$match) {
                         <?php endif; ?>
                     </div>
                     <div class="timeline-time"><?php echo htmlspecialchars($ev['min']); ?>'</div>
-                    <div class="timeline-content away">
-                        <?php if ($ev['side'] === 'away'): ?>
+                    <div class="timeline-content home">
+                        <?php if ($ev['side'] === 'home'): ?>
                             <div class="timeline-card <?php echo $type_class; ?>">
                                 <?php echo $icon_html; ?>
                                 <div class="event-text"><?php echo $clean_text; ?></div>
