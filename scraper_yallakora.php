@@ -221,7 +221,7 @@ foreach ($leagues as $leagueNode) {
         // جلب التشكيلة فقط إذا كانت المباراة موجودة ولكن ليس لها تشكيلة، أو إذا كانت جديدة
         // تفعيل السحب التلقائي للتشكيلة والإحصائيات إذا كانت ناقصة
         // تم التعديل لسحب الأحداث فقط
-        $shouldFetchLineup = $fetch_details && $sourceUrl && (!$existing || empty($existing['match_events']));
+        $shouldFetchLineup = $fetch_details && $sourceUrl && (!$existing || empty($existing['match_events']) || empty($existing['lineup_home']));
         
         if ($shouldFetchLineup) {
             $details = get_match_details($sourceUrl);

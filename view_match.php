@@ -1014,8 +1014,42 @@ if (!$match) {
                     $structured_lineup_home = parse_lineup_to_formation($lineup_home);
                     $structured_lineup_away = parse_lineup_to_formation($lineup_away);
                 ?>
-                <?php if (!$structured_lineup_home || !$structured_lineup_away): ?>
+                <?php if ((!$structured_lineup_home || !$structured_lineup_away) && (empty($lineup_home) && empty($lineup_away))): ?>
                     <p class="placeholder-text">لم يتم الإعلان عن التشكيلة بعد.</p>
+                <?php elseif (!$structured_lineup_home || !$structured_lineup_away): ?>
+                    <!-- عرض القائمة (احتياطي في حال عدم اكتمال البيانات لرسم الملعب) -->
+                    <div class="lists-container">
+                        <div class="list-column">
+                            <div class="list-header">تشكيلة <?php echo htmlspecialchars($match['team_home']); ?></div>
+                            <?php foreach ($lineup_home as $player_str): 
+                                $parts = explode('|', $player_str);
+                                $name = trim($parts[0]);
+                                $img = isset($parts[1]) && !is_numeric(trim($parts[1])) ? trim($parts[1]) : null;
+                                $num = isset($parts[2]) ? trim($parts[2]) : (isset($parts[1]) && is_numeric(trim($parts[1])) ? trim($parts[1]) : null);
+                            ?>
+                                <div class="player-list-item">
+                                    <?php if ($num): ?><div class="player-list-number"><?php echo htmlspecialchars($num); ?></div><?php endif; ?>
+                                    <?php if ($img): ?><img src="<?php echo htmlspecialchars($img); ?>" class="player-list-image" alt="player"><?php endif; ?>
+                                    <div class="player-list-info"><div class="player-list-name"><?php echo htmlspecialchars($name); ?></div></div>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                        <div class="list-column">
+                            <div class="list-header">تشكيلة <?php echo htmlspecialchars($match['team_away']); ?></div>
+                            <?php foreach ($lineup_away as $player_str): 
+                                 $parts = explode('|', $player_str);
+                                 $name = trim($parts[0]);
+                                 $img = isset($parts[1]) && !is_numeric(trim($parts[1])) ? trim($parts[1]) : null;
+                                 $num = isset($parts[2]) ? trim($parts[2]) : (isset($parts[1]) && is_numeric(trim($parts[1])) ? trim($parts[1]) : null);
+                            ?>
+                                <div class="player-list-item">
+                                    <?php if ($num): ?><div class="player-list-number"><?php echo htmlspecialchars($num); ?></div><?php endif; ?>
+                                    <?php if ($img): ?><img src="<?php echo htmlspecialchars($img); ?>" class="player-list-image" alt="player"><?php endif; ?>
+                                    <div class="player-list-info"><div class="player-list-name"><?php echo htmlspecialchars($name); ?></div></div>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
                 <?php else: ?>
                     <div class="football-pitch">
                         <div class="pitch-half home-half">
