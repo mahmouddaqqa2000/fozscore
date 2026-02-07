@@ -77,6 +77,9 @@ if (isset($update['message'])) {
                 ],
                 [
                     ['text' => '🌐 خدمات أخرى', 'callback_data' => 'platform_other']
+                ],
+                [
+                    ['text' => '👤 حسابي', 'callback_data' => 'my_account']
                 ]
             ]
         ];
@@ -423,6 +426,32 @@ if (isset($update['callback_query'])) {
         }
     }
     
+    if ($data === 'my_account') {
+        $stmtUser = $pdo->prepare("SELECT balance, username FROM bot_users WHERE chat_id = ?");
+        $stmtUser->execute([$chat_id]);
+        $user = $stmtUser->fetch(PDO::FETCH_ASSOC);
+        $balance = $user['balance'] ?? 0.00;
+        $username = $user['username'] ?? 'مستخدم';
+
+        $msg = "👤 **ملف المستخدم**\n\n";
+        $msg .= "📛 **الاسم:** " . htmlspecialchars($username) . "\n";
+        $msg .= "🆔 **ID:** `$chat_id`\n";
+        $msg .= "💰 **الرصيد:** $" . number_format($balance, 2) . "\n";
+        
+        $contact = $settings['contact_user'] ?? '';
+        $keyboard = ['inline_keyboard' => []];
+        
+        if ($contact) {
+            $adminUser = trim(str_replace('@', '', $contact));
+            if ($adminUser) {
+                $keyboard['inline_keyboard'][] = [['text' => '💳 شحن الرصيد', 'url' => "https://t.me/$adminUser"]];
+            }
+        }
+        $keyboard['inline_keyboard'][] = [['text' => '🔙 رجوع', 'callback_data' => 'back_to_main']];
+
+        sendMessage($token, $chat_id, $msg, $keyboard);
+    }
+
     if ($data === 'back_to_main') {
         // إعادة إرسال رسالة البداية
         // يمكننا استدعاء نفس المنطق أو إرسال رسالة جديدة
@@ -447,6 +476,9 @@ if (isset($update['callback_query'])) {
                 ],
                 [
                     ['text' => '🌐 خدمات أخرى', 'callback_data' => 'platform_other']
+                ],
+                [
+                    ['text' => '👤 حسابي', 'callback_data' => 'my_account']
                 ]
             ]
         ];
