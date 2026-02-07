@@ -97,6 +97,9 @@ if (!in_array('match_stats', $columns)) {
 if (!in_array('match_videos', $columns)) {
     $pdo->exec("ALTER TABLE matches ADD COLUMN match_videos TEXT DEFAULT NULL");
 }
+if (!in_array('match_standings', $columns)) {
+    $pdo->exec("ALTER TABLE matches ADD COLUMN match_standings TEXT DEFAULT NULL");
+}
 
 // إنشاء جدول الأخبار إذا لم يكن موجوداً
 $pdo->exec("CREATE TABLE IF NOT EXISTS news (

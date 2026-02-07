@@ -216,6 +216,7 @@ foreach ($leagues as $leagueNode) {
         $streamUrl = null;
         $matchEvents = null;
         $matchVideos = null;
+        $matchStandings = null;
         $details = []; // تهيئة المصفوفة لتجنب الأخطاء
 
         // جلب التشكيلة فقط إذا كانت المباراة موجودة ولكن ليس لها تشكيلة، أو إذا كانت جديدة
@@ -232,6 +233,7 @@ foreach ($leagues as $leagueNode) {
             if (!$matchStats) $matchStats = $details['stats']; // استخدام الإحصائيات من التفاصيل إذا لم يتم سحبها سابقاً
             $matchEvents = $details['match_events'];
             $matchVideos = $details['match_videos'];
+            $matchStandings = $details['standings'];
             $streamUrl = $details['stream_url'];
             if ($lineupHome) {
                 echo " <span style='color:blue;font-size:0.8em;'>[تم جلب التشكيلة]</span>";
@@ -251,8 +253,8 @@ foreach ($leagues as $leagueNode) {
             }
             
             // تحديث التشكيلة إذا تم جلبها
-            if ($lineupHome || $lineupAway || $coachHome || $coachAway || $matchEvents || $matchVideos) {
-                $pdo->prepare("UPDATE matches SET lineup_home = COALESCE(?, lineup_home), lineup_away = COALESCE(?, lineup_away), coach_home = COALESCE(?, coach_home), coach_away = COALESCE(?, coach_away), match_events = COALESCE(?, match_events), match_videos = COALESCE(?, match_videos) WHERE id = ?")->execute([$lineupHome, $lineupAway, $coachHome, $coachAway, $matchEvents, $matchVideos, $existing['id']]);
+            if ($lineupHome || $lineupAway || $coachHome || $coachAway || $matchEvents || $matchVideos || $matchStandings) {
+                $pdo->prepare("UPDATE matches SET lineup_home = COALESCE(?, lineup_home), lineup_away = COALESCE(?, lineup_away), coach_home = COALESCE(?, coach_home), coach_away = COALESCE(?, coach_away), match_events = COALESCE(?, match_events), match_videos = COALESCE(?, match_videos), match_standings = COALESCE(?, match_standings) WHERE id = ?")->execute([$lineupHome, $lineupAway, $coachHome, $coachAway, $matchEvents, $matchVideos, $matchStandings, $existing['id']]);
             }
             
             // تحديث رابط البث إذا تم جلبه
@@ -262,8 +264,8 @@ foreach ($leagues as $leagueNode) {
             
             $updated++;
         } else {
-            $insert = $pdo->prepare("INSERT INTO matches (match_date, match_time, team_home, team_away, score_home, score_away, championship, team_home_logo, team_away_logo, channel, championship_logo, lineup_home, lineup_away, coach_home, coach_away, stream_url, source_url, match_stats, match_events, match_videos) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-            $insert->execute([$matchDate, $matchTime, $teamHome, $teamAway, $scoreHome, $scoreAway, $championship, $homeLogo, $awayLogo, $channel, $leagueLogo, $lineupHome, $lineupAway, $coachHome, $coachAway, $streamUrl, $sourceUrl, $matchStats, $matchEvents, $matchVideos]);
+            $insert = $pdo->prepare("INSERT INTO matches (match_date, match_time, team_home, team_away, score_home, score_away, championship, team_home_logo, team_away_logo, channel, championship_logo, lineup_home, lineup_away, coach_home, coach_away, stream_url, source_url, match_stats, match_events, match_videos, match_standings) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            $insert->execute([$matchDate, $matchTime, $teamHome, $teamAway, $scoreHome, $scoreAway, $championship, $homeLogo, $awayLogo, $channel, $leagueLogo, $lineupHome, $lineupAway, $coachHome, $coachAway, $streamUrl, $sourceUrl, $matchStats, $matchEvents, $matchVideos, $matchStandings]);
             $count++;
         }
     }

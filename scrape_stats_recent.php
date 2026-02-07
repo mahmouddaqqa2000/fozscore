@@ -154,6 +154,11 @@ if (empty($all_matches)) {
                 $params[] = $details['match_events'];
             }
         }
+        
+        if (!empty($details['standings'])) {
+            $updates[] = "match_standings = ?";
+            $params[] = $details['standings'];
+        }
 
         // تحديث التشكيلة (إذا وجدت ولم تكن موجودة مسبقاً أو للتحديث)
         if (!empty($details['home'])) {

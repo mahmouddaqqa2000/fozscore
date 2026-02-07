@@ -832,6 +832,16 @@ if (!$match) {
         .video-play-icon { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 40px; height: 40px; background: rgba(0,0,0,0.6); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 20px; }
         .video-title { padding: 10px; font-size: 0.9rem; font-weight: 600; color: var(--primary); line-height: 1.4; }
         body.dark-mode .video-item { background: #2d3748; }
+
+        /* Standings Table */
+        .standings-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+        .standings-table th { background: #f1f5f9; color: var(--text-light); font-weight: 600; padding: 10px; text-align: center; }
+        .standings-table td { padding: 10px; border-bottom: 1px solid var(--border); text-align: center; }
+        .standings-table tr:last-child td { border-bottom: none; }
+        .standings-table .team-cell { text-align: right; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+        .standings-table tr.highlight { background-color: #e0f2fe; }
+        body.dark-mode .standings-table th { background: #334155; }
+        body.dark-mode .standings-table tr.highlight { background-color: #1e3a8a; }
     </style>
 </head>
 <body>
@@ -1292,7 +1302,44 @@ if (!$match) {
             </div>
 
             <div id="standings" class="tab-content <?php echo $active_tab === 'standings' ? 'active' : ''; ?>">
-                <p class="placeholder-text">ميزة جدول الترتيب قيد التطوير حالياً.</p>
+                <?php 
+                $standings_data = !empty($match['match_standings']) ? json_decode($match['match_standings'], true) : [];
+                if (empty($standings_data)): ?>
+                    <p class="placeholder-text">جدول الترتيب غير متوفر لهذه البطولة حالياً.</p>
+                <?php else: ?>
+                    <div style="overflow-x: auto;">
+                        <table class="standings-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 50px;">#</th>
+                                    <th>الفريق</th>
+                                    <th>لعب</th>
+                                    <th>فاز</th>
+                                    <th>تعادل</th>
+                                    <th>خسر</th>
+                                    <th>نقاط</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($standings_data as $row): 
+                                    $is_home = trim($row['team']) == trim($match['team_home']);
+                                    $is_away = trim($row['team']) == trim($match['team_away']);
+                                    $highlight_class = ($is_home || $is_away) ? 'highlight' : '';
+                                ?>
+                                <tr class="<?php echo $highlight_class; ?>">
+                                    <td><?php echo htmlspecialchars($row['rank']); ?></td>
+                                    <td class="team-cell"><?php echo htmlspecialchars($row['team']); ?></td>
+                                    <td><?php echo htmlspecialchars($row['played']); ?></td>
+                                    <td><?php echo htmlspecialchars($row['win'] ?? '-'); ?></td>
+                                    <td><?php echo htmlspecialchars($row['draw'] ?? '-'); ?></td>
+                                    <td><?php echo htmlspecialchars($row['loss'] ?? '-'); ?></td>
+                                    <td style="font-weight: 800; color: var(--secondary);"><?php echo htmlspecialchars($row['points']); ?></td>
+                                </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                <?php endif; ?>
             </div>
 
             <div id="videos" class="tab-content <?php echo $active_tab === 'videos' ? 'active' : ''; ?>">

@@ -1324,6 +1324,35 @@ function get_match_details($url) {
         }
     }
 
+    // استخراج جدول الترتيب (Standings)
+    $standings = [];
+    // البحث عن عناصر القائمة في تبويب الترتيب (YallaKora structure)
+    $standingsNodes = $xpath->query("//div[@id='standings']//div[contains(@class, 'ranking')]//ul/li[not(contains(@class, 'head'))]");
+    
+    if ($standingsNodes->length > 0) {
+        foreach ($standingsNodes as $node) {
+            $rank = trim($xpath->query(".//div[contains(@class, 'arr')]", $node)->item(0)->textContent ?? '');
+            $team = trim($xpath->query(".//div[contains(@class, 'team')]//a|.//div[contains(@class, 'team')]//p", $node)->item(0)->textContent ?? '');
+            $played = trim($xpath->query(".//div[contains(@class, 'w_pld')]", $node)->item(0)->textContent ?? '');
+            $points = trim($xpath->query(".//div[contains(@class, 'w_pts')]", $node)->item(0)->textContent ?? '');
+            $win = trim($xpath->query(".//div[contains(@class, 'w_win')]", $node)->item(0)->textContent ?? '');
+            $draw = trim($xpath->query(".//div[contains(@class, 'w_draw')]", $node)->item(0)->textContent ?? '');
+            $loss = trim($xpath->query(".//div[contains(@class, 'w_loss')]", $node)->item(0)->textContent ?? '');
+            
+            if ($team && $points !== '') {
+                $standings[] = [
+                    'rank' => $rank,
+                    'team' => $team,
+                    'played' => $played,
+                    'points' => $points,
+                    'win' => $win,
+                    'draw' => $draw,
+                    'loss' => $loss
+                ];
+            }
+        }
+    }
+
     // في نهاية منطق استخراج التشكيلة وقبل return الحالي، نضيف محاولة جديدة تعتمد على formation
     // --- محاولة خاصة للهيكل الجديد للتشكيلة (formation / teamA / teamB) ---
     if (empty($homePlayers) && empty($awayPlayers)) {
@@ -1343,6 +1372,7 @@ function get_match_details($url) {
         'stats' => !empty($stats) ? json_encode($stats, JSON_UNESCAPED_UNICODE) : null,
         'match_events' => !empty($events) ? implode("\n", $events) : null,
         'match_videos' => !empty($videos) ? json_encode($videos, JSON_UNESCAPED_UNICODE) : null,
+        'standings' => !empty($standings) ? json_encode($standings, JSON_UNESCAPED_UNICODE) : null,
         'stream_url' => null,
         'html_preview' => '',
         'lineup_debug' => $lineupDebug
