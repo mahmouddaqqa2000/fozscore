@@ -170,7 +170,7 @@ if (isset($update['message'])) {
                                 $msg .= "💵 تكلفة الطلب: $" . number_format($total_cost, 2) . "\n";
                                 $msg .= "💰 رصيدك الحالي: $" . number_format($current_balance, 2) . "\n\n";
                                 
-                                $keyboard = ['inline_keyboard' => [[['text' => '💳 شحن الرصيد (نجوم ⭐️)', 'callback_data' => 'recharge_stars_menu']]]];
+                                $keyboard = ['inline_keyboard' => [[['text' => '⭐️ شحن الرصيد (نجوم)', 'callback_data' => 'recharge_stars_menu']]]];
                                 
                                 sendMessage($token, $chat_id, $msg, $keyboard);
                                 clearUserState($pdo, $chat_id);
@@ -389,7 +389,7 @@ if (isset($update['callback_query'])) {
         if ($current_balance <= 0) {
             $msg = "🚫 **عذراً، رصيدك صفر!**\n\nلا يمكنك طلب خدمات حتى تقوم بشحن رصيدك.";
             
-            $keyboard = ['inline_keyboard' => [[['text' => '💳 شحن الرصيد (نجوم ⭐️)', 'callback_data' => 'recharge_stars_menu']]]];
+            $keyboard = ['inline_keyboard' => [[['text' => '⭐️ شحن الرصيد (نجوم)', 'callback_data' => 'recharge_stars_menu']]]];
             sendMessage($token, $chat_id, $msg, $keyboard);
             return;
         }
@@ -417,7 +417,7 @@ if (isset($update['callback_query'])) {
             if ($current_balance <= 0) {
                 $msg = "🚫 **عذراً، رصيدك صفر!**\n\nلا يمكنك طلب خدمات حتى تقوم بشحن رصيدك.";
                 
-                $keyboard = ['inline_keyboard' => [[['text' => '💳 شحن الرصيد (نجوم ⭐️)', 'callback_data' => 'recharge_stars_menu']]]];
+                $keyboard = ['inline_keyboard' => [[['text' => '⭐️ شحن الرصيد (نجوم)', 'callback_data' => 'recharge_stars_menu']]]];
                 sendMessage($token, $chat_id, $msg, $keyboard);
                 return;
             }
@@ -442,8 +442,8 @@ if (isset($update['callback_query'])) {
         $msg .= "💰 **الرصيد:** $" . number_format($balance, 2) . "\n";
         
         $keyboard = ['inline_keyboard' => []];
-        $keyboard['inline_keyboard'][] = [['text' => '� شحن الرصيد (نجوم ⭐️)', 'callback_data' => 'recharge_stars_menu']];
-        $keyboard['inline_keyboard'][] = [['text' => '� رجوع', 'callback_data' => 'back_to_main']];
+        $keyboard['inline_keyboard'][] = [['text' => '⭐️ شحن الرصيد (نجوم)', 'callback_data' => 'recharge_stars_menu']];
+        $keyboard['inline_keyboard'][] = [['text' => '🔙 رجوع', 'callback_data' => 'back_to_main']];
 
         sendMessage($token, $chat_id, $msg, $keyboard);
     }
