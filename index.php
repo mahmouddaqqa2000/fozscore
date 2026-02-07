@@ -286,6 +286,9 @@ $important_matches = array_filter($matches, function($m) use ($important_teams) 
             flex-wrap: wrap;
             width: 100%;
         }
+        @media (min-width: 768px) {
+            .match-details-bottom { gap: 25px; }
+        }
         .detail-pill {
             display: inline-flex;
             align-items: center;
