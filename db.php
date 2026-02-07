@@ -127,4 +127,10 @@ $pdo->exec("CREATE TABLE IF NOT EXISTS leagues (
   external_id INTEGER
 )");
 
+// إنشاء جدول إعدادات البوت الثانوي (الجديد)
+$pdo->exec("CREATE TABLE IF NOT EXISTS secondary_bot_settings (
+  key_name TEXT PRIMARY KEY,
+  value TEXT
+)");
+
 ?>

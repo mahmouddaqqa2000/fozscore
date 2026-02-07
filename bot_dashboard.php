@@ -302,6 +302,10 @@ $favicon = $settings['favicon'];
                         <span>تنظيف المباريات القديمة</span>
                         <span class="icon">🗑️</span>
                     </a>
+                    <a href="telegram_bot_panel.php" class="btn-bot bg-dark" style="background-color: #0f172a;">
+                        <span>إدارة البوت الإضافي (الجديد)</span>
+                        <span class="icon">🤖</span>
+                    </a>
                     <a href="#" onclick="document.querySelector('input[name=url]').value = 'https://www.kooora.com/?m='; document.querySelector('input[name=url]').focus(); return false;" class="btn-bot bg-indigo" title="أدخل رقم المباراة بعد m=">
                         <span>تجربة سحب من كووورة (مباراة واحدة)</span>
                         <span class="icon">🥅</span>
