@@ -506,7 +506,7 @@ $important_matches = array_filter($matches, function($m) use ($important_teams) 
                                                             <div class="score-box vs">-- : --</div>
                                                             <span class="match-time-muted" style="margin-top:4px;">انتهت</span>
                                                         <?php else: ?>
-                                                            <div class="score-box time"><span style="margin-left:4px; opacity:0.8;">🕒</span><?php echo format_time_ar($m['match_time'], $m['match_date']); ?></div>
+                                                            <div class="score-box time"><span style="margin-left:4px; opacity:0.8;">🕒</span><?php echo format_time_ar($m['match_time'], $m['match_date'], $m['source_url']); ?></div>
                                                             <span class="match-time-muted" style="margin-top:4px;">لم تبدأ</span>
                                                         <?php endif; ?>
                                                     </div>
@@ -594,7 +594,7 @@ $important_matches = array_filter($matches, function($m) use ($important_teams) 
                                                             <div class="score-box vs">-- : --</div>
                                                             <span class="match-time-muted" style="margin-top:4px;">انتهت</span>
                                                         <?php else: ?>
-                                                            <div class="score-box time"><span style="margin-left:4px; opacity:0.8;">🕒</span><?php echo format_time_ar($m['match_time'], $m['match_date']); ?></div>
+                                                            <div class="score-box time"><span style="margin-left:4px; opacity:0.8;">🕒</span><?php echo format_time_ar($m['match_time'], $m['match_date'], $m['source_url']); ?></div>
                                                             <span class="match-time-muted" style="margin-top:4px;">لم تبدأ</span>
                                                         <?php endif; ?>
                                                     </div>

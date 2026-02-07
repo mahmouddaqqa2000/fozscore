@@ -54,13 +54,21 @@ function league_logo_html($name, $size = 28, $logo_url = null) {
     return "<div class=\"league-logo\" style=\"{$style}\">" . htmlspecialchars($initials) . "</div>";
 }
 
-function format_time_ar($time, $date = null) {
+function format_time_ar($time, $date = null, $source_url = null) {
     if (empty($time)) return '';
     try {
         $clean_time = str_replace(['ص', 'م'], ['AM', 'PM'], $time);
-        // نفترض أن التوقيت الأصلي هو توقيت القاهرة (مصدر البيانات)
-        $timezone = new DateTimeZone('Africa/Cairo');
+        
+        // تحديد المنطقة الزمنية للمصدر
+        // الافتراضي هو القاهرة (يلا كورة) للحفاظ على التوافق
+        $tz_name = 'Africa/Cairo';
+        if ($source_url && strpos($source_url, 'fotmob.com') !== false) {
+            $tz_name = 'Asia/Riyadh'; // فوت موب يأتي بتوقيت الرياض
+        }
+
+        $timezone = new DateTimeZone($tz_name);
         $dt = new DateTime($date ? "$date $clean_time" : $clean_time, $timezone);
+        $dt->setTimezone(new DateTimeZone('Asia/Riyadh')); // توحيد العرض بتوقيت الرياض
     } catch (Exception $e) {
         return htmlspecialchars($time);
     }
@@ -201,10 +209,22 @@ function get_match_status($match) {
         return ['key' => 'not_started', 'text' => 'لم تبدأ'];
     }
 
+    // التحقق من النص الصريح للحالة (انتهت) قبل محاولة تحليل الوقت
+    if (strpos($match['match_time'], 'انتهت') !== false || stripos($match['match_time'], 'Full Time') !== false) {
+        return ['key' => 'finished', 'text' => 'انتهت'];
+    }
+
     try {
         $now = new DateTime();
         $clean_time = str_replace(['ص', 'م'], ['AM', 'PM'], $match['match_time']);
-        $match_datetime = new DateTime($match['match_date'] . ' ' . $clean_time);
+        
+        // تحديد المنطقة الزمنية بناءً على المصدر
+        $tz_name = 'Asia/Riyadh'; // الافتراضي (مثل فوت موب)
+        if (isset($match['source_url']) && strpos($match['source_url'], 'yallakora.com') !== false) {
+            $tz_name = 'Africa/Cairo'; // يلا كورة بتوقيت القاهرة
+        }
+        
+        $match_datetime = new DateTime($match['match_date'] . ' ' . $clean_time, new DateTimeZone($tz_name));
         
         // إذا كان وقت المباراة في المستقبل، فهي 'لم تبدأ'.
         if ($now < $match_datetime) {

@@ -234,6 +234,20 @@ function perform_scrape($pdo, $dateStr, $settings) {
                     file_put_contents($sent_file, json_encode($sent_notifications));
                 }
 
+                // --- إشعار نهاية المباراة (فوري) ---
+                if ((strpos($matchTimeStr, 'انتهت') !== false || strpos($matchTimeStr, 'Full Time') !== false) && !isset($sent_notifications[$match_id]['finished'])) {
+                    $msg = "🏁 <b>نهاية المباراة</b>\n\n";
+                    $msg .= "$teamHome <b>$scoreHome</b> - <b>$scoreAway</b> $teamAway\n";
+                    if ($championship) $msg .= "🏆 <i>$championship</i>\n\n";
+                    $msg .= "<a href=\"$match_url\">عرض التفاصيل والإحصائيات</a>";
+                    
+                    send_telegram_msg($pdo, $msg);
+                    send_twitter_tweet($pdo, $msg, $championship);
+                    $sent_notifications[$match_id]['finished'] = true;
+                    file_put_contents($sent_file, json_encode($sent_notifications));
+                    echo "Sent IMMEDIATE finish notification for $teamHome vs $teamAway\n";
+                }
+
                 // التحقق مما إذا كانت النتيجة قد تغيرت بالفعل
                 // استخدام !== للمقارنة الصارمة لأن NULL == 0 في PHP، وهذا يمنع تحديث النتيجة عند بداية المباراة (0-0)
                 if ($db_match['score_home'] !== $scoreHome || $db_match['score_away'] !== $scoreAway) {

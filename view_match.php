@@ -878,7 +878,7 @@ if (!$match) {
                             </div>
                         <?php } else { // لم تبدأ أو انتهت بانتظار النتيجة ?>
                             <?php $status_text = $status['key'] === 'finished' ? 'انتهت (بانتظار النتيجة)' : $status['text']; ?>
-                            <div class="match-time-large"><?php echo format_time_ar($match['match_time'], $match['match_date']); ?></div>
+                            <div class="match-time-large"><?php echo format_time_ar($match['match_time'], $match['match_date'], $match['source_url']); ?></div>
                             <div class="match-status"><?php echo $status_text; ?></div>
                         <?php } ?>
                     </div>

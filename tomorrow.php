@@ -324,7 +324,7 @@ foreach ($matches as $m) {
                                             <div class="match-info">
                                                 <div class="team home"><?php echo team_logo_html($m['team_home'], 50, $m['team_home_logo'] ?? null); ?> <?php echo htmlspecialchars($m['team_home']); ?></div>
                                                 <div class="match-center-info" style="display:flex; flex-direction:column; align-items:center;">
-                                                    <div class="score-box time"><span style="margin-left:4px; opacity:0.8;">🕒</span><?php echo format_time_ar($m['match_time'], $m['match_date']); ?></div>
+                                                    <div class="score-box time"><span style="margin-left:4px; opacity:0.8;">🕒</span><?php echo format_time_ar($m['match_time'], $m['match_date'], $m['source_url']); ?></div>
                                                     <span class="match-time-muted" style="margin-top:4px;">لم تبدأ</span>
                                                 </div>
                                                 <div class="team away"><?php echo htmlspecialchars($m['team_away']); ?> <?php echo team_logo_html($m['team_away'], 50, $m['team_away_logo'] ?? null); ?></div>
