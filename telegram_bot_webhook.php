@@ -194,6 +194,11 @@ if (isset($update['message'])) {
                             $new_balance = $current_balance - $total_cost;
                             $pdo->prepare("UPDATE bot_users SET balance = ? WHERE chat_id = ?")->execute([$new_balance, $chat_id]);
                             
+                            // إعلام المستخدم بالتكلفة قبل طلب الرابط
+                            $costMsg = "💵 **تكلفة الطلب:** $" . number_format($total_cost, 2) . "\n";
+                            $costMsg .= "💰 **رصيدك الجديد:** $" . number_format($new_balance, 2) . "\n";
+                            sendMessage($token, $chat_id, $costMsg);
+
                             // إضافة معلومات التكلفة للبيانات لعرضها في الرسالة النهائية
                             $data['total_cost'] = $total_cost;
                             $data['new_balance'] = $new_balance;
@@ -332,7 +337,7 @@ if (isset($update['callback_query'])) {
                 $msg = "$pIcon **قائمة $platformAr:**\n\n";
                 foreach ($services as $s) {
                     $msg .= "🔹 <b>{$s['name']}</b>\n";
-                    $msg .= "💰 السعر: {$s['price']}\n";
+                    $msg .= "💰 السعر: $" . ($s['cost'] ?? 0) . " / 1k\n";
                     if (!empty($s['description'])) $msg .= "📝 {$s['description']}\n";
                     $msg .= "------------------\n";
                 }
@@ -379,7 +384,7 @@ if (isset($update['callback_query'])) {
             $msg = "👇 **اختر الخدمة المناسبة:**";
             $keyboard = ['inline_keyboard' => []];
             foreach ($services as $s) {
-                $btnText = $s['name'] . " (" . $s['price'] . ")";
+                $btnText = $s['name'] . " ($" . ($s['cost'] ?? 0) . "/1k)";
                 $keyboard['inline_keyboard'][] = [['text' => $btnText, 'callback_data' => "srv_" . $s['id']]];
             }
             $keyboard['inline_keyboard'][] = [['text' => '🔙 رجوع', 'callback_data' => "platform_$platform"]];
