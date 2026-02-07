@@ -1009,52 +1009,59 @@ function get_match_details($url) {
     if (empty($homePlayers)) {
         $lineupDebug = "فشل XPath. جاري تجربة Regex...";
         
-        // Regex محسن 2.0: البحث عن الأسماء والأرقام بشكل منفصل (أكثر مرونة مع تداخل HTML)
-        // نبحث عن أي عنصر يحمل كلاس name أو playerName ويحتوي على نص عربي
-        preg_match_all('/class="[^"]*(?:name|playerName)[^"]*"[^>]*>\s*([^\d<]+?)\s*<\//iu', $html, $nameMatches);
+        // استراتيجية التقسيم (Explode Strategy) - الحل الجذري
+        // نقوم بتقسيم الكود بناءً على كلاس اللاعب، ثم نستخرج البيانات من كل جزء
+        // هذا يتجاوز مشاكل تداخل HTML وتعقيد Regex
+        $playerChunks = preg_split('/class=["\'][^"\']*\bplayer\b[^"\']*["\']/i', $html);
         
-        if (!empty($nameMatches[1])) {
-            $allPlayers = [];
-            // تنظيف الأسماء
-            $names = array_map('trim', $nameMatches[1]);
-            // استبعاد الأسماء القصيرة جداً أو التي تحتوي على كلمات محجوزة
-            $names = array_filter($names, function($n) { 
-                return mb_strlen($n) > 2 && !in_array($n, ['التشكيل', 'دقيقة بدقيقة', 'إحصائيات', 'أحداث', 'صور', 'فيديو']); 
-            });
+        // العنصر الأول هو ما قبل أول لاعب، نتجاهله
+        array_shift($playerChunks);
+        
+        $allPlayers = [];
+        
+        foreach ($playerChunks as $chunk) {
+            // نأخذ جزءاً معقولاً من النص لتجنب التداخل مع اللاعب التالي (مثلاً أول 1000 حرف)
+            $chunk = substr($chunk, 0, 1000);
             
-            // البحث عن الأرقام (اختياري) - نحاول ربطها بالترتيب
-            preg_match_all('/class="[^"]*number[^"]*"[^>]*>\s*(\d+)\s*<\//i', $html, $numMatches);
-            $numbers = $numMatches[1] ?? [];
-
-            // إعادة ترتيب المصفوفة
-            $names = array_values($names);
+            // استخراج الاسم: نبحث عن كلاس name أو playerName
+            $name = '';
+            if (preg_match('/class=["\'][^"\']*\b(?:name|playerName)\b[^"\']*["\'][^>]*>(.*?)<\//is', $chunk, $nMatch)) {
+                $name = trim(strip_tags($nMatch[1]));
+            }
             
-            // إذا وجدنا عدداً منطقياً من اللاعبين (مثلاً أكثر من 15 لفريقين)
-            if (count($names) >= 11) {
-                foreach ($names as $i => $name) {
-                    $num = $numbers[$i] ?? '';
-                    // لا يمكننا ربط الصور بدقة بهذه الطريقة، لذا نكتفي بالاسم والرقم
-                    $playerStr = $name;
-                    if ($num) $playerStr .= " | " . $num;
-                    $allPlayers[] = $playerStr;
+            // استخراج الرقم
+            $num = '';
+            if (preg_match('/class=["\'][^"\']*\bnumber\b[^"\']*["\'][^>]*>(.*?)<\//is', $chunk, $numMatch)) {
+                $num = trim(strip_tags($numMatch[1]));
+            }
+            
+            // استخراج الصورة
+            $img = null;
+            if (preg_match('/<img[^>]*src=["\']([^"\']+)["\']/i', $chunk, $imgMatch)) {
+                $img = $imgMatch[1];
+            }
+            
+            // تنظيف الاسم والتحقق منه
+            if ($name && mb_strlen($name) > 2 && !in_array($name, ['التشكيل', 'دقيقة بدقيقة', 'إحصائيات', 'أحداث', 'صور', 'فيديو'])) {
+                $playerStr = $name;
+                if ($img) {
+                    if (strpos($img, 'http') !== 0) $img = "https://www.yallakora.com" . $img;
+                    $playerStr .= " | " . $img;
                 }
+                if ($num) $playerStr .= " | " . $num;
+                
+                $allPlayers[] = $playerStr;
             }
-            
-            if (!empty($allPlayers)) {
-                $total = count($allPlayers);
-                $half = ceil($total / 2);
-                $homePlayers = array_slice($allPlayers, 0, $half);
-                $awayPlayers = array_slice($allPlayers, $half);
-                $lineupDebug = "تم العثور عليها باستخدام Regex المنفصل ($total لاعب)";
-            } else {
-                $lineupDebug .= " فشل Regex المنفصل (الأسماء غير كافية: " . count($names) . ")";
-            }
+        }
+        
+        if (count($allPlayers) >= 11) {
+            $total = count($allPlayers);
+            $half = ceil($total / 2);
+            $homePlayers = array_slice($allPlayers, 0, $half);
+            $awayPlayers = array_slice($allPlayers, $half);
+            $lineupDebug = "تم العثور عليها باستخدام Explode Strategy ($total لاعب)";
         } else {
-            // تشخيص سبب الفشل
-            $hasSquad = strpos($html, 'squad') !== false ? 'نعم' : 'لا';
-            $hasPlayer = strpos($html, 'player') !== false ? 'نعم' : 'لا';
-            $hasFormation = strpos($html, 'formation') !== false ? 'نعم' : 'لا';
-            $lineupDebug = "فشل كلي. طول الصفحة: " . strlen($html) . ". كلمات مفتاحية: squad=$hasSquad, player=$hasPlayer, formation=$hasFormation";
+            $lineupDebug .= " فشل Explode Strategy (العدد: " . count($allPlayers) . ")";
         }
     }
 
