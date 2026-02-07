@@ -77,6 +77,18 @@ foreach ($grouped_by_championship as $champ => $matches_in_group) {
 }
 
 $grouped_by_championship = $live_groups + $other_groups;
+
+// --- تحديد أهم المباريات (للعرض في قسم خاص) ---
+$important_teams = [
+    'ريال مدريد', 'برشلونة', 'ليفربول', 'مانشستر سيتي', 'مانشستر يونايتد', 
+    'أرسنال', 'تشيلسي', 'بايرن ميونيخ', 'باريس سان جيرمان', 'يوفنتوس', 
+    'ميلان', 'إنتر ميلان', 'روما', 'نابولي', 'أتلتيكو مدريد', 'توتنهام',
+    'النصر', 'الهلال', 'الاتحاد', 'الأهلي', 'الزمالك', 'الشباب'
+];
+
+$important_matches = array_filter($matches, function($m) use ($important_teams) {
+    return in_array(trim($m['team_home']), $important_teams) || in_array(trim($m['team_away']), $important_teams);
+});
 ?>
 <!doctype html>
 <html lang="ar" dir="rtl">
@@ -441,6 +453,67 @@ $grouped_by_championship = $live_groups + $other_groups;
                         لا توجد مباريات مسجلة حالياً.
                     </div>
                 <?php else: ?>
+                    
+                    <?php if (!empty($important_matches)): ?>
+                        <div class="championship-group">
+                            <div class="championship-header" style="background: linear-gradient(to left, #1e293b, #334155); color: #fff; border-bottom: none; border-radius: 8px;">
+                                <span style="margin-left: 8px;">🔥</span>
+                                <span class="league-name">أهم مباريات اليوم</span>
+                            </div>
+                            <div class="match-card">
+                                <?php foreach ($important_matches as $m): ?>
+                                    <div class="match-item">
+                                        <a href="view_match.php?id=<?php echo $m['id']; ?>" class="match-link">
+                                             <div class="match-info">
+                                                 <div class="team home"><?php echo team_logo_html($m['team_home'], 50, $m['team_home_logo'] ?? null); ?> <?php echo htmlspecialchars($m['team_home']); ?></div>
+                                                <?php
+                                                $status = get_match_status($m);
+                                                $is_live = $status['key'] === 'live';
+                                                $has_score = isset($m['score_home']) && $m['score_home'] !== null;
+
+                                                if ($is_live || ($status['key'] === 'finished' && $has_score)) { 
+                                                    $display_home = $has_score ? (int)$m['score_home'] : 0;
+                                                    $display_away = $has_score ? (int)$m['score_away'] : 0;
+                                                    ?>
+                                            <div class="match-center-info" style="display:flex; flex-direction:column; align-items:center;">
+                                                        <div class="score-box <?php echo $is_live ? 'live' : ''; ?>"><?php echo $display_home . ' - ' . $display_away; ?></div>
+                                                        <?php if ($is_live): ?>
+                                                            <span class="match-time-muted" style="color:#ef4444; font-weight:bold; margin-top:4px;">
+                                                                <span class="live-indicator" style="background-color:#ef4444;"></span> جاري الآن
+                                                            </span>
+                                                        <?php elseif ($status['key'] === 'finished'): ?>
+                                                            <span class="match-time-muted" style="margin-top:4px;">انتهت</span>
+                                                        <?php endif; ?>
+                                                    </div>
+                                                <?php } else { // Match hasn't started or finished without score ?>
+                                            <div class="match-center-info" style="display:flex; flex-direction:column; align-items:center;">
+                                                        <?php if ($status['key'] === 'finished'): ?>
+                                                            <div class="score-box vs">-- : --</div>
+                                                            <span class="match-time-muted" style="margin-top:4px;">انتهت</span>
+                                                        <?php else: ?>
+                                                            <div class="score-box time"><span style="margin-left:4px; opacity:0.8;">🕒</span><?php echo format_time_ar($m['match_time'], $m['match_date']); ?></div>
+                                                            <span class="match-time-muted" style="margin-top:4px;">لم تبدأ</span>
+                                                        <?php endif; ?>
+                                                    </div>
+                                                <?php } ?>
+                                                 <div class="team away"><?php echo htmlspecialchars($m['team_away']); ?> <?php echo team_logo_html($m['team_away'], 50, $m['team_away_logo'] ?? null); ?></div>
+                                            </div>
+                                            
+                                            <div class="match-details-bottom">
+                                                 <?php if (!empty($m['championship'])): ?>
+                                                     <div class="detail-pill" style="background-color: #fffbeb; color: #b45309; border-color: #fcd34d;">🏆 <?php echo htmlspecialchars($m['championship']); ?></div>
+                                                 <?php endif; ?>
+                                                 <?php if (!empty($m['channel'])): ?>
+                                                     <div class="detail-pill">📺 <?php echo htmlspecialchars($m['channel']); ?></div>
+                                                 <?php endif; ?>
+                                            </div>
+                                        </a>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+                        </div>
+                    <?php endif; ?>
+
                     <?php foreach ($grouped_by_championship as $championship => $championship_matches): ?>
                         <?php 
                             $major_leagues_keywords = ['أبطال أوروبا', 'الإنجليزي', 'الإسباني', 'الإيطالي', 'الألماني', 'الفرنسي'];
