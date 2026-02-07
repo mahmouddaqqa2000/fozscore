@@ -640,6 +640,17 @@ if (!$match) {
             .timeline-content.home, .timeline-content.away { padding: 0; padding-right: 10px; justify-content: flex-start; flex: 1; order: 2; }
             .timeline-content:empty { display: none; }
         }
+        
+        /* Timeline Event Colors */
+        .timeline-card.goal { background-color: #dcfce7; border-color: #86efac; color: #14532d; }
+        .timeline-card.yellow-card { background-color: #fef9c3; border-color: #fde047; color: #713f12; }
+        .timeline-card.red-card { background-color: #fee2e2; border-color: #fca5a5; color: #7f1d1d; }
+        .timeline-card.sub { background-color: #f1f5f9; border-color: #cbd5e1; color: #475569; }
+        
+        body.dark-mode .timeline-card.goal { background-color: #064e3b; border-color: #065f46; color: #ecfdf5; }
+        body.dark-mode .timeline-card.yellow-card { background-color: #422006; border-color: #854d0e; color: #fefce8; }
+        body.dark-mode .timeline-card.red-card { background-color: #450a0a; border-color: #7f1d1d; color: #fef2f2; }
+        body.dark-mode .timeline-card.sub { background-color: #1e293b; border-color: #334155; color: #f1f5f9; }
 
         /* Dark Mode Support */
         body.dark-mode {
@@ -1135,13 +1146,35 @@ if (!$match) {
         ?>
         <div class="timeline">
             <?php foreach ($parsed_events as $ev): ?>
+                <?php
+                    $type_class = '';
+                    $icon = '';
+                    $text = $ev['text'];
+                    
+                    // تحديد نوع الحدث وإضافة الأيقونة إذا لم تكن موجودة
+                    if (mb_strpos($text, '⚽') !== false || mb_strpos($text, 'هدف') !== false) {
+                        $type_class = 'goal';
+                        if (mb_strpos($text, '⚽') === false) $icon = '⚽ ';
+                    } elseif (mb_strpos($text, '🟨') !== false || mb_strpos($text, 'إنذار') !== false || mb_strpos($text, 'بطاقة صفراء') !== false) {
+                        $type_class = 'yellow-card';
+                        if (mb_strpos($text, '🟨') === false) $icon = '🟨 ';
+                    } elseif (mb_strpos($text, '🟥') !== false || mb_strpos($text, 'طرد') !== false || mb_strpos($text, 'بطاقة حمراء') !== false) {
+                        $type_class = 'red-card';
+                        if (mb_strpos($text, '🟥') === false) $icon = '🟥 ';
+                    } elseif (mb_strpos($text, '🔄') !== false || mb_strpos($text, 'تبديل') !== false || mb_strpos($text, 'دخول') !== false) {
+                        $type_class = 'sub';
+                        if (mb_strpos($text, '🔄') === false) $icon = '🔄 ';
+                    }
+                    
+                    $display_text = $icon . htmlspecialchars($text);
+                ?>
                 <div class="timeline-row">
                     <div class="timeline-content home">
-                        <?php if ($ev['side'] === 'home'): ?><div class="timeline-card"><?php echo htmlspecialchars($ev['text']); ?></div><?php endif; ?>
+                        <?php if ($ev['side'] === 'home'): ?><div class="timeline-card <?php echo $type_class; ?>"><?php echo $display_text; ?></div><?php endif; ?>
                     </div>
                     <div class="timeline-time"><?php echo htmlspecialchars($ev['min']); ?>'</div>
                     <div class="timeline-content away">
-                        <?php if ($ev['side'] === 'away'): ?><div class="timeline-card"><?php echo htmlspecialchars($ev['text']); ?></div><?php endif; ?>
+                        <?php if ($ev['side'] === 'away'): ?><div class="timeline-card <?php echo $type_class; ?>"><?php echo $display_text; ?></div><?php endif; ?>
                     </div>
                 </div>
             <?php endforeach; ?>
