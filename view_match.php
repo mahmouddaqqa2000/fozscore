@@ -6,7 +6,7 @@ $settings = get_site_settings($pdo);
 $favicon = $settings['favicon'];
 
 if (!isset($_GET['id'])) {
-    header('Location: index.php');
+    header('Location: ./');
     exit;
 }
 
@@ -727,7 +727,7 @@ if (!$match) {
         <?php if (isset($error_message)): ?>
             <div class="error-message">
                 <p><?php echo $error_message; ?></p>
-                <a href="index.php" class="back-link">العودة للرئيسية</a>
+                <a href="./" class="back-link">العودة للرئيسية</a>
             </div>
         <?php else: ?>
             <div class="match-view-card">

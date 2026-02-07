@@ -285,7 +285,7 @@ foreach ($matches as $m) {
         <h2 class="page-title">جدول مباريات الغد</h2>
         <div class="day-buttons">
             <a class="day-button" href="yesterday.php">الامس</a>
-            <a class="day-button" href="index.php">اليوم</a>
+            <a class="day-button" href="./">اليوم</a>
             <a class="day-button active" href="tomorrow.php">غدا</a>
         </div>
         <div class="content-grid">

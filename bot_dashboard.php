@@ -158,7 +158,7 @@ $favicon = $settings['favicon'];
             <a href="news_dashboard.php">الأخبار</a>
             <a href="admin_messages.php">📩 الرسائل</a>
             <a href="settings.php">⚙️ الإعدادات</a>
-            <a href="index.php">عرض الموقع</a>
+            <a href="./">عرض الموقع</a>
         </div>
     </div>
 

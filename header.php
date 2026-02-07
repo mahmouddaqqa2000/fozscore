@@ -258,7 +258,7 @@ $primary_color = $settings['primary_color'] ?? '#1e293b';
 </script>
 
 <div class="navbar">
-    <a class="brand" href="index.php">
+    <a class="brand" href="./">
         <?php if (!empty($settings['favicon'])): ?>
             <img src="<?php echo htmlspecialchars($settings['favicon']); ?>" alt="Logo" style="height: 45px; width: auto; vertical-align: middle; margin-left: 8px;">
         <?php endif; ?>
@@ -266,7 +266,7 @@ $primary_color = $settings['primary_color'] ?? '#1e293b';
     </a>
     <button class="menu-toggle" aria-label="قائمة" aria-expanded="false">☰</button>
     <nav class="nav-links" role="navigation">
-        <a href="index.php">مباريات اليوم</a>
+        <a href="./">مباريات اليوم</a>
         <a href="news.php">الأخبار الرياضية</a>
         <a href="teams.php">الفرق</a>
         <a href="leagues.php">الدوري</a>

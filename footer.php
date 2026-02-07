@@ -120,11 +120,11 @@ $social_instagram = $settings['social_instagram'] ?? '';
 <footer class="site-footer">
     <div class="footer-content">
         <div class="footer-info">
-            <a href="index.php" class="footer-brand"><?php echo htmlspecialchars($footer_site_name); ?></a>
+            <a href="./" class="footer-brand"><?php echo htmlspecialchars($footer_site_name); ?></a>
             <p class="footer-desc"><?php echo htmlspecialchars($footer_desc); ?></p>
         </div>
         <div class="site-footer-links">
-            <a href="index.php">الرئيسية</a>
+            <a href="./">الرئيسية</a>
             <a href="news.php">الأخبار</a>
             <a href="yesterday.php">مباريات الأمس</a>
             <a href="tomorrow.php">مباريات الغد</a>

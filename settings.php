@@ -123,7 +123,7 @@ $settings = get_site_settings($pdo);
         <a class="brand" href="bot_dashboard.php">🤖 لوحة التحكم</a>
         <div class="nav-links">
             <a href="bot_dashboard.php">الرئيسية</a>
-            <a href="index.php" target="_blank">عرض الموقع</a>
+            <a href="./" target="_blank">عرض الموقع</a>
         </div>
     </div>
     <div class="container">
