@@ -72,6 +72,14 @@ foreach ($dates_to_scrape as $current_date) {
     @$dom->loadHTML('<?xml encoding="UTF-8">' . $html);
     $xpath = new DOMXPath($dom);
 
+    // التحقق من وجود رسالة "لا يوجد مباريات"
+    $no_matches_flag = false;
+    $no_matches_node = $xpath->query("//h2[contains(text(), 'لا يوجد مباريات')] | //div[contains(text(), 'لا يوجد مباريات')]");
+    if ($no_matches_node->length > 0) {
+        echo "<div style='color:#d97706; background:#fffbeb; padding:10px; border-radius:5px; margin:10px 0;'>⚠️ الموقع يفيد: لا يوجد مباريات لهذا التاريخ.</div>";
+        $no_matches_flag = true;
+    }
+
     // البحث عن كروت المباريات
     $match_cards = $xpath->query("//li[contains(@class, 'fullMatchBox')] | //div[contains(@class, 'matchCard')] | //div[contains(@class, 'liItem')]");
 
@@ -81,6 +89,11 @@ foreach ($dates_to_scrape as $current_date) {
     }
 
     echo "<p>تم العثور على " . $match_cards->length . " مباراة.</p>";
+
+    if ($match_cards->length === 0 && !$no_matches_flag) {
+        echo "<div style='color:red; margin-top:10px; padding:10px; border:1px solid red; background:#fff0f0;'>⚠️ تنبيه: لم يتم العثور على أي مباريات. إليك عينة من الكود المصدري للصفحة للمساعدة في التشخيص:</div>";
+        echo "<textarea style='width:100%;height:200px;direction:ltr;font-family:monospace;margin-top:10px;'>" . htmlspecialchars(substr($html, 0, 20000)) . "</textarea>";
+    }
 
     $count_added = 0;
     $count_updated = 0;
