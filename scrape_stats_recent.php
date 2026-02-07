@@ -35,6 +35,9 @@ echo '</head><body><div class="container">';
 $title = ($type === 'events') ? 'سحب أحداث المباريات (أهداف، بطاقات، تبديلات)' : 'سحب التفاصيل الكاملة (إحصائيات وتشكيلات)';
 echo "<h2>🔄 $title</h2>";
 echo "<p>جاري تحديث البيانات للمباريات (أمس، اليوم، غداً)...</p>";
+// إضافة حشو لإجبار المتصفح على عرض البداية فوراً
+echo "<!-- " . str_repeat(" ", 4096) . " -->";
+flush();
 
 // التواريخ المستهدفة
 $dates = [
@@ -57,10 +60,15 @@ foreach ($dates as $date) {
         echo "<div class='log-item' style='justify-content:center; color:#94a3b8;'>لا توجد مباريات مرتبطة برابط مصدر.</div>";
         continue;
     }
+
+    echo "<div style='padding:5px 10px; font-size:0.9em; color:#64748b;'>تم العثور على " . count($matches) . " مباراة. جاري المعالجة...</div>";
+    flush();
     
     foreach ($matches as $match) {
         echo "<div class='log-item'>";
         echo "<span>{$match['team_home']} 🆚 {$match['team_away']}</span>";
+        echo str_repeat(" ", 1024); // حشو إضافي لكل سطر
+        flush(); // إرسال النص فوراً قبل بدء السحب
         
         // سحب التفاصيل
         $details = get_match_details($match['source_url']);

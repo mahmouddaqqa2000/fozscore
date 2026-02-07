@@ -750,8 +750,8 @@ function get_match_details($url) {
     curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
     curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0); // ضروري لبعض الاستضافات
     curl_setopt($ch, CURLOPT_ENCODING, ''); 
-    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 15);
-    curl_setopt($ch, CURLOPT_TIMEOUT, 60);
+    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10); // تقليل المهلة إلى 10 ثواني
+    curl_setopt($ch, CURLOPT_TIMEOUT, 30);        // تقليل مهلة القراءة إلى 30 ثانية
     curl_setopt($ch, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V4); // إجبار IPv4 لحل مشاكل التعليق
     // إضافة ترويسات لتقليل احتمالية الحظر أو اختلاف المحتوى على الاستضافة
     curl_setopt($ch, CURLOPT_HTTPHEADER, [
