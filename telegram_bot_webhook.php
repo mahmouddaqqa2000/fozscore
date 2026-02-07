@@ -85,6 +85,30 @@ if (isset($update['message'])) {
         ];
 
         sendMessage($token, $chat_id, $msg, $keyboard);
+    } elseif (isset($update['message']['successful_payment'])) {
+        // --- معالجة الدفع الناجح (إضافة الرصيد) ---
+        $payment = $update['message']['successful_payment'];
+        $payload = $payment['invoice_payload']; // topup_STARS_USD
+        $total_amount = $payment['total_amount']; // عدد النجوم
+        
+        if (strpos($payload, 'topup_') === 0) {
+            $parts = explode('_', $payload);
+            // $stars = $parts[1];
+            $usd_amount = floatval($parts[2]);
+            
+            // تحديث رصيد المستخدم
+            $stmtUser = $pdo->prepare("SELECT balance FROM bot_users WHERE chat_id = ?");
+            $stmtUser->execute([$chat_id]);
+            $current = $stmtUser->fetchColumn();
+            $new_balance = $current + $usd_amount;
+            
+            $pdo->prepare("UPDATE bot_users SET balance = ? WHERE chat_id = ?")->execute([$new_balance, $chat_id]);
+            
+            $msg = "✅ **تم شحن الرصيد بنجاح!**\n\n";
+            $msg .= "💰 المبلغ المضاف: $" . number_format($usd_amount, 2) . "\n";
+            $msg .= "💵 رصيدك الحالي: $" . number_format($new_balance, 2) . "\n";
+            sendMessage($token, $chat_id, $msg);
+        }
     } else {
         // معالجة المدخلات النصية (العدد والرابط) بناءً على حالة المستخدم
         $stateData = getUserState($pdo, $chat_id);
@@ -145,15 +169,8 @@ if (isset($update['message'])) {
                                 $msg = "🚫 **عذراً، رصيدك غير كافٍ!**\n\n";
                                 $msg .= "💵 تكلفة الطلب: $" . number_format($total_cost, 2) . "\n";
                                 $msg .= "💰 رصيدك الحالي: $" . number_format($current_balance, 2) . "\n\n";
-                                $contact = $settings['contact_user'] ?? '';
                                 
-                                $keyboard = null;
-                                if ($contact) {
-                                    $adminUser = trim(str_replace('@', '', $contact));
-                                    if ($adminUser) {
-                                        $keyboard = ['inline_keyboard' => [[['text' => '💳 شحن الرصيد', 'url' => "https://t.me/$adminUser"]]]];
-                                    }
-                                }
+                                $keyboard = ['inline_keyboard' => [[['text' => '💳 شحن الرصيد (نجوم ⭐️)', 'callback_data' => 'recharge_stars_menu']]]];
                                 
                                 sendMessage($token, $chat_id, $msg, $keyboard);
                                 clearUserState($pdo, $chat_id);
@@ -370,16 +387,9 @@ if (isset($update['callback_query'])) {
         $current_balance = $stmtUser->fetchColumn();
         
         if ($current_balance <= 0) {
-            $contact = $settings['contact_user'] ?? '';
             $msg = "🚫 **عذراً، رصيدك صفر!**\n\nلا يمكنك طلب خدمات حتى تقوم بشحن رصيدك.";
             
-            $keyboard = null;
-            if ($contact) {
-                $adminUser = trim(str_replace('@', '', $contact));
-                if ($adminUser) {
-                    $keyboard = ['inline_keyboard' => [[['text' => '💳 شحن الرصيد', 'url' => "https://t.me/$adminUser"]]]];
-                }
-            }
+            $keyboard = ['inline_keyboard' => [[['text' => '💳 شحن الرصيد (نجوم ⭐️)', 'callback_data' => 'recharge_stars_menu']]]];
             sendMessage($token, $chat_id, $msg, $keyboard);
             return;
         }
@@ -405,16 +415,9 @@ if (isset($update['callback_query'])) {
             $current_balance = $stmtUser->fetchColumn();
             
             if ($current_balance <= 0) {
-                $contact = $settings['contact_user'] ?? '';
                 $msg = "🚫 **عذراً، رصيدك صفر!**\n\nلا يمكنك طلب خدمات حتى تقوم بشحن رصيدك.";
                 
-                $keyboard = null;
-                if ($contact) {
-                    $adminUser = trim(str_replace('@', '', $contact));
-                    if ($adminUser) {
-                        $keyboard = ['inline_keyboard' => [[['text' => '💳 شحن الرصيد', 'url' => "https://t.me/$adminUser"]]]];
-                    }
-                }
+                $keyboard = ['inline_keyboard' => [[['text' => '💳 شحن الرصيد (نجوم ⭐️)', 'callback_data' => 'recharge_stars_menu']]]];
                 sendMessage($token, $chat_id, $msg, $keyboard);
                 return;
             }
@@ -438,16 +441,9 @@ if (isset($update['callback_query'])) {
         $msg .= "🆔 **ID:** `$chat_id`\n";
         $msg .= "💰 **الرصيد:** $" . number_format($balance, 2) . "\n";
         
-        $contact = $settings['contact_user'] ?? '';
         $keyboard = ['inline_keyboard' => []];
-        
-        if ($contact) {
-            $adminUser = trim(str_replace('@', '', $contact));
-            if ($adminUser) {
-                $keyboard['inline_keyboard'][] = [['text' => '💳 شحن الرصيد', 'url' => "https://t.me/$adminUser"]];
-            }
-        }
-        $keyboard['inline_keyboard'][] = [['text' => '🔙 رجوع', 'callback_data' => 'back_to_main']];
+        $keyboard['inline_keyboard'][] = [['text' => '� شحن الرصيد (نجوم ⭐️)', 'callback_data' => 'recharge_stars_menu']];
+        $keyboard['inline_keyboard'][] = [['text' => '� رجوع', 'callback_data' => 'back_to_main']];
 
         sendMessage($token, $chat_id, $msg, $keyboard);
     }
@@ -484,6 +480,43 @@ if (isset($update['callback_query'])) {
         ];
         sendMessage($token, $chat_id, $msg, $keyboard);
     }
+
+    // --- قائمة شحن النجوم ---
+    if ($data === 'recharge_stars_menu') {
+        $msg = "✨ **شحن الرصيد عبر نجوم تيليجرام** ✨\n\n";
+        $msg .= "اختر الباقة المناسبة لشحن رصيدك فوراً:\n(سعر النجمة التقريبي: 0.02$)";
+        
+        $keyboard = [
+            'inline_keyboard' => [
+                [['text' => '⭐️ 50 نجمة ($1.00)', 'callback_data' => 'buy_stars_50']],
+                [['text' => '⭐️ 100 نجمة ($2.00)', 'callback_data' => 'buy_stars_100']],
+                [['text' => '⭐️ 250 نجمة ($5.00)', 'callback_data' => 'buy_stars_250']],
+                [['text' => '⭐️ 500 نجمة ($10.00)', 'callback_data' => 'buy_stars_500']],
+                [['text' => '🔙 رجوع', 'callback_data' => 'back_to_main']]
+            ]
+        ];
+        sendMessage($token, $chat_id, $msg, $keyboard);
+    }
+
+    // --- إنشاء فاتورة النجوم ---
+    if (strpos($data, 'buy_stars_') === 0) {
+        $stars = intval(str_replace('buy_stars_', '', $data));
+        $amount_usd = $stars * 0.02; // سعر افتراضي: 1 نجمة = 0.02 دولار
+        
+        $title = "شحن رصيد $$amount_usd";
+        $description = "شحن رصيد في البوت بقيمة $$amount_usd مقابل $stars نجمة.";
+        $payload = "topup_{$stars}_{$amount_usd}";
+        $currency = "XTR"; // عملة النجوم
+        $prices = [['label' => "$stars Stars", 'amount' => $stars]]; // المبلغ لـ XTR هو عدد النجوم
+        
+        sendInvoice($token, $chat_id, $title, $description, $payload, $currency, $prices);
+    }
+}
+
+// 3. معالجة طلبات الدفع المسبق (Pre-Checkout) - ضروري لقبول الدفع
+if (isset($update['pre_checkout_query'])) {
+    $pre_checkout_id = $update['pre_checkout_query']['id'];
+    answerPreCheckoutQuery($token, $pre_checkout_id, true);
 }
 
 function sendMessage($token, $chat_id, $text, $keyboard = null) {
@@ -525,6 +558,41 @@ function sendPhoto($token, $chat_id, $photo, $caption, $keyboard = null) {
     $result = curl_exec($ch);
     curl_close($ch);
     return $result;
+}
+
+function sendInvoice($token, $chat_id, $title, $description, $payload, $currency, $prices) {
+    $url = "https://api.telegram.org/bot$token/sendInvoice";
+    $data = [
+        'chat_id' => $chat_id,
+        'title' => $title,
+        'description' => $description,
+        'payload' => $payload,
+        'currency' => $currency,
+        'prices' => json_encode($prices),
+        'provider_token' => '' // فارغ لمدفوعات النجوم
+    ];
+    
+    $ch = curl_init($url);
+    curl_setopt($ch, CURLOPT_POST, 1);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    curl_exec($ch);
+    curl_close($ch);
+}
+
+function answerPreCheckoutQuery($token, $pre_checkout_query_id, $ok, $error_message = "") {
+    $url = "https://api.telegram.org/bot$token/answerPreCheckoutQuery";
+    $data = ['pre_checkout_query_id' => $pre_checkout_query_id, 'ok' => $ok];
+    if (!$ok) $data['error_message'] = $error_message;
+    
+    $ch = curl_init($url);
+    curl_setopt($ch, CURLOPT_POST, 1);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    curl_exec($ch);
+    curl_close($ch);
 }
 
 // --- دوال إدارة الحالة ---
