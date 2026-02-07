@@ -302,7 +302,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($services && $token && $chat_id) {
             $msg = "🔥 <b>قائمة خدماتنا المميزة</b> 🔥\n\n";
             foreach ($services as $s) {
-                $msg .= "💎 <b>{$s['name']}</b>\n";
+                // تحديد الأيقونة حسب اسم الخدمة
+                $icon = '💎';
+                $n = mb_strtolower($s['name']);
+                if (strpos($n, 'instagram') !== false || strpos($n, 'انستجرام') !== false) $icon = '📸';
+                elseif (strpos($n, 'facebook') !== false || strpos($n, 'فيسبوك') !== false) $icon = '📘';
+                elseif (strpos($n, 'tiktok') !== false || strpos($n, 'تيك توك') !== false) $icon = '🎵';
+                elseif (strpos($n, 'youtube') !== false || strpos($n, 'يوتيوب') !== false) $icon = '📺';
+                elseif (strpos($n, 'twitter') !== false || strpos($n, 'تويتر') !== false || strpos($n, 'x ') !== false) $icon = '🐦';
+                elseif (strpos($n, 'telegram') !== false || strpos($n, 'تيليجرام') !== false) $icon = '✈️';
+                elseif (strpos($n, 'snapchat') !== false || strpos($n, 'سناب') !== false) $icon = '👻';
+                
+                $msg .= "$icon <b>{$s['name']}</b>\n";
                 if ($s['price']) $msg .= "💰 السعر: {$s['price']}\n";
                 if ($s['description']) $msg .= "📝 {$s['description']}\n";
                 $msg .= "------------------\n";
@@ -474,9 +485,20 @@ $services_list = $pdo->query("SELECT * FROM bot_services ORDER BY id DESC")->fet
                 <p style="text-align:center; color:#94a3b8;">لا توجد خدمات مضافة حالياً.</p>
             <?php else: ?>
                 <?php foreach ($services_list as $srv): ?>
+                    <?php
+                        // تحديد الأيقونة للعرض في اللوحة
+                        $icon = '💎';
+                        $n = mb_strtolower($srv['name']);
+                        if (strpos($n, 'instagram') !== false || strpos($n, 'انستجرام') !== false) $icon = '📸';
+                        elseif (strpos($n, 'facebook') !== false || strpos($n, 'فيسبوك') !== false) $icon = '📘';
+                        elseif (strpos($n, 'tiktok') !== false || strpos($n, 'تيك توك') !== false) $icon = '🎵';
+                        elseif (strpos($n, 'youtube') !== false || strpos($n, 'يوتيوب') !== false) $icon = '📺';
+                        elseif (strpos($n, 'twitter') !== false || strpos($n, 'تويتر') !== false) $icon = '🐦';
+                        elseif (strpos($n, 'telegram') !== false || strpos($n, 'تيليجرام') !== false) $icon = '✈️';
+                    ?>
                     <div class="service-item">
                         <div class="service-details">
-                            <strong><?php echo htmlspecialchars($srv['name']); ?></strong>
+                            <strong><?php echo $icon; ?> <?php echo htmlspecialchars($srv['name']); ?></strong>
                             <br><span class="service-price"><?php echo htmlspecialchars($srv['price']); ?></span>
                             <?php if ($srv['description']): ?> - <span style="color:#64748b;"><?php echo htmlspecialchars($srv['description']); ?></span><?php endif; ?>
                         </div>

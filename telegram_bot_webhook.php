@@ -94,9 +94,21 @@ if (isset($update['callback_query'])) {
         if (empty($services)) {
             $msg = "عذراً، لا توجد خدمات متاحة حالياً لمنصة **$platformAr**. 😔\nيرجى المحاولة لاحقاً.";
         } else {
+            // تحديد أيقونة المنصة
+            $platformIcons = [
+                'instagram' => '📸',
+                'facebook' => '📘',
+                'tiktok' => '🎵',
+                'youtube' => '📺',
+                'twitter' => '🐦',
+                'telegram' => '✈️',
+                'other' => '💎'
+            ];
+            $pIcon = $platformIcons[$platform] ?? '💎';
+
             $msg = "🔥 **خدمات $platformAr المتاحة:**\n\n";
             foreach ($services as $s) {
-                $msg .= "💎 <b>{$s['name']}</b>\n";
+                $msg .= "$pIcon <b>{$s['name']}</b>\n";
                 $msg .= "💰 السعر: {$s['price']}\n";
                 if (!empty($s['description'])) $msg .= "📝 {$s['description']}\n";
                 $msg .= "------------------\n";
