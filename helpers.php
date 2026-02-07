@@ -876,7 +876,8 @@ function get_match_details($url) {
         "//div[contains(@class, 'events')]//ul/li", // بحث عام عن كلاس events
         "//div[contains(@class, 'tabContent')][contains(@class, 'events')]//ul/li", // محتوى التبويب الجديد
         "//li[.//span[contains(@class, 'min')] and .//div[contains(@class, 'description')]]", // بحث عام ذكي عن أي سطر حدث في الصفحة
-        "//div[contains(@class, 'item')][.//span[contains(@class, 'min')] and .//div[contains(@class, 'description')]]" // بحث عن div بدلاً من li
+        "//div[contains(@class, 'item')][.//span[contains(@class, 'min')] and .//div[contains(@class, 'description')]]", // بحث عن div بدلاً من li
+        "//li[.//span[contains(@class, 'min')]]" // الأكثر شمولاً: أي عنصر قائمة يحتوي على توقيت
     ];
 
     $eventNodes = null;
@@ -893,9 +894,18 @@ function get_match_details($url) {
             $class = $node->getAttribute('class');
             if (strpos($class, 'referee') !== false) continue; // تخطي الحكم
 
-            $min = trim($xpath->query(".//span[contains(@class, 'min')]", $node)->item(0)->textContent ?? '');
+            $minNode = $xpath->query(".//span[contains(@class, 'min')]", $node)->item(0);
+            $min = $minNode ? trim($minNode->textContent) : '';
+            
             $desc = trim($xpath->query(".//div[contains(@class, 'description')]", $node)->item(0)->textContent ?? '');
             $desc = preg_replace('/\s+/', ' ', $desc); // تنظيف المسافات
+
+            // إذا لم نجد الوصف في الكلاس المعتاد، نبحث في النص الكامل للعنصر مع استبعاد التوقيت
+            if (empty($desc) && !empty($min)) {
+                $fullText = $node->textContent;
+                $desc = trim(str_replace($min, '', $fullText));
+                $desc = preg_replace('/\s+/', ' ', $desc);
+            }
 
             $type = '';
             if (strpos($class, 'goal') !== false) $type = '⚽';
@@ -908,9 +918,18 @@ function get_match_details($url) {
                 if ($subIn && $subOut) $desc = "دخول: $subIn | خروج: $subOut";
             }
             elseif (strpos($class, 'penOut') !== false) $type = '❌ ركلة جزاء ضائعة:';
+            // محاولة استنتاج النوع من النص إذا لم يكن في الكلاس
+            elseif (empty($type)) {
+                if (mb_strpos($desc, 'هدف') !== false) $type = '⚽';
+                elseif (mb_strpos($desc, 'إنذار') !== false || mb_strpos($desc, 'بطاقة صفراء') !== false) $type = '🟨';
+                elseif (mb_strpos($desc, 'طرد') !== false || mb_strpos($desc, 'بطاقة حمراء') !== false) $type = '🟥';
+                elseif (mb_strpos($desc, 'تبديل') !== false || mb_strpos($desc, 'دخول') !== false) $type = '🔄';
+            }
 
-            if ($desc) {
-                $side = strpos($class, 'left') !== false ? '(ضيف)' : '(مستضيف)';
+            if ($desc && $min) {
+                // تحديد الفريق: left/teamB/away تعني الضيف، right/teamA/home تعني المستضيف
+                $is_away = (strpos($class, 'left') !== false || strpos($class, 'teamB') !== false || strpos($class, 'away') !== false);
+                $side = $is_away ? '(ضيف)' : '(مستضيف)';
                 $events[] = "$min' $type $desc $side";
             }
         }
@@ -920,7 +939,7 @@ function get_match_details($url) {
     if (empty($events)) {
         // تحسين Regex ليكون أكثر مرونة (لا يعتمد على ترتيب العناصر بدقة)
         // نبحث عن حاوية تحتوي على كلاس حدث، وبداخلها دقيقة ووصف
-        preg_match_all('/class="([^"]*(?:goal|yellowCard|redCard|sub)[^"]*)"[^>]*>.*?class="min"[^>]*>([^<]+)<.*?class="description"[^>]*>(.*?)<\/div>/is', $html, $matches_regex, PREG_SET_ORDER);
+        preg_match_all('/<li[^>]*class="([^"]*)"[^>]*>.*?<span[^>]*class="min"[^>]*>([^<]+)<\/span>.*?<div[^>]*class="description"[^>]*>(.*?)<\/div>.*?<\/li>/is', $html, $matches_regex, PREG_SET_ORDER);
         
         foreach ($matches_regex as $m) {
             $class = $m[1];
@@ -942,7 +961,8 @@ function get_match_details($url) {
                 }
             }
             
-            $side = strpos($class, 'left') !== false ? '(ضيف)' : '(مستضيف)';
+            $is_away = (strpos($class, 'left') !== false || strpos($class, 'teamB') !== false || strpos($class, 'away') !== false);
+            $side = $is_away ? '(ضيف)' : '(مستضيف)';
             
             if ($type && $desc) {
                 $events[] = "$min' $type $desc $side";
