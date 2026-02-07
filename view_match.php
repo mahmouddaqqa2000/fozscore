@@ -820,9 +820,9 @@ if (!$match) {
                         $display_channel = format_channel_name($match['channel']);
                         $logo_url = get_channel_logo_url($display_channel);
                         if ($logo_url): ?>
-                            <img src="<?php echo $logo_url; ?>" alt="<?php echo htmlspecialchars($display_channel); ?>" title="<?php echo htmlspecialchars($display_channel); ?>" onerror="this.outerHTML='📺'">
+                            <img src="<?php echo $logo_url; ?>" alt="<?php echo htmlspecialchars($display_channel); ?>" title="<?php echo htmlspecialchars($display_channel); ?>" onerror="this.onerror=null;this.src='assets/channels/beinsports-1.png';">
                         <?php else: ?>
-                            📺
+                            <img src="assets/channels/beinsports-1.png" alt="channel">
                         <?php endif; ?>
                         <?php echo htmlspecialchars($display_channel); ?>
                     </span>
