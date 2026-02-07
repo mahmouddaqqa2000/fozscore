@@ -276,58 +276,6 @@ function get_match_details_single($url) {
     foreach ($homeNodes as $node) { $p = $extractPlayer($node, $xpath); if ($p) $homePlayers[] = $p; }
     foreach ($awayNodes as $node) { $p = $extractPlayer($node, $xpath); if ($p) $awayPlayers[] = $p; }
 
-    // === منطق سحب عام (Generic Fallback) ===
-    // إذا لم نجد لاعبين بالطرق السابقة، نحاول البحث عن أي قوائم أو جداول تحتوي على أسماء
-    if (empty($homePlayers)) {
-        // التحقق من عدم وجود حظر CAPTCHA قبل استدعاء الذكاء الاصطناعي لتوفير الموارد
-        if (stripos($html, 'captcha') !== false || stripos($html, 'unusual traffic') !== false) {
-            // لا تقم بشيء، سيتم اكتشاف الخطأ في العرض الرئيسي
-        } else {
-        // === استخدام Gemini AI كحل ذكي ===
-        // نقوم بتنظيف النص من HTML لإرساله للبوت
-        $cleanText = $dom->textContent;
-        // إزالة المسافات الزائدة والأسطر الفارغة لتقليل حجم النص
-        $cleanText = preg_replace('/\s+/', ' ', $cleanText);
-        
-        $prompt = "
-        You are a football data extractor. Analyze the provided text which is a scraped webpage of a football match.
-        Extract the lineup (starting XI) and Match Statistics for both the Home Team and Away Team.
-        
-        Return ONLY a JSON object with this structure:
-        {
-            \"home_team\": \"Name of home team\",
-            \"away_team\": \"Name of away team\",
-            \"home_players\": [\"Player 1\", \"Player 2\", ...],
-            \"away_players\": [\"Player 1\", \"Player 2\", ...],
-            \"stats\": [
-                {\"label\": \"Possession\", \"home\": \"50%\", \"away\": \"50%\"},
-                {\"label\": \"Shots\", \"home\": \"10\", \"away\": \"5\"}
-            ]
-        }
-        If you cannot find a lineup, return empty arrays. Do not include markdown formatting.
-        ";
-
-        $aiResponse = ask_gemini_json($prompt, $cleanText);
-        
-        if ($aiResponse) {
-            $data = json_decode($aiResponse, true);
-            if (!empty($data['home_players']) && count($data['home_players']) > 5) {
-                $homePlayers = $data['home_players'];
-                $awayPlayers = $data['away_players'];
-                
-                if (!empty($data['stats'])) {
-                    $stats = $data['stats'];
-                }
-                // تحديث أسماء الفرق إذا وجدها الذكاء الاصطناعي
-                if (!empty($data['home_team'])) $teamHomeName = $data['home_team'];
-                if (!empty($data['away_team'])) $teamAwayName = $data['away_team'];
-                
-                echo "<div style='color:purple; font-weight:bold; margin-top:10px;'>🤖 تم استخراج التشكيلة باستخدام Gemini AI!</div>";
-            }
-        }
-        } // End else (No CAPTCHA)
-    }
-
     } // End else (Non-Kooora)
 
     $coachHome = trim($xpath->query("//div[contains(@class, 'teamA')]//div[contains(@class, 'manager')]//p")->item(0)->textContent ?? '');

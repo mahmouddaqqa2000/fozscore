@@ -1096,29 +1096,6 @@ function get_match_details($url) {
                 }
             }
         }
-
-        // === Gemini AI Fallback (الملاذ الأخير الذكي) ===
-        if (empty($homePlayers) && function_exists('ask_gemini_json')) {
-            $cleanText = strip_tags($html);
-            $cleanText = preg_replace('/\s+/', ' ', $cleanText);
-            // نأخذ جزءاً كافياً من النص يحتوي على التشكيلة
-            $contextText = substr($cleanText, 0, 40000); 
-
-            $prompt = "Extract the football lineup (starting XI) for Home and Away teams from this text. Return ONLY a JSON object: {\"home_players\": [\"Name1\", ...], \"away_players\": [\"Name1\", ...]}";
-            
-            $aiResponse = ask_gemini_json($prompt, $contextText);
-            if ($aiResponse) {
-                // تنظيف Markdown
-                $jsonStr = preg_replace('/^```(?:json)?|```$/i', '', trim($aiResponse));
-                $data = json_decode($jsonStr, true);
-
-                if (!empty($data['home_players']) && count($data['home_players']) >= 11) {
-                    $homePlayers = $data['home_players'];
-                    $awayPlayers = $data['away_players'] ?? [];
-                    $lineupDebug = "تم العثور عليها باستخدام Gemini AI";
-                }
-            }
-        }
     }
 
     $coachHome = trim($xpath->query("//div[contains(@class, 'teamA')]//div[contains(@class, 'manager')]//p")->item(0)->textContent ?? '');
