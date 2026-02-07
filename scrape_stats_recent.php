@@ -77,7 +77,7 @@ foreach ($dates as $date) {
     flush();
     
     // جلب المباريات التي لها رابط مصدر
-    $stmt = $pdo->prepare("SELECT id, team_home, team_away, source_url, match_events, match_stats, lineup_home FROM matches WHERE match_date = ? AND source_url IS NOT NULL AND source_url != ''");
+    $stmt = $pdo->prepare("SELECT id, team_home, team_away, source_url, match_events, match_stats, lineup_home, match_time, match_date FROM matches WHERE match_date = ? AND source_url IS NOT NULL AND source_url != ''");
     $stmt->execute([$date]);
     $matches = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
@@ -88,13 +88,31 @@ foreach ($dates as $date) {
         continue;
     }
 
+    // --- تحسين: ترتيب المباريات لإعطاء الأولوية للمباريات الجارية ---
+    usort($matches, function($a, $b) {
+        $statusA = get_match_status($a)['key'];
+        $statusB = get_match_status($b)['key'];
+
+        // الترتيب: جارية (0) < منتهية (1) < لم تبدأ (2)
+        $prio = ['live' => 0, 'finished' => 1, 'not_started' => 2];
+        
+        $pa = $prio[$statusA] ?? 3;
+        $pb = $prio[$statusB] ?? 3;
+
+        if ($pa === $pb) return 0;
+        return $pa <=> $pb;
+    });
+
     echo "<div style='padding:5px 10px; font-size:0.9em; color:#64748b;'>تم العثور على " . count($matches) . " مباراة. جاري المعالجة...</div>";
     echo str_repeat(" ", 4096); // حشو لإجبار العرض
     flush();
     
     foreach ($matches as $match) {
         echo "<div class='log-item'>";
-        echo "<span>{$match['team_home']} 🆚 {$match['team_away']}</span>";
+        
+        $status = get_match_status($match);
+        $live_badge = ($status['key'] === 'live') ? " <span style='color:red;font-weight:bold;animation:blink 1s infinite;'>[مباشر]</span>" : "";
+        echo "<span>{$match['team_home']} 🆚 {$match['team_away']}$live_badge</span>";
         echo str_repeat(" ", 1024); // حشو إضافي لكل سطر
         flush(); // إرسال النص فوراً قبل بدء السحب
         
@@ -109,6 +127,13 @@ foreach ($dates as $date) {
 
         // سحب التفاصيل
         $details = get_match_details($match['source_url']);
+
+        // --- تدقيق إضافي للمباريات الجارية ---
+        // إذا كانت المباراة جارية ولم نجد أحداثاً، نحاول مرة أخرى فوراً (قد يكون خطأ اتصال عابر)
+        if ($status['key'] === 'live' && empty($details['match_events'])) {
+            usleep(500000); // انتظار نصف ثانية
+            $details = get_match_details($match['source_url']); // إعادة المحاولة
+        }
         
         // عرض حالة سحب التشكيلة للتشخيص
         if (empty($details['home'])) {
