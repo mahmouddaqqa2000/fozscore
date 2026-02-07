@@ -640,17 +640,34 @@ if (!$match) {
             .timeline-content.home, .timeline-content.away { padding: 0; padding-right: 10px; justify-content: flex-start; flex: 1; order: 2; }
             .timeline-content:empty { display: none; }
         }
+
+        /* Yallakora-style Event Icons & Details */
+        .timeline-card {
+            display: flex; align-items: center; gap: 12px;
+            padding: 10px 15px; border-radius: 8px;
+            background: #fff; border: 1px solid #e2e8f0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            min-height: 45px;
+        }
+        .event-icon {
+            width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;
+            font-size: 1.2rem; flex-shrink: 0;
+        }
+        .event-icon.yellow-card { width: 18px; height: 24px; background: #ffeb3b; border-radius: 3px; border: 1px solid #f59e0b; box-shadow: 1px 1px 2px rgba(0,0,0,0.1); }
+        .event-icon.red-card { width: 18px; height: 24px; background: #ef4444; border-radius: 3px; border: 1px solid #b91c1c; box-shadow: 1px 1px 2px rgba(0,0,0,0.1); }
         
-        /* Timeline Event Colors */
-        .timeline-card.goal { background-color: #dcfce7; border-color: #86efac; color: #14532d; }
-        .timeline-card.yellow-card { background-color: #fef9c3; border-color: #fde047; color: #713f12; }
-        .timeline-card.red-card { background-color: #fee2e2; border-color: #fca5a5; color: #7f1d1d; }
-        .timeline-card.sub { background-color: #f1f5f9; border-color: #cbd5e1; color: #475569; }
+        .event-text { font-weight: 700; font-size: 0.95rem; line-height: 1.4; color: var(--primary); }
         
-        body.dark-mode .timeline-card.goal { background-color: #064e3b; border-color: #065f46; color: #ecfdf5; }
-        body.dark-mode .timeline-card.yellow-card { background-color: #422006; border-color: #854d0e; color: #fefce8; }
-        body.dark-mode .timeline-card.red-card { background-color: #450a0a; border-color: #7f1d1d; color: #fef2f2; }
-        body.dark-mode .timeline-card.sub { background-color: #1e293b; border-color: #334155; color: #f1f5f9; }
+        /* Substitution Styling */
+        .sub-container { display: flex; flex-direction: column; gap: 2px; }
+        .sub-row { display: flex; align-items: center; gap: 6px; font-size: 0.9rem; }
+        .sub-in { color: #16a34a; font-weight: 700; }
+        .sub-out { color: #dc2626; font-size: 0.85rem; opacity: 0.8; }
+        
+        body.dark-mode .timeline-card { background: #1e293b; border-color: #334155; color: #f1f5f9; }
+        body.dark-mode .event-text { color: #f1f5f9; }
+        body.dark-mode .sub-in { color: #4ade80; }
+        body.dark-mode .sub-out { color: #f87171; }
 
         /* Dark Mode Support */
         body.dark-mode {
@@ -1147,34 +1164,60 @@ if (!$match) {
         <div class="timeline">
             <?php foreach ($parsed_events as $ev): ?>
                 <?php
-                    $type_class = '';
-                    $icon = '';
+                    $type_class = 'default';
+                    $icon_html = '';
                     $text = $ev['text'];
+                    $clean_text = $text;
                     
                     // تحديد نوع الحدث وإضافة الأيقونة إذا لم تكن موجودة
                     if (mb_strpos($text, '⚽') !== false || mb_strpos($text, 'هدف') !== false) {
                         $type_class = 'goal';
-                        if (mb_strpos($text, '⚽') === false) $icon = '⚽ ';
+                        $icon_html = '<span class="event-icon goal">⚽</span>';
+                        $clean_text = str_replace(['⚽', 'هدف'], '', $text);
                     } elseif (mb_strpos($text, '🟨') !== false || mb_strpos($text, 'إنذار') !== false || mb_strpos($text, 'بطاقة صفراء') !== false) {
                         $type_class = 'yellow-card';
-                        if (mb_strpos($text, '🟨') === false) $icon = '🟨 ';
+                        $icon_html = '<span class="event-icon yellow-card"></span>';
+                        $clean_text = str_replace(['🟨', 'إنذار', 'بطاقة صفراء'], '', $text);
                     } elseif (mb_strpos($text, '🟥') !== false || mb_strpos($text, 'طرد') !== false || mb_strpos($text, 'بطاقة حمراء') !== false) {
                         $type_class = 'red-card';
-                        if (mb_strpos($text, '🟥') === false) $icon = '🟥 ';
+                        $icon_html = '<span class="event-icon red-card"></span>';
+                        $clean_text = str_replace(['🟥', 'طرد', 'بطاقة حمراء'], '', $text);
                     } elseif (mb_strpos($text, '🔄') !== false || mb_strpos($text, 'تبديل') !== false || mb_strpos($text, 'دخول') !== false) {
                         $type_class = 'sub';
-                        if (mb_strpos($text, '🔄') === false) $icon = '🔄 ';
+                        $icon_html = '<span class="event-icon sub">🔄</span>';
+                        $clean_text = str_replace(['🔄', 'تبديل'], '', $text);
+                        // تنسيق التبديل (دخول وخروج)
+                        if (preg_match('/دخول:\s*(.*?)\s*\|\s*خروج:\s*(.*)/u', $clean_text, $sub_matches)) {
+                            $clean_text = '<div class="sub-container"><div class="sub-row"><span style="color:#16a34a;">⬆</span> <span class="sub-in">' . trim($sub_matches[1]) . '</span></div><div class="sub-row"><span style="color:#dc2626;">⬇</span> <span class="sub-out">' . trim($sub_matches[2]) . '</span></div></div>';
+                        }
+                    } elseif (mb_strpos($text, '❌') !== false || mb_strpos($text, 'ركلة جزاء ضائعة') !== false) {
+                        $type_class = 'missed-pen';
+                        $icon_html = '<span class="event-icon missed-pen">❌</span>';
+                        $clean_text = str_replace(['❌', 'ركلة جزاء ضائعة:'], '', $text);
                     }
                     
-                    $display_text = $icon . htmlspecialchars($text);
+                    // تنظيف النص من الرموز المتبقية إذا لم يكن تبديلاً (لأن التبديل أصبح HTML)
+                    if ($type_class !== 'sub') {
+                        $clean_text = trim($clean_text);
+                    }
                 ?>
                 <div class="timeline-row">
                     <div class="timeline-content home">
-                        <?php if ($ev['side'] === 'home'): ?><div class="timeline-card <?php echo $type_class; ?>"><?php echo $display_text; ?></div><?php endif; ?>
+                        <?php if ($ev['side'] === 'home'): ?>
+                            <div class="timeline-card <?php echo $type_class; ?>">
+                                <?php echo $icon_html; ?>
+                                <div class="event-text"><?php echo $clean_text; ?></div>
+                            </div>
+                        <?php endif; ?>
                     </div>
                     <div class="timeline-time"><?php echo htmlspecialchars($ev['min']); ?>'</div>
                     <div class="timeline-content away">
-                        <?php if ($ev['side'] === 'away'): ?><div class="timeline-card <?php echo $type_class; ?>"><?php echo $display_text; ?></div><?php endif; ?>
+                        <?php if ($ev['side'] === 'away'): ?>
+                            <div class="timeline-card <?php echo $type_class; ?>">
+                                <?php echo $icon_html; ?>
+                                <div class="event-text"><?php echo $clean_text; ?></div>
+                            </div>
+                        <?php endif; ?>
                     </div>
                 </div>
             <?php endforeach; ?>
