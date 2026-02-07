@@ -143,7 +143,6 @@ if (isset($update['message'])) {
                                 $msg .= "💵 تكلفة الطلب: $" . number_format($total_cost, 2) . "\n";
                                 $msg .= "💰 رصيدك الحالي: $" . number_format($current_balance, 2) . "\n\n";
                                 $contact = $settings['contact_user'] ?? 'الإدارة';
-                                $msg .= "💳 لشحن الرصيد، تواصل مع: $contact";
                                 
                                 $keyboard = null;
                                 if ($contact && strpos($contact, '@') === 0) {
@@ -367,7 +366,7 @@ if (isset($update['callback_query'])) {
         
         if ($current_balance <= 0) {
             $contact = $settings['contact_user'] ?? 'الإدارة';
-            $msg = "🚫 **عذراً، رصيدك صفر!**\n\nلا يمكنك طلب خدمات حتى تقوم بشحن رصيدك.\n💳 لشحن الرصيد، تواصل مع: $contact";
+            $msg = "🚫 **عذراً، رصيدك صفر!**\n\nلا يمكنك طلب خدمات حتى تقوم بشحن رصيدك.";
             
             $keyboard = null;
             if ($contact && strpos($contact, '@') === 0) {
@@ -400,7 +399,7 @@ if (isset($update['callback_query'])) {
             
             if ($current_balance <= 0) {
                 $contact = $settings['contact_user'] ?? 'الإدارة';
-                $msg = "🚫 **عذراً، رصيدك صفر!**\n\nلا يمكنك طلب خدمات حتى تقوم بشحن رصيدك.\n💳 لشحن الرصيد، تواصل مع: $contact";
+                $msg = "🚫 **عذراً، رصيدك صفر!**\n\nلا يمكنك طلب خدمات حتى تقوم بشحن رصيدك.";
                 
                 $keyboard = null;
                 if ($contact && strpos($contact, '@') === 0) {
