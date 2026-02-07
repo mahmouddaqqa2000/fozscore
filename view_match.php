@@ -41,8 +41,6 @@ if (!$match) {
     $absent_home = !empty($match['absent_home']) ? preg_split('/\r\n|\r|\n/', $match['absent_home']) : [];
     $absent_away = !empty($match['absent_away']) ? preg_split('/\r\n|\r|\n/', $match['absent_away']) : [];
     $match_news = !empty($match['match_news']) ? preg_split('/\r\n|\r|\n/', $match['match_news']) : [];
-    $player_stats_home = !empty($match['player_stats_home']) ? preg_split('/\r\n|\r|\n/', $match['player_stats_home']) : [];
-    $player_stats_away = !empty($match['player_stats_away']) ? preg_split('/\r\n|\r|\n/', $match['player_stats_away']) : [];
     
     // جلب آخر 3 أخبار عامة
     $stmt_news = $pdo->query("SELECT * FROM news ORDER BY created_at DESC LIMIT 3");
@@ -427,12 +425,6 @@ if (!$match) {
         .news-icon { color: var(--secondary); font-size: 1.2rem; margin-top: -2px; }
         .news-text { font-size: 0.95rem; line-height: 1.5; color: var(--text); }
 
-        /* Player Stats Table */
-        .player-stats-table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
-        .player-stats-table th, .player-stats-table td { padding: 10px; text-align: center; border-bottom: 1px solid var(--border); }
-        .player-stats-table th { background: #f8fafc; color: var(--text-light); font-size: 0.9rem; }
-        .player-stats-table td:first-child { text-align: right; font-weight: 600; }
-
         /* Lists Styling (Bench & Absent) */
         .lists-container { display: flex; gap: 2rem; margin-top: 2rem; }
         .list-column { flex: 1; }
@@ -735,7 +727,6 @@ if (!$match) {
         body.dark-mode .tab-content { background: var(--card); border-color: var(--border); }
         body.dark-mode .h2h-item { background: #2d3748; }
         body.dark-mode .h2h-score { background: #334155; }
-        body.dark-mode .player-stats-table th { background: #2d3748; color: var(--text-light); }
         body.dark-mode .player-list-item { border-bottom-color: var(--border); }
         body.dark-mode .player-list-number { background: #334155; color: var(--text); }
         body.dark-mode .stat-bar-container { background: #334155; }
@@ -1001,7 +992,6 @@ if (!$match) {
                 <button class="tab-button <?php echo $active_tab === 'lineup' ? 'active' : ''; ?>" onclick="openTab(event, 'lineup')">التشكيلة</button>
                 <button class="tab-button <?php echo $active_tab === 'h2h' ? 'active' : ''; ?>" onclick="openTab(event, 'h2h')">المواجهات</button>
                 <button class="tab-button <?php echo $active_tab === 'stats' ? 'active' : ''; ?>" onclick="openTab(event, 'stats')">الإحصائيات</button>
-                <button class="tab-button <?php echo $active_tab === 'player_stats' ? 'active' : ''; ?>" onclick="openTab(event, 'player_stats')">إحصائيات اللاعبين</button>
                 <button class="tab-button <?php echo $active_tab === 'standings' ? 'active' : ''; ?>" onclick="openTab(event, 'standings')">المراكز</button>
                 <button class="tab-button <?php echo $active_tab === 'events' ? 'active' : ''; ?>" onclick="openTab(event, 'events')">الأحداث</button>
             </div>
@@ -1252,53 +1242,6 @@ if (!$match) {
                     <?php endforeach; ?>
                 <?php else: ?>
                     <p class="placeholder-text">لا توجد إحصائيات متوفرة لهذه المباراة بعد.</p>
-                <?php endif; ?>
-            </div>
-
-            <div id="player_stats" class="tab-content <?php echo $active_tab === 'player_stats' ? 'active' : ''; ?>">
-                <?php 
-                $parsed_pstats_home = parse_player_stats($player_stats_home);
-                $parsed_pstats_away = parse_player_stats($player_stats_away);
-                
-                if (empty($parsed_pstats_home) && empty($parsed_pstats_away)): ?>
-                    <p class="placeholder-text">لا توجد إحصائيات فردية للاعبين.</p>
-                <?php else: ?>
-                    <div class="lists-container">
-                        <div class="list-column">
-                            <div class="list-header"><?php echo htmlspecialchars($match['team_home']); ?></div>
-                            <table class="player-stats-table">
-                                <thead>
-                                    <tr><th>اللاعب</th><th>أهداف</th><th>تمريرات</th></tr>
-                                </thead>
-                                <tbody>
-                                    <?php foreach ($parsed_pstats_home as $p): ?>
-                                    <tr>
-                                        <td><?php echo htmlspecialchars($p['name']); ?></td>
-                                        <td><?php echo $p['goals'] > 0 ? $p['goals'] : '-'; ?></td>
-                                        <td><?php echo $p['assists'] > 0 ? $p['assists'] : '-'; ?></td>
-                                    </tr>
-                                    <?php endforeach; ?>
-                                </tbody>
-                            </table>
-                        </div>
-                        <div class="list-column">
-                            <div class="list-header"><?php echo htmlspecialchars($match['team_away']); ?></div>
-                            <table class="player-stats-table">
-                                <thead>
-                                    <tr><th>اللاعب</th><th>أهداف</th><th>تمريرات</th></tr>
-                                </thead>
-                                <tbody>
-                                    <?php foreach ($parsed_pstats_away as $p): ?>
-                                    <tr>
-                                        <td><?php echo htmlspecialchars($p['name']); ?></td>
-                                        <td><?php echo $p['goals'] > 0 ? $p['goals'] : '-'; ?></td>
-                                        <td><?php echo $p['assists'] > 0 ? $p['assists'] : '-'; ?></td>
-                                    </tr>
-                                    <?php endforeach; ?>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
                 <?php endif; ?>
             </div>
 
