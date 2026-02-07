@@ -17,7 +17,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'social_twitter', 'social_facebook', 'social_youtube', 'social_instagram',
         'telegram_bot_token', 'telegram_chat_id',
         'twitter_api_key', 'twitter_api_secret', 'twitter_access_token', 'twitter_access_token_secret',
-        'ad_code_header', 'ad_code_body', 'ad_code_footer'
+        'ad_code_header', 'ad_code_body', 'ad_code_footer', 'ad_code_sidebar'
     ];
 
     $stmt = $pdo->prepare("INSERT OR REPLACE INTO settings (key_name, value) VALUES (?, ?)");
@@ -131,6 +131,10 @@ $settings = get_site_settings($pdo);
                 <div class="form-group">
                     <label>إعلان الفوتر (أسفل جميع الصفحات)</label>
                     <textarea name="ad_code_footer" placeholder="<script>...</script>"><?php echo htmlspecialchars($settings['ad_code_footer']); ?></textarea>
+                </div>
+                <div class="form-group">
+                    <label>إعلان القائمة الجانبية (يظهر فقط على الكمبيوتر)</label>
+                    <textarea name="ad_code_sidebar" placeholder="<script>...</script>"><?php echo htmlspecialchars($settings['ad_code_sidebar']); ?></textarea>
                 </div>
             </div>
 

@@ -389,6 +389,10 @@ $important_matches = array_filter($matches, function($m) use ($important_teams) 
         @media (min-width: 992px) {
             .content-grid { display: grid; grid-template-columns: 1fr 350px; align-items: start; gap: 2rem; }
             .sidebar-column { position: sticky; top: 2rem; }
+            .sidebar-ad-container { display: block; }
+        }
+        @media (max-width: 991px) {
+            .sidebar-ad-container { display: none; }
         }
         
         /* News Section */
@@ -644,6 +648,11 @@ $important_matches = array_filter($matches, function($m) use ($important_teams) 
                 <?php endif; ?>
             </div>
             <div class="sidebar-column">
+                <?php if (!empty($settings['ad_code_sidebar'])): ?>
+                    <div class="sidebar-ad-container" style="margin-bottom: 20px; text-align: center;">
+                        <?php echo $settings['ad_code_sidebar']; ?>
+                    </div>
+                <?php endif; ?>
                 <?php
                 // جلب آخر 5 أخبار
                 $stmt_news = $pdo->query("SELECT * FROM news ORDER BY created_at DESC LIMIT 5");
