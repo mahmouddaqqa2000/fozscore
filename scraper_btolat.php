@@ -31,11 +31,11 @@ $dom = new DOMDocument();
 $xpath = new DOMXPath($dom);
 
 // البحث عن كروت المباريات - توسيع نطاق البحث
-$match_cards = $xpath->query("//div[contains(@class, 'matchCard')] | //div[contains(@class, 'match-card')] | //div[contains(@class, 'liItem')] | //div[contains(@class, 'matchRow')]");
+$match_cards = $xpath->query("//li[contains(@class, 'fullMatchBox')] | //div[contains(@class, 'matchCard')] | //div[contains(@class, 'liItem')]");
 
 if ($match_cards->length === 0) {
     echo "<div style='color:orange; margin: 10px 0;'>لم يتم العثور على مباريات باستخدام المحددات الافتراضية. جاري محاولة البحث العام...</div>";
-    $match_cards = $xpath->query("//div[contains(@class, 'match')][not(contains(@class, 'matches'))][not(contains(@class, 'matchsDays'))][not(contains(@class, 'day'))] | //li[contains(@class, 'match')]");
+    $match_cards = $xpath->query("//li[contains(@class, 'match')] | //div[contains(@class, 'match')][not(contains(@class, 'matches'))]");
 }
 
 echo "<p>تم العثور على " . $match_cards->length . " مباراة.</p>";
@@ -50,22 +50,20 @@ $stmtUpdate = $pdo->prepare("UPDATE matches SET score_home = ?, score_away = ?, 
 
 foreach ($match_cards as $card) {
     // استخراج البيانات - محاولات متعددة للأسماء
-    $home_queries = [".//div[contains(@class, 'teamA')]", ".//div[contains(@class, 'home')]", ".//div[contains(@class, 'team1')]", ".//div[contains(@class, 'team-right')]"];
+    // تم التحديث لدعم a.team1 و div.team1
+    $home_queries = [".//*[contains(@class, 'team1')]", ".//*[contains(@class, 'teamA')]", ".//*[contains(@class, 'home')]"];
     $team_home = null;
     foreach ($home_queries as $q) {
         $node = $xpath->query($q, $card)->item(0);
         if ($node) { $team_home = trim($node->textContent); break; }
     }
 
-    $away_queries = [".//div[contains(@class, 'teamB')]", ".//div[contains(@class, 'away')]", ".//div[contains(@class, 'team2')]", ".//div[contains(@class, 'team-left')]"];
+    $away_queries = [".//*[contains(@class, 'team2')]", ".//*[contains(@class, 'teamB')]", ".//*[contains(@class, 'away')]"];
     $team_away = null;
     foreach ($away_queries as $q) {
         $node = $xpath->query($q, $card)->item(0);
         if ($node) { $team_away = trim($node->textContent); break; }
     }
-
-    $score_node = $xpath->query(".//div[contains(@class, 'result')] | .//div[contains(@class, 'score')] | .//span[contains(@class, 'score')]", $card)->item(0);
-    $score_text = $score_node ? trim($score_node->textContent) : '';
 
     $time_node = $xpath->query(".//div[contains(@class, 'time')] | .//span[contains(@class, 'matchDate')] | .//div[contains(@class, 'date')]", $card)->item(0);
     $match_time = $time_node ? trim($time_node->textContent) : '';
@@ -75,7 +73,7 @@ foreach ($match_cards as $card) {
     $prev = $card->parentNode->previousSibling;
     while ($prev && $prev->nodeType !== XML_ELEMENT_NODE) { $prev = $prev->previousSibling; }
     if ($prev) {
-        $champNode = $xpath->query(".//h2 | .//div[contains(@class, 'title')]", $prev)->item(0);
+        $champNode = $xpath->query(".//h2 | .//div[contains(@class, 'legTitle')] | .//div[contains(@class, 'title')]", $prev)->item(0);
         if ($champNode) $championship = trim($champNode->textContent);
     }
 
@@ -87,10 +85,26 @@ foreach ($match_cards as $card) {
         $score_home = null;
         $score_away = null;
 
-        if (strpos($score_text, '-') !== false) {
-            $parts = explode('-', $score_text);
-            $score_home = (int) trim($parts[0]);
-            $score_away = (int) trim($parts[1]);
+        // محاولة استخراج النتيجة من team1G و team2G
+        $s1_node = $xpath->query(".//div[contains(@class, 'team1G')]", $card)->item(0);
+        $s2_node = $xpath->query(".//div[contains(@class, 'team2G')]", $card)->item(0);
+        
+        if ($s1_node && $s2_node) {
+            $s1 = clean_text($s1_node->textContent);
+            $s2 = clean_text($s2_node->textContent);
+            if ($s1 !== '' && $s2 !== '') {
+                $score_home = (int)$s1;
+                $score_away = (int)$s2;
+            }
+        } else {
+            // محاولة احتياطية
+            $score_node = $xpath->query(".//div[contains(@class, 'result')] | .//div[contains(@class, 'score')]", $card)->item(0);
+            $score_text = $score_node ? clean_text($score_node->textContent) : '';
+            if (strpos($score_text, '-') !== false) {
+                $parts = explode('-', $score_text);
+                $score_home = (int) trim($parts[0]);
+                $score_away = (int) trim($parts[1]);
+            }
         }
 
         $stmtCheck->execute([$team_home, $team_away, $today]);
