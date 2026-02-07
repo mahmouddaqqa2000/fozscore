@@ -549,8 +549,8 @@ if (!$match) {
                 margin-top: 1.5rem;
             }
             .tab-button {
-                padding: 0.8rem 0.2rem;
-                font-size: 0.9rem;
+                padding: 8px 1px;
+                font-size: 0.75rem;
             }
             .tab-content {
                 padding: 1rem;
