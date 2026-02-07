@@ -39,7 +39,10 @@ if (isset($update['message'])) {
         $keyboard = [
             'inline_keyboard' => [
                 [
-                    ['text' => '📸 انستجرام', 'callback_data' => 'platform_instagram'],
+                    ['text' => '🔥 العروض الخاصة', 'callback_data' => 'platform_special_offers']
+                ],
+                [
+                    ['text' => '� انستجرام', 'callback_data' => 'platform_instagram'],
                     ['text' => '📘 فيسبوك', 'callback_data' => 'platform_facebook']
                 ],
                 [
@@ -80,6 +83,7 @@ if (isset($update['callback_query'])) {
             'youtube' => 'يوتيوب',
             'twitter' => 'تويتر',
             'telegram' => 'تيليجرام',
+            'special_offers' => 'العروض الخاصة',
             'other' => 'أخرى'
         ];
         
@@ -102,6 +106,7 @@ if (isset($update['callback_query'])) {
                 'youtube' => '📺',
                 'twitter' => '🐦',
                 'telegram' => '✈️',
+                'special_offers' => '🔥',
                 'other' => '💎'
             ];
             $pIcon = $platformIcons[$platform] ?? '💎';
@@ -139,6 +144,9 @@ if (isset($update['callback_query'])) {
         $msg = "👇 **يرجى اختيار المنصة التي تريد خدمات لها:**";
         $keyboard = [
             'inline_keyboard' => [
+                [
+                    ['text' => '🔥 العروض الخاصة', 'callback_data' => 'platform_special_offers']
+                ],
                 [
                     ['text' => '📸 انستجرام', 'callback_data' => 'platform_instagram'],
                     ['text' => '📘 فيسبوك', 'callback_data' => 'platform_facebook']

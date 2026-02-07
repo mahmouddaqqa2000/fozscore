@@ -312,6 +312,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 elseif ($cat === 'youtube') $icon = '📺';
                 elseif ($cat === 'twitter') $icon = '🐦';
                 elseif ($cat === 'telegram') $icon = '✈️';
+                elseif ($cat === 'special_offers') $icon = '🔥';
                 elseif ($cat === 'other') $icon = '🌐';
                 else {
                     // Fallback logic based on name
@@ -490,6 +491,7 @@ $services_list = $pdo->query("SELECT * FROM bot_services ORDER BY id DESC")->fet
                         <option value="youtube">📺 يوتيوب</option>
                         <option value="twitter">🐦 تويتر (X)</option>
                         <option value="telegram">✈️ تيليجرام</option>
+                        <option value="special_offers">🔥 العروض الخاصة</option>
                         <option value="other">🌐 خدمات أخرى</option>
                     </select>
                 </div>
@@ -518,6 +520,7 @@ $services_list = $pdo->query("SELECT * FROM bot_services ORDER BY id DESC")->fet
                         elseif ($cat === 'youtube') $icon = '📺';
                         elseif ($cat === 'twitter') $icon = '🐦';
                         elseif ($cat === 'telegram') $icon = '✈️';
+                        elseif ($cat === 'special_offers') $icon = '🔥';
                         elseif ($cat === 'other') $icon = '🌐';
                     ?>
                     <div class="service-item">
