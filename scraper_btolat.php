@@ -1,16 +1,32 @@
 <?php
 require_once __DIR__ . '/db.php';
 header('Content-Type: text/html; charset=utf-8');
+date_default_timezone_set('Africa/Cairo'); // ضبط التوقيت للقاهرة لضمان توافق التواريخ
 set_time_limit(0);
 
 echo '<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&display=swap" rel="stylesheet">';
 echo '<body style="font-family: \'Tajawal\', sans-serif; direction: rtl; text-align: center; background: #f8fafc; color: #1e293b; padding: 20px;">';
 echo "<h3>جاري سحب جدول المباريات من Btolat.com...</h3>";
 
+// دالة لجلب الوقت الحقيقي من الإنترنت لتجاوز خطأ توقيت السيرفر
+function get_network_time() {
+    $ch = curl_init("http://www.google.com/");
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+    curl_setopt($ch, CURLOPT_HEADER, 1);
+    curl_setopt($ch, CURLOPT_NOBODY, 1);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 5);
+    $response = curl_exec($ch);
+    if ($response && preg_match('/^Date: (.+)$/mi', $response, $matches)) {
+        return strtotime($matches[1]);
+    }
+    return time();
+}
+$base_timestamp = get_network_time();
+
 // تحديد التواريخ: اليوم وغداً
 $dates_to_scrape = [
-    date('Y-m-d'),
-    date('Y-m-d', strtotime('+1 day'))
+    date('Y-m-d', $base_timestamp),
+    date('Y-m-d', strtotime('+1 day', $base_timestamp))
 ];
 
 // تحضير الاستعلامات
@@ -33,6 +49,13 @@ foreach ($dates_to_scrape as $current_date) {
     curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36');
     curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
     curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+        'Accept-Language: ar,en-US;q=0.9,en;q=0.8',
+        'Cache-Control: no-cache',
+        'Pragma: no-cache'
+    ]);
+    curl_setopt($ch, CURLOPT_ENCODING, ''); // مهم جداً لفك ضغط الاستجابة
     $html = curl_exec($ch);
     $error = curl_error($ch);
     curl_close($ch);
