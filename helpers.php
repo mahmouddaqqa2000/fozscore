@@ -1012,7 +1012,7 @@ function get_match_details($url) {
         // استراتيجية التقسيم (Explode Strategy) - الحل الجذري
         // نقوم بتقسيم الكود بناءً على كلاس اللاعب، ثم نستخرج البيانات من كل جزء
         // هذا يتجاوز مشاكل تداخل HTML وتعقيد Regex
-        $playerChunks = preg_split('/class=["\'][^"\']*\bplayer\b[^"\']*["\']/i', $html);
+        $playerChunks = preg_split('/class\s*=\s*["\'][^"\']*\bplayer\b[^"\']*["\']/i', $html);
         
         // العنصر الأول هو ما قبل أول لاعب، نتجاهله
         array_shift($playerChunks);
@@ -1025,19 +1025,19 @@ function get_match_details($url) {
             
             // استخراج الاسم: نبحث عن كلاس name أو playerName
             $name = '';
-            if (preg_match('/class=["\'][^"\']*\b(?:name|playerName)\b[^"\']*["\'][^>]*>(.*?)<\//is', $chunk, $nMatch)) {
+            if (preg_match('/class\s*=\s*["\'][^"\']*\b(?:name|playerName)\b[^"\']*["\'][^>]*>(.*?)<\//is', $chunk, $nMatch)) {
                 $name = trim(strip_tags($nMatch[1]));
             }
             
             // استخراج الرقم
             $num = '';
-            if (preg_match('/class=["\'][^"\']*\bnumber\b[^"\']*["\'][^>]*>(.*?)<\//is', $chunk, $numMatch)) {
+            if (preg_match('/class\s*=\s*["\'][^"\']*\bnumber\b[^"\']*["\'][^>]*>(.*?)<\//is', $chunk, $numMatch)) {
                 $num = trim(strip_tags($numMatch[1]));
             }
             
             // استخراج الصورة
             $img = null;
-            if (preg_match('/<img[^>]*src=["\']([^"\']+)["\']/i', $chunk, $imgMatch)) {
+            if (preg_match('/<img[^>]*src\s*=\s*["\']([^"\']+)["\']/i', $chunk, $imgMatch)) {
                 $img = $imgMatch[1];
             }
             
@@ -1062,6 +1062,38 @@ function get_match_details($url) {
             $lineupDebug = "تم العثور عليها باستخدام Explode Strategy ($total لاعب)";
         } else {
             $lineupDebug .= " فشل Explode Strategy (العدد: " . count($allPlayers) . ")";
+            
+            // === الملاذ الأخير: استراتيجية البحث الشامل (Global Regex) ===
+            // نبحث عن كل الأسماء والأرقام في الصفحة بغض النظر عن أماكنها
+            preg_match_all('/class\s*=\s*["\'][^"\']*\b(?:playerName|name)\b[^"\']*["\'][^>]*>(.*?)<\//is', $html, $nameMatches);
+            preg_match_all('/class\s*=\s*["\'][^"\']*\bnumber\b[^"\']*["\'][^>]*>(.*?)<\//is', $html, $numMatches);
+            
+            if (!empty($nameMatches[1])) {
+                $allPlayers = [];
+                $names = $nameMatches[1];
+                $numbers = $numMatches[1] ?? [];
+                
+                foreach ($names as $i => $rawName) {
+                    $name = trim(strip_tags($rawName));
+                    // تنظيف الاسم والتحقق منه (استبعاد كلمات القائمة)
+                    if ($name && mb_strlen($name) > 2 && !in_array($name, ['التشكيل', 'دقيقة بدقيقة', 'إحصائيات', 'أحداث', 'صور', 'فيديو', 'الرئيسية', 'أخبار'])) {
+                        $num = isset($numbers[$i]) ? trim(strip_tags($numbers[$i])) : '';
+                        $playerStr = $name;
+                        if ($num) $playerStr .= " | " . $num;
+                        $allPlayers[] = $playerStr;
+                    }
+                }
+                
+                if (count($allPlayers) >= 11) {
+                    $total = count($allPlayers);
+                    $half = ceil($total / 2);
+                    $homePlayers = array_slice($allPlayers, 0, $half);
+                    $awayPlayers = array_slice($allPlayers, $half);
+                    $lineupDebug = "تم العثور عليها باستخدام Global Regex ($total لاعب)";
+                } else {
+                    $lineupDebug .= " | فشل Global Regex (العدد: " . count($allPlayers) . ")";
+                }
+            }
         }
     }
 
