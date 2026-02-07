@@ -939,7 +939,7 @@ function get_match_details($url) {
 
     // دالة مساعدة لاستخراج بيانات اللاعب
     $extractPlayer = function($node, $xpath) {
-        $nameNode = $xpath->query(".//p[contains(@class, 'playerName')]|.//span[contains(@class, 'name')]|.//p[not(contains(@class, 'number'))]", $node)->item(0);
+        $nameNode = $xpath->query(".//p[contains(@class, 'playerName')]|.//span[contains(@class, 'name')]|.//p[contains(@class, 'name')]|.//div[contains(@class, 'name')]", $node)->item(0);
         $name = trim($nameNode->textContent ?? '');
         $num = trim($xpath->query(".//p[contains(@class, 'number')]|.//span[contains(@class, 'number')]", $node)->item(0)->textContent ?? '');
         $img = $xpath->query(".//img", $node)->item(0)?->getAttribute('src');
@@ -959,7 +959,9 @@ function get_match_details($url) {
     // محاولات البحث عن التشكيلة
     $lineupQueries = [
         ['//div[@id="squad"]//div[contains(@class, "teamA")]//div[contains(@class, "player")]', '//div[@id="squad"]//div[contains(@class, "teamB")]//div[contains(@class, "player")]'],
-        ['//div[contains(@class, "formation")]//div[contains(@class, "teamA")]//div[contains(@class, "player")]', '//div[contains(@class, "formation")]//div[contains(@class, "teamB")]//div[contains(@class, "player")]']
+        ['//div[contains(@class, "formation")]//div[contains(@class, "teamA")]//div[contains(@class, "player")]', '//div[contains(@class, "formation")]//div[contains(@class, "teamB")]//div[contains(@class, "player")]'],
+        ['//div[contains(@class, "matchLineup")]//div[contains(@class, "teamA")]//div[contains(@class, "player")]', '//div[contains(@class, "matchLineup")]//div[contains(@class, "teamB")]//div[contains(@class, "player")]'],
+        ['//div[contains(@class, "teamA")]//div[contains(@class, "player")]', '//div[contains(@class, "teamB")]//div[contains(@class, "player")]']
     ];
 
     foreach ($lineupQueries as $q) {
@@ -969,6 +971,42 @@ function get_match_details($url) {
             foreach ($homeNodes as $node) { $p = $extractPlayer($node, $xpath); if ($p) $homePlayers[] = $p; }
             foreach ($awayNodes as $node) { $p = $extractPlayer($node, $xpath); if ($p) $awayPlayers[] = $p; }
             break;
+        }
+    }
+
+    // استراتيجية Regex (احتياطية قوية) للتشكيلة إذا فشل XPath
+    if (empty($homePlayers)) {
+        // البحث عن كتل اللاعبين في النص الكامل
+        // النمط: <div class="player"> ... <p class="name">Name</p> ... <p class="number">10</p>
+        preg_match_all('/<div[^>]*class="[^"]*player[^"]*"[^>]*>.*?class="[^"]*name[^"]*"[^>]*>(.*?)<\/[^>]+>.*?class="[^"]*number[^"]*"[^>]*>(.*?)<\/[^>]+>/is', $html, $matches, PREG_SET_ORDER);
+        
+        if (!empty($matches)) {
+            // تقسيم اللاعبين إلى فريقين (افتراض أن النصف الأول للمستضيف والنصف الثاني للضيف)
+            $total = count($matches);
+            $half = ceil($total / 2);
+            
+            foreach ($matches as $i => $m) {
+                $name = trim(strip_tags($m[1]));
+                $num = trim(strip_tags($m[2]));
+                
+                // محاولة استخراج الصورة من النص المطابق
+                $img = null;
+                if (preg_match('/<img[^>]*src="([^"]+)"/i', $m[0], $imgMatch)) {
+                    $img = $imgMatch[1];
+                }
+                
+                if ($name) {
+                    $playerStr = $name;
+                    if ($img) {
+                        if (strpos($img, 'http') !== 0) $img = "https://www.yallakora.com" . $img;
+                        $playerStr .= " | " . $img;
+                    }
+                    if ($num) $playerStr .= " | " . $num;
+                    
+                    if ($i < $half) $homePlayers[] = $playerStr;
+                    else $awayPlayers[] = $playerStr;
+                }
+            }
         }
     }
 
