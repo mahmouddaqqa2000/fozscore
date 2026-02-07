@@ -32,6 +32,7 @@ if (isset($update['message'])) {
     $username = $update['message']['from']['first_name'] ?? 'مستخدم';
 
     if ($text === '/start') {
+        clearUserState($pdo, $chat_id); // إعادة تعيين الحالة عند البدء
         $msg = "👋 **أهلاً بك يا $username في بوت خدمات السوشيال ميديا!** 🚀\n\n";
         $msg .= "✨ **نقدم لك أفضل الحلول لزيادة التفاعل والمتابعين على جميع المنصات.**\n";
         $msg .= "✅ خدمات سريعة ومضمونة.\n";
@@ -63,6 +64,46 @@ if (isset($update['message'])) {
         ];
 
         sendMessage($token, $chat_id, $msg, $keyboard);
+    } else {
+        // معالجة المدخلات النصية (العدد والرابط) بناءً على حالة المستخدم
+        $stateData = getUserState($pdo, $chat_id);
+        
+        if ($stateData) {
+            if ($stateData['state'] === 'WAITING_QTY') {
+                // المستخدم أدخل العدد
+                if (is_numeric($text)) {
+                    $qty = intval($text);
+                    $newData = $stateData['data'];
+                    $newData['qty'] = $qty;
+                    setUserState($pdo, $chat_id, 'WAITING_LINK', $newData);
+                    
+                    $msg = "🔗 **رابط الحساب أو المنشور:**\n\nيرجى إرسال الرابط المطلوب تنفيذ الخدمة عليه.";
+                    sendMessage($token, $chat_id, $msg);
+                } else {
+                    sendMessage($token, $chat_id, "⚠️ يرجى إرسال رقم صحيح (مثال: 1000).");
+                }
+            } elseif ($stateData['state'] === 'WAITING_LINK') {
+                // المستخدم أدخل الرابط
+                $link = $text;
+                $data = $stateData['data'];
+                clearUserState($pdo, $chat_id); // انتهت المحادثة
+                
+                // تجهيز ملخص الطلب
+                $platform = ucfirst($data['platform']);
+                $type = $data['type_label'];
+                $qty = $data['qty'];
+                $contact = $settings['contact_user'] ?? 'الإدارة';
+                
+                $msg = "✅ **تم تسجيل تفاصيل طلبك!**\n\n";
+                $msg .= "📱 **المنصة:** $platform\n";
+                $msg .= "🔧 **الخدمة:** $type\n";
+                $msg .= "🔢 **العدد:** $qty\n";
+                $msg .= "🔗 **الرابط:** $link\n\n";
+                $msg .= "💰 **لإتمام الطلب والدفع، يرجى تحويل هذه الرسالة إلى:**\n$contact";
+                
+                sendMessage($token, $chat_id, $msg);
+            }
+        }
     }
 }
 
@@ -92,70 +133,92 @@ if (isset($update['callback_query'])) {
         
         $platformAr = $platformNames[$platform] ?? $platform;
         
-        // البحث عن الخدمات حسب التصنيف (category)
-        // ندعم أيضاً البحث القديم (بالاسم) للخدمات القديمة التي ليس لها تصنيف
-        $stmt = $pdo->prepare("SELECT * FROM bot_services WHERE category = ? OR (category IS NULL AND (name LIKE ? OR description LIKE ?))");
-        $stmt->execute([$platform, "%$platformAr%", "%$platformAr%"]);
-        $services = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        
-        if (empty($services)) {
-            $msg = "عذراً، لا توجد خدمات متاحة حالياً لمنصة **$platformAr**. 😔\nيرجى المحاولة لاحقاً.";
-        } else {
-            // تحديد أيقونة المنصة
-            $platformIcons = [
-                'instagram' => '📸',
-                'facebook' => '📘',
-                'tiktok' => '🎵',
-                'youtube' => '📺',
-                'twitter' => '🐦',
-                'telegram' => '✈️',
-                'special_offers' => '🔥',
-                'other' => '💎'
-            ];
-            $pIcon = $platformIcons[$platform] ?? '💎';
-
-            $msg = "🔥 **خدمات $platformAr المتاحة:**\n\n";
-            foreach ($services as $s) {
-                $msg .= "$pIcon <b>{$s['name']}</b>\n";
-                $msg .= "💰 السعر: {$s['price']}\n";
-                if (!empty($s['description'])) $msg .= "📝 {$s['description']}\n";
-                $msg .= "------------------\n";
-            }
+        // إذا كانت المنصة من المنصات الرئيسية، نعرض خيارات تفاعلية (متابعين، لايكات..)
+        // أما "العروض الخاصة" و "أخرى" فتبقى كما هي (قائمة من قاعدة البيانات)
+        if (in_array($platform, ['instagram', 'facebook', 'tiktok', 'youtube', 'twitter', 'telegram'])) {
             
-            $contact = $settings['contact_user'] ?? '';
-            if ($contact) {
-                $msg .= "\n📩 **للطلب والاستفسار تواصل معنا:** $contact";
-            }
-        }
-        
-        // زر للعودة للقائمة الرئيسية
-        $keyboard = [
-            'inline_keyboard' => [
-                [
-                    ['text' => '🔙 العودة للقائمة الرئيسية', 'callback_data' => 'back_to_main']
+            $msg = "✅ لقد اخترت **$platformAr**.\n👇 **ما نوع الخدمة التي تريدها؟**";
+            
+            // أزرار الخدمات العامة
+            $keyboard = [
+                'inline_keyboard' => [
+                    [
+                        ['text' => '👤 متابعين (Followers)', 'callback_data' => "cat_{$platform}_followers"],
+                        ['text' => '❤️ لايكات (Likes)', 'callback_data' => "cat_{$platform}_likes"]
+                    ],
+                    [
+                        ['text' => '👁 مشاهدات (Views)', 'callback_data' => "cat_{$platform}_views"],
+                        ['text' => '💬 تعليقات (Comments)', 'callback_data' => "cat_{$platform}_comments"]
+                    ],
+                    [
+                        ['text' => '🔙 رجوع', 'callback_data' => 'back_to_main']
+                    ]
                 ]
-            ]
-        ];
-
-        // إذا كانت المنصة انستجرام، نرسل الصورة بدلاً من الرسالة النصية فقط
-        if ($platform === 'instagram') {
-            // بناء رابط الصورة تلقائياً (يفترض وجود instagram.png في نفس المجلد)
-            $protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http");
-            $host = $_SERVER['HTTP_HOST'];
-            $uri = dirname($_SERVER['REQUEST_URI']);
-            // إزالة الشرطة المائلة في النهاية إذا وجدت لتجنب الازدواج
-            $uri = rtrim($uri, '/');
-            $photoUrl = "$protocol://$host$uri/instagram.png";
+            ];
             
-            $res = sendPhoto($token, $chat_id, $photoUrl, $msg, $keyboard);
-            $json = json_decode($res, true);
-            // إذا فشل إرسال الصورة (مثلاً الصورة غير موجودة)، نرسل رسالة نصية كبديل
-            if (!$json || !$json['ok']) {
+            // إرسال الصورة إذا كانت انستجرام، أو رسالة عادية للباقي
+            if ($platform === 'instagram') {
+                $protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http");
+                $host = $_SERVER['HTTP_HOST'];
+                $uri = dirname($_SERVER['REQUEST_URI']);
+                $uri = rtrim($uri, '/');
+                $photoUrl = "$protocol://$host$uri/instagram.png";
+                
+                $res = sendPhoto($token, $chat_id, $photoUrl, $msg, $keyboard);
+                $json = json_decode($res, true);
+                if (!$json || !$json['ok']) {
+                    sendMessage($token, $chat_id, $msg, $keyboard);
+                }
+            } else {
                 sendMessage($token, $chat_id, $msg, $keyboard);
             }
+
         } else {
-            sendMessage($token, $chat_id, $msg, $keyboard);
+            // المنطق القديم للعروض الخاصة وغيرها (جلب من قاعدة البيانات)
+            $stmt = $pdo->prepare("SELECT * FROM bot_services WHERE category = ? OR (category IS NULL AND (name LIKE ? OR description LIKE ?))");
+            $stmt->execute([$platform, "%$platformAr%", "%$platformAr%"]);
+            $services = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            if (empty($services)) {
+                $msg = "عذراً، لا توجد عروض متاحة حالياً في قسم **$platformAr**. 😔";
+                $keyboard = ['inline_keyboard' => [[['text' => '🔙 رجوع', 'callback_data' => 'back_to_main']]]];
+                sendMessage($token, $chat_id, $msg, $keyboard);
+            } else {
+                $pIcon = ($platform == 'special_offers') ? '🔥' : '💎';
+                $msg = "$pIcon **قائمة $platformAr:**\n\n";
+                foreach ($services as $s) {
+                    $msg .= "🔹 <b>{$s['name']}</b>\n";
+                    $msg .= "💰 السعر: {$s['price']}\n";
+                    if (!empty($s['description'])) $msg .= "📝 {$s['description']}\n";
+                    $msg .= "------------------\n";
+                }
+                $contact = $settings['contact_user'] ?? '';
+                if ($contact) $msg .= "\n📩 **للطلب:** $contact";
+                
+                $keyboard = ['inline_keyboard' => [[['text' => '🔙 رجوع', 'callback_data' => 'back_to_main']]]];
+                sendMessage($token, $chat_id, $msg, $keyboard);
+            }
         }
+    }
+
+    // معالجة اختيار نوع الخدمة (متابعين، لايكات...)
+    if (strpos($data, 'cat_') === 0) {
+        // format: cat_platform_type
+        $parts = explode('_', $data);
+        $platform = $parts[1];
+        $type = $parts[2];
+        
+        $typeLabels = [
+            'followers' => 'متابعين', 'likes' => 'لايكات', 
+            'views' => 'مشاهدات', 'comments' => 'تعليقات'
+            ];
+        $typeLabel = $typeLabels[$type] ?? $type;
+        
+        // حفظ الحالة: ننتظر العدد
+        setUserState($pdo, $chat_id, 'WAITING_QTY', ['platform' => $platform, 'type' => $type, 'type_label' => $typeLabel]);
+        
+        $msg = "🔢 **الكمية المطلوبة ($typeLabel):**\n\nيرجى كتابة العدد الذي تريده (أرقام فقط، مثال: 1000).";
+        sendMessage($token, $chat_id, $msg);
     }
     
     if ($data === 'back_to_main') {
@@ -228,5 +291,26 @@ function sendPhoto($token, $chat_id, $photo, $caption, $keyboard = null) {
     $result = curl_exec($ch);
     curl_close($ch);
     return $result;
+}
+
+// --- دوال إدارة الحالة ---
+function getUserState($pdo, $chat_id) {
+    $stmt = $pdo->prepare("SELECT state, data FROM bot_users_state WHERE chat_id = ?");
+    $stmt->execute([$chat_id]);
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+    if ($row) {
+        return ['state' => $row['state'], 'data' => json_decode($row['data'], true)];
+    }
+    return null;
+}
+
+function setUserState($pdo, $chat_id, $state, $data = []) {
+    $stmt = $pdo->prepare("INSERT OR REPLACE INTO bot_users_state (chat_id, state, data, updated_at) VALUES (?, ?, ?, ?)");
+    $stmt->execute([$chat_id, $state, json_encode($data), time()]);
+}
+
+function clearUserState($pdo, $chat_id) {
+    $stmt = $pdo->prepare("DELETE FROM bot_users_state WHERE chat_id = ?");
+    $stmt->execute([$chat_id]);
 }
 ?>

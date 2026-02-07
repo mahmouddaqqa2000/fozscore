@@ -147,4 +147,12 @@ if (!in_array('category', $cols)) {
     $pdo->exec("ALTER TABLE bot_services ADD COLUMN category TEXT");
 }
 
+// إنشاء جدول حالة المستخدمين للبوت (للمحادثات التفاعلية)
+$pdo->exec("CREATE TABLE IF NOT EXISTS bot_users_state (
+  chat_id INTEGER PRIMARY KEY,
+  state TEXT,
+  data TEXT,
+  updated_at INTEGER
+)");
+
 ?>
