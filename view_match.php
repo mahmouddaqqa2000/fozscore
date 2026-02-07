@@ -1156,7 +1156,25 @@ if (!$match) {
                 
                 $parsed_events[] = ['min' => $min, 'sort' => $sort, 'text' => $text, 'side' => ($side_str === '(مستضيف)') ? 'home' : 'away'];
             } else {
-                $parsed_events[] = ['min' => '-', 'sort' => 999, 'text' => $event_str, 'side' => 'home'];
+                // محاولة استخراج الفريق يدوياً في حال فشل التعبير النمطي
+                $text = $event_str;
+                $side = 'home';
+                if (strpos($text, '(مستضيف)') !== false) {
+                    $side = 'home';
+                    $text = str_replace('(مستضيف)', '', $text);
+                } elseif (strpos($text, '(ضيف)') !== false) {
+                    $side = 'away';
+                    $text = str_replace('(ضيف)', '', $text);
+                }
+                
+                // محاولة استخراج الدقيقة
+                $min = '-';
+                if (preg_match('/^(\d+(?:\+\d+)?)[\']/', $text, $m)) {
+                    $min = $m[1];
+                    $text = str_replace($m[0], '', $text);
+                }
+                
+                $parsed_events[] = ['min' => $min, 'sort' => 999, 'text' => trim($text), 'side' => $side];
             }
         }
         // ترتيب الأحداث زمنياً
@@ -1199,6 +1217,7 @@ if (!$match) {
                     
                     // تنظيف النص من الرموز المتبقية إذا لم يكن تبديلاً (لأن التبديل أصبح HTML)
                     if ($type_class !== 'sub') {
+                        $clean_text = str_replace(['(مستضيف)', '(ضيف)'], '', $clean_text);
                         $clean_text = trim($clean_text);
                     }
                 ?>
