@@ -965,40 +965,70 @@ function get_match_details($url) {
         ['//div[@id="squad"]//div[contains(@class, "team1")]//div[contains(@class, "player")]', '//div[@id="squad"]//div[contains(@class, "team2")]//div[contains(@class, "player")]'],
         ['//div[contains(@class, "formation")]//div[contains(@class, "teamA")]//div[contains(@class, "player")]', '//div[contains(@class, "formation")]//div[contains(@class, "teamB")]//div[contains(@class, "player")]'],
         ['//div[contains(@class, "matchLineup")]//div[contains(@class, "teamA")]//div[contains(@class, "player")]', '//div[contains(@class, "matchLineup")]//div[contains(@class, "teamB")]//div[contains(@class, "player")]'],
-        ['//div[contains(@class, "teamA")]//div[contains(@class, "player")]', '//div[contains(@class, "teamB")]//div[contains(@class, "player")]']
+        ['//div[contains(@class, "teamA")]//div[contains(@class, "player")]', '//div[contains(@class, "teamB")]//div[contains(@class, "player")]'],
+        // استراتيجية البحث العام: جلب كل اللاعبين في الحاوية وتقسيمهم لاحقاً
+        ['//div[@id="squad"]//*[contains(@class, "player")]', ''],
+        ['//div[contains(@class, "squad")]//*[contains(@class, "player")]', '']
     ];
 
     foreach ($lineupQueries as $idx => $q) {
         $homeNodes = $xpath->query($q[0]);
-        $awayNodes = $xpath->query($q[1]);
-        if ($homeNodes->length > 0) {
-            $lineupDebug = "تم العثور عليها باستخدام XPath رقم #$idx";
-            foreach ($homeNodes as $node) { $p = $extractPlayer($node, $xpath); if ($p) $homePlayers[] = $p; }
-            foreach ($awayNodes as $node) { $p = $extractPlayer($node, $xpath); if ($p) $awayPlayers[] = $p; }
-            break;
+        
+        if ($q[1] === '') {
+            // منطق البحث العام (قائمة واحدة)
+            if ($homeNodes->length > 0) {
+                $lineupDebug = "تم العثور عليها باستخدام XPath Generic #$idx";
+                $allPlayers = [];
+                foreach ($homeNodes as $node) { 
+                    $p = $extractPlayer($node, $xpath); 
+                    if ($p) $allPlayers[] = $p; 
+                }
+                // تقسيم اللاعبين مناصفة
+                $total = count($allPlayers);
+                if ($total > 0) {
+                    $half = ceil($total / 2);
+                    $homePlayers = array_slice($allPlayers, 0, $half);
+                    $awayPlayers = array_slice($allPlayers, $half);
+                    break;
+                }
+            }
+        } else {
+            // المنطق التقليدي (فريقين منفصلين)
+            $awayNodes = $xpath->query($q[1]);
+            if ($homeNodes->length > 0) {
+                $lineupDebug = "تم العثور عليها باستخدام XPath رقم #$idx";
+                foreach ($homeNodes as $node) { $p = $extractPlayer($node, $xpath); if ($p) $homePlayers[] = $p; }
+                foreach ($awayNodes as $node) { $p = $extractPlayer($node, $xpath); if ($p) $awayPlayers[] = $p; }
+                break;
+            }
         }
     }
 
     // استراتيجية Regex (احتياطية قوية) للتشكيلة إذا فشل XPath
     if (empty($homePlayers)) {
         $lineupDebug = "فشل XPath. جاري تجربة Regex...";
-        // البحث عن كتل اللاعبين في النص الكامل
-        // النمط: <div class="player"> ... <p class="name">Name</p> ... <p class="number">10</p>
-        preg_match_all('/<div[^>]*class="[^"]*player[^"]*"[^>]*>.*?class="[^"]*name[^"]*"[^>]*>(.*?)<\/[^>]+>.*?class="[^"]*number[^"]*"[^>]*>(.*?)<\/[^>]+>/is', $html, $matches, PREG_SET_ORDER);
         
-        if (!empty($matches)) {
-            // تقسيم اللاعبين إلى فريقين (افتراض أن النصف الأول للمستضيف والنصف الثاني للضيف)
-            $total = count($matches);
-            $half = ceil($total / 2);
-            $lineupDebug = "تم العثور عليها باستخدام Regex ($total لاعب)";
-            
-            foreach ($matches as $i => $m) {
-                $name = trim(strip_tags($m[1]));
-                $num = trim(strip_tags($m[2]));
+        // Regex محسن: يبحث عن حاوية اللاعب أولاً، ثم يستخرج التفاصيل منها بمرونة
+        preg_match_all('/class="[^"]*player[^"]*"[^>]*>(.*?)<\/(?:div|a|li|span)>/is', $html, $matches);
+        
+        if (!empty($matches[1])) {
+            $allPlayers = [];
+            foreach ($matches[1] as $playerHtml) {
+                // استخراج الاسم
+                $name = '';
+                if (preg_match('/class="[^"]*name[^"]*"[^>]*>(.*?)<\//is', $playerHtml, $nMatch)) {
+                    $name = trim(strip_tags($nMatch[1]));
+                }
+                
+                // استخراج الرقم
+                $num = '';
+                if (preg_match('/class="[^"]*number[^"]*"[^>]*>(.*?)<\//is', $playerHtml, $numMatch)) {
+                    $num = trim(strip_tags($numMatch[1]));
+                }
                 
                 // محاولة استخراج الصورة من النص المطابق
                 $img = null;
-                if (preg_match('/<img[^>]*src="([^"]+)"/i', $m[0], $imgMatch)) {
+                if (preg_match('/<img[^>]*src="([^"]+)"/i', $playerHtml, $imgMatch)) {
                     $img = $imgMatch[1];
                 }
                 
@@ -1009,10 +1039,16 @@ function get_match_details($url) {
                         $playerStr .= " | " . $img;
                     }
                     if ($num) $playerStr .= " | " . $num;
-                    
-                    if ($i < $half) $homePlayers[] = $playerStr;
-                    else $awayPlayers[] = $playerStr;
+                    $allPlayers[] = $playerStr;
                 }
+            }
+            
+            if (!empty($allPlayers)) {
+                $total = count($allPlayers);
+                $half = ceil($total / 2);
+                $homePlayers = array_slice($allPlayers, 0, $half);
+                $awayPlayers = array_slice($allPlayers, $half);
+                $lineupDebug = "تم العثور عليها باستخدام Regex المحسن ($total لاعب)";
             }
         } else {
             // تشخيص سبب الفشل
