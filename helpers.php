@@ -745,10 +745,14 @@ function get_match_details($url) {
     // استخدام CURL لسحب الصفحة
     $ch = curl_init($url);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-    curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36');
+    curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36');
     curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
     curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0); // ضروري لبعض الاستضافات
     curl_setopt($ch, CURLOPT_ENCODING, ''); 
+    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 15);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 60);
+    curl_setopt($ch, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V4); // إجبار IPv4 لحل مشاكل التعليق
     // إضافة ترويسات لتقليل احتمالية الحظر أو اختلاف المحتوى على الاستضافة
     curl_setopt($ch, CURLOPT_HTTPHEADER, [
         'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
@@ -758,9 +762,10 @@ function get_match_details($url) {
         'Upgrade-Insecure-Requests: 1'
     ]);
     $html = curl_exec($ch);
+    $curl_error = curl_error($ch);
     
     if (!$html) {
-        return ['home' => null, 'away' => null, 'coach_home' => null, 'coach_away' => null, 'stats' => null, 'match_events' => null, 'stream_url' => null, 'html_preview' => 'فشل الاتصال'];
+        return ['home' => null, 'away' => null, 'coach_home' => null, 'coach_away' => null, 'stats' => null, 'match_events' => null, 'stream_url' => null, 'html_preview' => 'فشل الاتصال: ' . $curl_error];
     }
     
     // التحقق من الحظر (Cloudflare / WAF)

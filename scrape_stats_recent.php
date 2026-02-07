@@ -6,6 +6,13 @@ require_once __DIR__ . '/helpers.php';
 header('Content-Type: text/html; charset=utf-8');
 set_time_limit(0); // منع توقف السكربت
 
+// إجبار السيرفر على إرسال المخرجات فوراً (مثل scraper_all.php)
+if (function_exists('apache_setenv')) @apache_setenv('no-gzip', 1);
+@ini_set('zlib.output_compression', 0);
+@ini_set('implicit_flush', 1);
+for ($i = 0; $i < ob_get_level(); $i++) { ob_end_flush(); }
+ob_implicit_flush(1);
+
 $type = $_GET['type'] ?? 'events'; // 'events' or 'full'
 
 echo '<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><title>تحديث الأحداث</title>';
@@ -83,6 +90,8 @@ foreach ($dates as $date) {
             if (empty($details['match_events'])) {
                 if (strpos($details['html_preview'], 'Cloudflare') !== false || strpos($details['html_preview'], 'Attention Required') !== false) {
                     echo "<span class='status-fail'>تم حظر الطلب (Cloudflare) ⛔</span>";
+                } elseif (strpos($details['html_preview'], 'فشل الاتصال') !== false) {
+                    echo "<span class='status-fail'>" . htmlspecialchars($details['html_preview']) . " ❌</span>";
                 } else {
                     echo "<span class='status-skip' style='color:#d97706;'>لا توجد أحداث (أو لم تبدأ)</span>";
                 }
