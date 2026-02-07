@@ -345,6 +345,17 @@ if (isset($update['callback_query'])) {
             ];
         $typeLabel = $typeLabels[$type] ?? $type;
         
+        // --- التحقق من الرصيد قبل البدء (للطلب العام) ---
+        $stmtUser = $pdo->prepare("SELECT balance FROM bot_users WHERE chat_id = ?");
+        $stmtUser->execute([$chat_id]);
+        $current_balance = $stmtUser->fetchColumn();
+        
+        if ($current_balance <= 0) {
+            $msg = "🚫 **عذراً، رصيدك صفر!**\n\nلا يمكنك طلب خدمات حتى تقوم بشحن رصيدك.\n💳 لشحن الرصيد، يرجى إرسال الـ ID الخاص بك للإدارة:\n`$chat_id`";
+            sendMessage($token, $chat_id, $msg);
+            return;
+        }
+        
         // حفظ الحالة (طلب عام): ننتظر العدد
         setUserState($pdo, $chat_id, 'WAITING_QTY', ['platform' => $platform, 'type' => $type, 'type_label' => $typeLabel]);
         
@@ -360,6 +371,17 @@ if (isset($update['callback_query'])) {
         $service = $stmt->fetch(PDO::FETCH_ASSOC);
         
         if ($service) {
+            // --- التحقق من الرصيد قبل البدء (للخدمات المحددة) ---
+            $stmtUser = $pdo->prepare("SELECT balance FROM bot_users WHERE chat_id = ?");
+            $stmtUser->execute([$chat_id]);
+            $current_balance = $stmtUser->fetchColumn();
+            
+            if ($current_balance <= 0) {
+                $msg = "🚫 **عذراً، رصيدك صفر!**\n\nلا يمكنك طلب خدمات حتى تقوم بشحن رصيدك.\n💳 لشحن الرصيد، يرجى إرسال الـ ID الخاص بك للإدارة:\n`$chat_id`";
+                sendMessage($token, $chat_id, $msg);
+                return;
+            }
+
             // حفظ الحالة مع service_id ليتم خصم الرصيد لاحقاً
             setUserState($pdo, $chat_id, 'WAITING_QTY', ['platform' => $service['category'], 'type_label' => $service['name'], 'service_id' => $service['id']]);
             $msg = "🔢 **الكمية المطلوبة ({$service['name']}):**\n\nيرجى كتابة العدد الذي تريده (أرقام فقط).";
