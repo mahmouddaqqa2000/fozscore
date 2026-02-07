@@ -77,7 +77,7 @@ foreach ($dates as $date) {
     flush();
     
     // جلب المباريات التي لها رابط مصدر
-    $stmt = $pdo->prepare("SELECT id, team_home, team_away, source_url, match_events, match_stats FROM matches WHERE match_date = ? AND source_url IS NOT NULL AND source_url != ''");
+    $stmt = $pdo->prepare("SELECT id, team_home, team_away, source_url, match_events, match_stats, lineup_home FROM matches WHERE match_date = ? AND source_url IS NOT NULL AND source_url != ''");
     $stmt->execute([$date]);
     $matches = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
@@ -122,6 +122,26 @@ foreach ($dates as $date) {
             if ($new_events_clean !== $old_events_clean) {
                 $updates[] = "match_events = ?";
                 $params[] = $details['match_events'];
+            }
+        }
+
+        // تحديث التشكيلة (إذا وجدت ولم تكن موجودة مسبقاً أو للتحديث)
+        if (!empty($details['home'])) {
+            // نقوم بالتحديث إذا كانت التشكيلة الجديدة موجودة
+            $updates[] = "lineup_home = ?";
+            $params[] = $details['home'];
+            
+            if (!empty($details['away'])) {
+                $updates[] = "lineup_away = ?";
+                $params[] = $details['away'];
+            }
+            if (!empty($details['coach_home'])) {
+                $updates[] = "coach_home = ?";
+                $params[] = $details['coach_home'];
+            }
+            if (!empty($details['coach_away'])) {
+                $updates[] = "coach_away = ?";
+                $params[] = $details['coach_away'];
             }
         }
         

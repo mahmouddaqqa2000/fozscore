@@ -931,6 +931,50 @@ function get_match_details($url) {
         }
     }
 
+    // --- استخراج التشكيلة (Lineups) ---
+    $homePlayers = [];
+    $awayPlayers = [];
+    $coachHome = null;
+    $coachAway = null;
+
+    // دالة مساعدة لاستخراج بيانات اللاعب
+    $extractPlayer = function($node, $xpath) {
+        $nameNode = $xpath->query(".//p[contains(@class, 'playerName')]|.//span[contains(@class, 'name')]|.//p[not(contains(@class, 'number'))]", $node)->item(0);
+        $name = trim($nameNode->textContent ?? '');
+        $num = trim($xpath->query(".//p[contains(@class, 'number')]|.//span[contains(@class, 'number')]", $node)->item(0)->textContent ?? '');
+        $img = $xpath->query(".//img", $node)->item(0)?->getAttribute('src');
+        
+        if ($name) {
+            $playerStr = $name;
+            if ($img) {
+                if (strpos($img, 'http') !== 0) $img = "https://www.yallakora.com" . $img;
+                $playerStr .= " | " . $img;
+            }
+            if ($num) $playerStr .= " | " . $num;
+            return $playerStr;
+        }
+        return null;
+    };
+
+    // محاولات البحث عن التشكيلة
+    $lineupQueries = [
+        ['//div[@id="squad"]//div[contains(@class, "teamA")]//div[contains(@class, "player")]', '//div[@id="squad"]//div[contains(@class, "teamB")]//div[contains(@class, "player")]'],
+        ['//div[contains(@class, "formation")]//div[contains(@class, "teamA")]//div[contains(@class, "player")]', '//div[contains(@class, "formation")]//div[contains(@class, "teamB")]//div[contains(@class, "player")]']
+    ];
+
+    foreach ($lineupQueries as $q) {
+        $homeNodes = $xpath->query($q[0]);
+        $awayNodes = $xpath->query($q[1]);
+        if ($homeNodes->length > 0) {
+            foreach ($homeNodes as $node) { $p = $extractPlayer($node, $xpath); if ($p) $homePlayers[] = $p; }
+            foreach ($awayNodes as $node) { $p = $extractPlayer($node, $xpath); if ($p) $awayPlayers[] = $p; }
+            break;
+        }
+    }
+
+    $coachHome = trim($xpath->query("//div[contains(@class, 'teamA')]//div[contains(@class, 'manager')]//p")->item(0)->textContent ?? '');
+    $coachAway = trim($xpath->query("//div[contains(@class, 'teamB')]//div[contains(@class, 'manager')]//p")->item(0)->textContent ?? '');
+
     // استخراج الإحصائيات
     $stats = [];
     $statsNodes = $xpath->query("//div[contains(@class, 'statsDiv')]//ul//li");
@@ -945,10 +989,10 @@ function get_match_details($url) {
     }
 
     return [
-        'home' => null, // تم تعطيل سحب التشكيلة مؤقتاً للتركيز على الأحداث
-        'away' => null,
-        'coach_home' => null,
-        'coach_away' => null,
+        'home' => !empty($homePlayers) ? implode("\n", $homePlayers) : null,
+        'away' => !empty($awayPlayers) ? implode("\n", $awayPlayers) : null,
+        'coach_home' => $coachHome ?: null,
+        'coach_away' => $coachAway ?: null,
         'stats' => !empty($stats) ? json_encode($stats, JSON_UNESCAPED_UNICODE) : null,
         'match_events' => !empty($events) ? implode("\n", $events) : null,
         'stream_url' => null,
