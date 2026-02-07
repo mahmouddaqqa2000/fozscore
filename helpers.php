@@ -966,6 +966,7 @@ function get_match_details($url) {
         ['//div[contains(@class, "formation")]//div[contains(@class, "teamA")]//*[contains(@class, "player")]', '//div[contains(@class, "formation")]//div[contains(@class, "teamB")]//*[contains(@class, "player")]'],
         ['//div[contains(@class, "matchLineup")]//div[contains(@class, "teamA")]//*[contains(@class, "player")]', '//div[contains(@class, "matchLineup")]//div[contains(@class, "teamB")]//*[contains(@class, "player")]'],
         ['//div[contains(@class, "teamA")]//*[contains(@class, "player")]', '//div[contains(@class, "teamB")]//*[contains(@class, "player")]'],
+        ['//div[contains(@class, "teamA")]//*[contains(@class, "item")]', '//div[contains(@class, "teamB")]//*[contains(@class, "item")]'],
         // استراتيجية البحث العام: جلب كل اللاعبين في الحاوية وتقسيمهم لاحقاً
         ['//div[@id="squad"]//*[contains(@class, "player")]', ''],
         ['//div[contains(@class, "squad")]//*[contains(@class, "player")]', ''],
@@ -1012,7 +1013,7 @@ function get_match_details($url) {
         // استراتيجية التقسيم (Explode Strategy) - الحل الجذري
         // نقوم بتقسيم الكود بناءً على كلاس اللاعب، ثم نستخرج البيانات من كل جزء
         // هذا يتجاوز مشاكل تداخل HTML وتعقيد Regex
-        $playerChunks = preg_split('/class\s*=\s*["\'][^"\']*\bplayer\b[^"\']*["\']/i', $html);
+        $playerChunks = preg_split('/class\s*=\s*["\'][^"\']*\b(?:player|item)\b[^"\']*["\']/i', $html);
         
         // العنصر الأول هو ما قبل أول لاعب، نتجاهله
         array_shift($playerChunks);
@@ -1065,7 +1066,7 @@ function get_match_details($url) {
             
             // === الملاذ الأخير: استراتيجية البحث الشامل (Global Regex) ===
             // نبحث عن كل الأسماء والأرقام في الصفحة بغض النظر عن أماكنها
-            preg_match_all('/class\s*=\s*["\'][^"\']*\b(?:playerName|name)\b[^"\']*["\'][^>]*>(.*?)<\//is', $html, $nameMatches);
+            preg_match_all('/class\s*=\s*["\'][^"\']*\b(?:playerName|name)\b[^"\']*["\'][^>]*>([^<]+)/is', $html, $nameMatches);
             preg_match_all('/class\s*=\s*["\'][^"\']*\bnumber\b[^"\']*["\'][^>]*>(.*?)<\//is', $html, $numMatches);
             
             if (!empty($nameMatches[1])) {
@@ -1092,6 +1093,29 @@ function get_match_details($url) {
                     $lineupDebug = "تم العثور عليها باستخدام Global Regex ($total لاعب)";
                 } else {
                     $lineupDebug .= " | فشل Global Regex (العدد: " . count($allPlayers) . ")";
+                }
+            }
+        }
+
+        // === Gemini AI Fallback (الملاذ الأخير الذكي) ===
+        if (empty($homePlayers) && function_exists('ask_gemini_json')) {
+            $cleanText = strip_tags($html);
+            $cleanText = preg_replace('/\s+/', ' ', $cleanText);
+            // نأخذ جزءاً كافياً من النص يحتوي على التشكيلة
+            $contextText = substr($cleanText, 0, 40000); 
+
+            $prompt = "Extract the football lineup (starting XI) for Home and Away teams from this text. Return ONLY a JSON object: {\"home_players\": [\"Name1\", ...], \"away_players\": [\"Name1\", ...]}";
+            
+            $aiResponse = ask_gemini_json($prompt, $contextText);
+            if ($aiResponse) {
+                // تنظيف Markdown
+                $jsonStr = preg_replace('/^```(?:json)?|```$/i', '', trim($aiResponse));
+                $data = json_decode($jsonStr, true);
+
+                if (!empty($data['home_players']) && count($data['home_players']) >= 11) {
+                    $homePlayers = $data['home_players'];
+                    $awayPlayers = $data['away_players'] ?? [];
+                    $lineupDebug = "تم العثور عليها باستخدام Gemini AI";
                 }
             }
         }
