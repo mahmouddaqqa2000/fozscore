@@ -50,6 +50,9 @@ if (!$match) {
     
     // جعل تبويب البث المباشر هو النشط افتراضياً إذا كان متوفراً
     $active_tab = 'lineup';
+
+    // توليد بيانات SEO والمقال الوصفي
+    $seo_data = generate_match_seo_data($match);
 }
 ?>
 <!doctype html>
@@ -57,7 +60,9 @@ if (!$match) {
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title><?php echo isset($match) ? htmlspecialchars($match['team_home']) . ' ضد ' . htmlspecialchars($match['team_away']) : 'تفاصيل المباراة'; ?> - FozScore</title>
+    <title><?php echo isset($seo_data['title']) ? $seo_data['title'] : (isset($match) ? htmlspecialchars($match['team_home']) . ' ضد ' . htmlspecialchars($match['team_away']) . ' - FozScore' : 'تفاصيل المباراة'); ?></title>
+    <meta name="description" content="<?php echo isset($seo_data['description']) ? htmlspecialchars($seo_data['description']) : ''; ?>">
+    <meta name="keywords" content="<?php echo isset($seo_data['keywords']) ? htmlspecialchars($seo_data['keywords']) : ''; ?>">
     <base href="/">
     <?php if ($favicon): ?><link rel="icon" href="<?php echo htmlspecialchars($favicon); ?>"><?php endif; ?>
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -857,6 +862,16 @@ if (!$match) {
                 <p style="font-size: 0.8rem; text-align: center; color: var(--text-light); margin-top: 1rem;">
                     ملاحظة: البث مقدم من طرف ثالث، والموقع غير مسؤول عن جودة البث أو استمراريته.
                 </p>
+            </div>
+            <?php endif; ?>
+
+            <!-- Match Article / SEO Content -->
+            <?php if (isset($seo_data['article_body'])): ?>
+            <div class="match-view-card" style="padding: 1.5rem; margin-top: 2rem;">
+                <h2 style="font-size: 1.2rem; margin-bottom: 1rem; color: var(--primary);">تفاصيل المواجهة</h2>
+                <div style="line-height: 1.8; color: var(--text); font-size: 0.95rem;">
+                    <?php echo $seo_data['article_body']; ?>
+                </div>
             </div>
             <?php endif; ?>
 

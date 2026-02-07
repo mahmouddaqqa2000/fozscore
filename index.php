@@ -465,13 +465,15 @@ $important_matches = array_filter($matches, function($m) use ($important_teams) 
                     </div>
                 <?php else: ?>
                     
-                    <?php if (!empty($important_matches)): ?>
                         <div class="championship-group">
                             <div class="championship-header" style="background: linear-gradient(to left, #1e293b, #334155); color: #fff; border-bottom: none; border-radius: 8px;">
                                 <span class="league-name">أهم مباريات اليوم</span>
                                 <span class="fire-icon">🔥</span>
                             </div>
                             <div class="match-card">
+                                <?php if (empty($important_matches)): ?>
+                                    <div style="padding: 20px; text-align: center; color: #64748b; font-weight: 500;">لا توجد مباريات قمة اليوم</div>
+                                <?php else: ?>
                                 <?php foreach ($important_matches as $m): ?>
                                     <div class="match-item">
                                         <a href="view_match.php?id=<?php echo $m['id']; ?>" class="match-link">
@@ -521,9 +523,9 @@ $important_matches = array_filter($matches, function($m) use ($important_teams) 
                                         </a>
                                     </div>
                                 <?php endforeach; ?>
+                                <?php endif; ?>
                             </div>
                         </div>
-                    <?php endif; ?>
 
                     <?php foreach ($grouped_by_championship as $championship => $championship_matches): ?>
                         <?php 

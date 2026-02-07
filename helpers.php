@@ -1263,3 +1263,67 @@ function extract_players_from_formation($html) {
 
     return $out;
 }
+
+/**
+ * توليد بيانات SEO ونص وصفي للمباراة بشكل تلقائي
+ * يساعد هذا في تحسين أرشفة صفحات المباريات في جوجل
+ * 
+ * @param array $match بيانات المباراة
+ * @return array مصفوفة تحتوي على العنوان، الوصف، الكلمات المفتاحية، والمقال المقترح
+ */
+function generate_match_seo_data($match) {
+    $home = $match['team_home'] ?? 'الفريق الأول';
+    $away = $match['team_away'] ?? 'الفريق الثاني';
+    $league = $match['championship'] ?? 'مباريات ودية';
+    $time = $match['match_time'] ?? '';
+    $date = $match['match_date'] ?? date('Y-m-d');
+    $stadium = $match['venue'] ?? 'غير محدد';
+    $channel = $match['channel'] ?? 'غير محدد';
+    $commentator = $match['commentator'] ?? '';
+    
+    // تنظيف الوقت
+    $formatted_time = format_time_ar($time);
+
+    // 1. عنوان الصفحة (Title)
+    $title = "مباراة $home ضد $away اليوم - $league | FozScore";
+
+    // 2. وصف الميتا (Meta Description)
+    $description = "تابع نتيجة ومجريات مباراة $home و$away في $league. موعد المباراة $date الساعة $formatted_time. تغطية حصرية، تشكيلة الفريقين، والقنوات الناقلة على FozScore.";
+
+    // 3. الكلمات المفتاحية (Keywords)
+    $keywords = "مباراة $home و$away, $league, بث مباشر $home, نتيجة مباراة $away, أهداف $home ضد $away, موعد مباراة $home, تشكيلة $home, FozScore";
+
+    // 4. محتوى المقال (Article Body) - نص غني للعرض في الصفحة
+    $content = "
+    <h3>تفاصيل مباراة $home و$away اليوم</h3>
+    <p>
+    يستعد عشاق كرة القدم لمتابعة مباراة قوية تجمع بين فريق <strong>$home</strong> ونظيره فريق <strong>$away</strong>، 
+    وذلك ضمن منافسات <strong>$league</strong> لموسم " . date('Y') . ".
+    </p>
+    <p>
+    من المقرر أن تنطلق صافرة البداية في تمام الساعة <strong>$formatted_time</strong> بتوقيت القاهرة، 
+    حيث يستضيف اللقاء ملعب <strong>$stadium</strong>. 
+    ويسعى كلا الفريقين لتحقيق نتيجة إيجابية في هذه المواجهة المرتقبة.
+    </p>
+    ";
+
+    if (!empty($channel) && $channel !== 'غير محدد') {
+        $content .= "<p>وستنقل المباراة عبر قناة <strong>$channel</strong>";
+        if (!empty($commentator)) {
+            $content .= " بصوت المعلق <strong>$commentator</strong>";
+        }
+        $content .= ".</p>";
+    }
+
+    $content .= "
+    <p>
+    تابعوا تغطية حصرية لحظة بلحظة لنتيجة المباراة، الأهداف، والملخص الكامل عبر موقع <strong>FozScore</strong>.
+    </p>";
+
+    return [
+        'title' => $title,
+        'description' => $description,
+        'keywords' => $keywords,
+        'article_body' => $content
+    ];
+}
