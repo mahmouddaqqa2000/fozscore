@@ -40,6 +40,16 @@ $related_news = $stmt_related_news->fetchAll(PDO::FETCH_ASSOC);
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title><?php echo $seo_title; ?></title>
+    <?php
+    // تحديد رابط Base بشكل ديناميكي صحيح
+    $base_href = '/';
+    if (!empty($settings['site_url'])) {
+        $base_href = rtrim($settings['site_url'], '/') . '/';
+    } else {
+        $base_href = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/\\') . '/';
+    }
+    ?>
+    <base href="<?php echo htmlspecialchars($base_href); ?>">
     <?php if ($favicon): ?><link rel="icon" href="<?php echo htmlspecialchars($favicon); ?>"><?php endif; ?>
     <meta name="description" content="<?php echo $seo_desc; ?>">
     <link rel="canonical" href="<?php echo $seo_url; ?>">

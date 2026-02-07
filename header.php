@@ -6,6 +6,24 @@ if (!isset($settings) && isset($pdo) && function_exists('get_site_settings')) {
 
 $header_site_name = $settings['site_name'] ?? 'FozScore';
 $primary_color = $settings['primary_color'] ?? '#1e293b';
+
+// تحديد الرابط الأساسي للموقع (لحل مشاكل الروابط في الصفحات الفرعية)
+$base_url = './';
+if (!empty($settings['site_url'])) {
+    $base_url = rtrim($settings['site_url'], '/') . '/';
+} else {
+    // محاولة اكتشاف الرابط تلقائياً
+    $protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') ? "https" : "http";
+    $host = $_SERVER['HTTP_HOST'];
+    $path = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/\\');
+    $base_url = "$protocol://$host$path/";
+}
+
+// معالجة رابط الشعار ليكون مطلقاً
+$logo_url = $settings['favicon'] ?? '';
+if (!empty($logo_url) && !preg_match('/^https?:\/\//', $logo_url)) {
+    $logo_url = $base_url . ltrim($logo_url, '/');
+}
 ?>
 <style>
     :root {
@@ -258,20 +276,20 @@ $primary_color = $settings['primary_color'] ?? '#1e293b';
 </script>
 
 <div class="navbar">
-    <a class="brand" href="./">
-        <?php if (!empty($settings['favicon'])): ?>
-            <img src="<?php echo htmlspecialchars($settings['favicon']); ?>" alt="Logo" style="height: 45px; width: auto; vertical-align: middle; margin-left: 8px;">
+    <a class="brand" href="<?php echo htmlspecialchars($base_url); ?>">
+        <?php if (!empty($logo_url)): ?>
+            <img src="<?php echo htmlspecialchars($logo_url); ?>" alt="Logo" style="height: 45px; width: auto; vertical-align: middle; margin-left: 8px;">
         <?php endif; ?>
         <?php echo htmlspecialchars($header_site_name); ?>
     </a>
     <button class="menu-toggle" aria-label="قائمة" aria-expanded="false">☰</button>
     <nav class="nav-links" role="navigation">
-        <a href="./">مباريات اليوم</a>
-        <a href="الأخبار">الأخبار الرياضية</a>
-        <a href="الفرق">الفرق</a>
-        <a href="الدوريات">الدوري</a>
+        <a href="<?php echo htmlspecialchars($base_url); ?>">مباريات اليوم</a>
+        <a href="<?php echo htmlspecialchars($base_url); ?>الأخبار">الأخبار الرياضية</a>
+        <a href="<?php echo htmlspecialchars($base_url); ?>الفرق">الفرق</a>
+        <a href="<?php echo htmlspecialchars($base_url); ?>الدوريات">الدوري</a>
     </nav>
-    <a href="search.php" class="search-trigger" aria-label="بحث">
+    <a href="<?php echo htmlspecialchars($base_url); ?>بحث" class="search-trigger" aria-label="بحث">
         <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
     </a>
     <div class="nav-overlay" aria-hidden="true"></div>

@@ -281,7 +281,7 @@ if (!empty($query)) {
 
     <div class="container">
         <div class="search-box-container">
-            <form action="search.php" method="GET" class="search-form">
+            <form action="بحث" method="GET" class="search-form">
                 <div class="search-wrapper">
                     <input type="text" name="q" id="search-input" class="search-input" placeholder="ابحث عن فريق، مباراة، أو خبر..." value="<?php echo htmlspecialchars($query); ?>" required autocomplete="off">
                     <div id="suggestions" class="suggestions-list"></div>
