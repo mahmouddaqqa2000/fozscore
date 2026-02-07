@@ -597,7 +597,21 @@ $services_list = $pdo->query("SELECT * FROM bot_services ORDER BY id DESC")->fet
                     </select>
                 </div>
                 <div class="form-group">
-                    <input type="text" name="service_name" placeholder="اسم الخدمة (مثال: 1000 متابع)" required>
+                    <label style="font-weight:normal; color:#64748b; font-size:0.9rem; margin-bottom:5px; display:block;">اسم الخدمة (اختر أو اكتب)</label>
+                    <div style="display:flex; gap:10px;">
+                        <select onchange="document.getElementsByName('service_name')[0].value = this.value" style="flex:1; padding:10px; border-radius:8px; border:1px solid #cbd5e1; font-family:inherit;">
+                            <option value="">-- اختر اسم جاهز --</option>
+                            <option value="متابعين">👤 متابعين</option>
+                            <option value="لايكات">❤️ لايكات</option>
+                            <option value="مشاهدات">👁 مشاهدات</option>
+                            <option value="تعليقات">💬 تعليقات</option>
+                            <option value="مشاركات (Share)">🔄 مشاركات</option>
+                            <option value="حفظ (Save)">💾 حفظ</option>
+                            <option value="متابعين (ضمان ذهبي)">🥇 متابعين (ضمان ذهبي)</option>
+                            <option value="لايكات (سريع)">🚀 لايكات (سريع)</option>
+                        </select>
+                        <input type="text" name="service_name" placeholder="اسم الخدمة" style="flex:1;" required>
+                    </div>
                 </div>
                 <div class="form-group" style="display:flex; gap:10px;">
                     <input type="text" name="service_price" placeholder="نص السعر للعرض (مثال: 5$ لكل 1k)" style="flex:1;" required>
