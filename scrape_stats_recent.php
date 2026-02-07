@@ -5,6 +5,19 @@ require_once __DIR__ . '/helpers.php';
 
 header('Content-Type: text/html; charset=utf-8');
 
+// إصلاح تلقائي: إضافة الأعمدة الناقصة (match_events, match_stats) إذا لم تكن موجودة
+try {
+    $pdo->query("SELECT match_events FROM matches LIMIT 1");
+} catch (PDOException $e) {
+    $pdo->exec("ALTER TABLE matches ADD COLUMN match_events TEXT");
+}
+
+try {
+    $pdo->query("SELECT match_stats FROM matches LIMIT 1");
+} catch (PDOException $e) {
+    $pdo->exec("ALTER TABLE matches ADD COLUMN match_stats TEXT");
+}
+
 // إعدادات لمنع التوقف وعرض الأخطاء
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
