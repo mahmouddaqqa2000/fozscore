@@ -85,6 +85,18 @@ $stats_stmt = $pdo->query("SELECT
     FROM bot_orders");
 $stats = $stats_stmt->fetch(PDO::FETCH_ASSOC);
 
+// بيانات الرسم البياني (آخر 7 أيام)
+$chart_labels = [];
+$chart_values = [];
+for ($i = 6; $i >= 0; $i--) {
+    $d = date('Y-m-d', strtotime("-$i days"));
+    $s = strtotime("$d 00:00:00");
+    $e = strtotime("$d 23:59:59");
+    $cnt = $pdo->query("SELECT COUNT(*) FROM bot_orders WHERE created_at BETWEEN $s AND $e")->fetchColumn();
+    $chart_labels[] = date('m/d', $s);
+    $chart_values[] = $cnt;
+}
+
 // حساب عدد الصفحات
 $total_orders = $pdo->query("SELECT COUNT(*) FROM bot_orders")->fetchColumn();
 $total_pages = ceil($total_orders / $limit);
@@ -96,6 +108,7 @@ $total_pages = ceil($total_orders / $limit);
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>سجل طلبات البوت - FozScore</title>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body { font-family: 'Tajawal', sans-serif; background-color: #f8fafc; color: #1e293b; margin: 0; padding: 20px; }
         .container { max-width: 1200px; margin: 0 auto; }
@@ -163,6 +176,14 @@ $total_pages = ceil($total_orders / $limit);
             <div class="card" style="flex: 1; text-align: center; padding: 20px; margin-bottom: 0;">
                 <div style="font-size: 2rem; font-weight: 800; color: #d97706;">$<?php echo number_format($stats['total_spent'] ?? 0, 2); ?></div>
                 <div style="color: #64748b; font-weight: 600;">إجمالي المصروفات (المكتملة)</div>
+            </div>
+        </div>
+
+        <!-- Chart Section -->
+        <div class="card" style="padding: 20px; margin-bottom: 25px;">
+            <h3 style="margin-top: 0; color: #1e293b; font-size: 1.1rem; margin-bottom: 15px;">📊 نشاط الطلبات (آخر 7 أيام)</h3>
+            <div style="height: 300px;">
+                <canvas id="ordersChart"></canvas>
             </div>
         </div>
 
@@ -238,6 +259,56 @@ $total_pages = ceil($total_orders / $limit);
             </div>
         <?php endif; ?>
     </div>
+    <script>
+        const ctx = document.getElementById('ordersChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: <?php echo json_encode($chart_labels); ?>,
+                datasets: [{
+                    label: 'عدد الطلبات',
+                    data: <?php echo json_encode($chart_values); ?>,
+                    borderColor: '#2563eb',
+                    backgroundColor: 'rgba(37, 99, 235, 0.1)',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.3,
+                    pointBackgroundColor: '#ffffff',
+                    pointBorderColor: '#2563eb',
+                    pointRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false,
+                        bodyFont: { family: 'Tajawal' },
+                        titleFont: { family: 'Tajawal' }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: { stepSize: 1, font: { family: 'Tajawal' } },
+                        grid: { color: '#f1f5f9' }
+                    },
+                    x: {
+                        grid: { display: false },
+                        ticks: { font: { family: 'Tajawal' } }
+                    }
+                },
+                interaction: {
+                    mode: 'nearest',
+                    axis: 'x',
+                    intersect: false
+                }
+            }
+        });
+    </script>
 </body>
 </html>
 <?php
