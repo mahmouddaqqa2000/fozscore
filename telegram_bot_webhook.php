@@ -566,77 +566,85 @@ if (isset($update['callback_query'])) {
             $stmtDel->execute([$chat_id]);
             
             if ($stmtDel->rowCount() > 0) {
-                // نحن في العملية الأولى والوحيدة -> ننفذ الطلب
-                $data = $stateData['data'];
-                $total_cost = $data['total_cost'] ?? 0;
-                
-                // خصم الرصيد
-                $stmtUser = $pdo->prepare("SELECT balance, username FROM bot_users WHERE chat_id = ?");
-                $stmtUser->execute([$chat_id]);
-                $userRow = $stmtUser->fetch(PDO::FETCH_ASSOC);
-                $current_balance = $userRow['balance'] ?? 0;
-                $username = $userRow['username'] ?? 'Unknown';
-                
-                if ($total_cost > 0 && $current_balance < $total_cost) {
-                    if ($procMsgId) deleteMessage($token, $chat_id, $procMsgId); // حذف رسالة المعالجة
-                    sendMessage($token, $chat_id, "🚫 رصيدك غير كافٍ لإتمام العملية.");
-                    return;
-                }
-                
-                $new_balance = $current_balance - $total_cost;
-                $pdo->prepare("UPDATE bot_users SET balance = ? WHERE chat_id = ?")->execute([$new_balance, $chat_id]);
-                
-                // --- إرسال الطلب إلى SMM API ---
-                $external_id = null;
-                $api_response_json = null;
-                
-                // جلب رقم الخدمة في الموقع
-                $service_id_local = $data['service_id'] ?? 0;
-                $stmtSrv = $pdo->prepare("SELECT api_service_id FROM bot_services WHERE id = ?");
-                $stmtSrv->execute([$service_id_local]);
-                $srv = $stmtSrv->fetch(PDO::FETCH_ASSOC);
-                $api_service_id = $srv['api_service_id'] ?? null;
-                
-                if ($api_service_id) {
-                    $smm_url = $settings['smm_api_url'] ?? 'https://smmcost.com/api/v2';
-                    $smm_key = $settings['smm_api_key'] ?? '';
+                try {
+                    // نحن في العملية الأولى والوحيدة -> ننفذ الطلب
+                    $data = $stateData['data'];
+                    $total_cost = $data['total_cost'] ?? 0;
                     
-                    if ($smm_key) {
-                        $res = placeOrderSMM($smm_url, $smm_key, $api_service_id, $data['link'], $data['qty']);
-                        $api_response_json = json_encode($res);
-                        if (isset($res['order'])) $external_id = $res['order'];
+                    // خصم الرصيد
+                    $stmtUser = $pdo->prepare("SELECT balance, username FROM bot_users WHERE chat_id = ?");
+                    $stmtUser->execute([$chat_id]);
+                    $userRow = $stmtUser->fetch(PDO::FETCH_ASSOC);
+                    $current_balance = $userRow['balance'] ?? 0;
+                    $username = $userRow['username'] ?? 'Unknown';
+                    
+                    if ($total_cost > 0 && $current_balance < $total_cost) {
+                        if ($procMsgId) deleteMessage($token, $chat_id, $procMsgId); // حذف رسالة المعالجة
+                        sendMessage($token, $chat_id, "🚫 رصيدك غير كافٍ لإتمام العملية.");
+                        return;
                     }
-                }
-                // --------------------------------
+                    
+                    $new_balance = $current_balance - $total_cost;
+                    $pdo->prepare("UPDATE bot_users SET balance = ? WHERE chat_id = ?")->execute([$new_balance, $chat_id]);
+                    
+                    // --- إرسال الطلب إلى SMM API ---
+                    $external_id = null;
+                    $api_response_json = null;
+                    $api_service_id = null;
+                    
+                    // جلب رقم الخدمة في الموقع
+                    $service_id_local = $data['service_id'] ?? 0;
+                    $stmtSrv = $pdo->prepare("SELECT api_service_id FROM bot_services WHERE id = ?");
+                    $stmtSrv->execute([$service_id_local]);
+                    $srv = $stmtSrv->fetch(PDO::FETCH_ASSOC);
+                    $api_service_id = $srv['api_service_id'] ?? null;
+                    
+                    if ($api_service_id) {
+                        $smm_url = $settings['smm_api_url'] ?? 'https://smmcost.com/api/v2';
+                        $smm_key = $settings['smm_api_key'] ?? '';
+                        
+                        if ($smm_key) {
+                            $res = placeOrderSMM($smm_url, $smm_key, $api_service_id, $data['link'], $data['qty']);
+                            $api_response_json = json_encode($res);
+                            if (isset($res['order'])) $external_id = $res['order'];
+                        }
+                    }
+                    // --------------------------------
 
-                // تسجيل العملية في السجل المالي (بالسالب لأنها خصم)
-                $serviceName = $data['type_label'] ?? 'خدمة';
-                $pdo->prepare("INSERT INTO bot_transactions (chat_id, username, amount, stars, created_at) VALUES (?, ?, ?, 0, ?)")
-                    ->execute([$chat_id, $username, -$total_cost, time()]);
+                    // تسجيل العملية في السجل المالي (بالسالب لأنها خصم)
+                    $serviceName = $data['type_label'] ?? 'خدمة';
+                    $pdo->prepare("INSERT INTO bot_transactions (chat_id, username, amount, stars, created_at) VALUES (?, ?, ?, 0, ?)")
+                        ->execute([$chat_id, $username, -$total_cost, time()]);
+                    
+                    // تسجيل الطلب في سجل الطلبات (للمستخدم)
+                    $pdo->prepare("INSERT INTO bot_orders (chat_id, service_name, qty, link, cost, status, created_at, external_id, api_response) VALUES (?, ?, ?, ?, ?, 'pending', ?, ?, ?)")
+                        ->execute([$chat_id, $serviceName, $data['qty'], $data['link'], $total_cost, time(), $external_id, $api_response_json]);
+                    
+                    // إشعار الإدارة بطلب جديد
+                    $admin_chat_id = $settings['chat_id'] ?? '';
+                    if ($admin_chat_id) {
+                        $adminMsg = "🔔 **طلب جديد!**\n\n👤 المستخدم: " . htmlspecialchars($username) . " (`$chat_id`)\n🔧 الخدمة: $serviceName\n🔢 العدد: {$data['qty']}\n🔗 الرابط: {$data['link']}\n💰 التكلفة: $" . number_format($total_cost, 2);
+                        if ($external_id) $adminMsg .= "\n✅ **تم الإرسال للموقع برقم:** `$external_id`";
+                        else if ($api_service_id) $adminMsg .= "\n⚠️ **فشل الإرسال للموقع!** (راجع السجل)";
+                        sendMessage($token, $admin_chat_id, $adminMsg);
+                    }
                 
-                // تسجيل الطلب في سجل الطلبات (للمستخدم)
-                $pdo->prepare("INSERT INTO bot_orders (chat_id, service_name, qty, link, cost, status, created_at, external_id, api_response) VALUES (?, ?, ?, ?, ?, 'pending', ?, ?, ?)")
-                    ->execute([$chat_id, $serviceName, $data['qty'], $data['link'], $total_cost, time(), $external_id, $api_response_json]);
-                
-                // إشعار الإدارة بطلب جديد
-                $admin_chat_id = $settings['chat_id'] ?? '';
-                if ($admin_chat_id) {
-                    $adminMsg = "🔔 **طلب جديد!**\n\n👤 المستخدم: " . htmlspecialchars($username) . " (`$chat_id`)\n🔧 الخدمة: $serviceName\n🔢 العدد: {$data['qty']}\n🔗 الرابط: {$data['link']}\n💰 التكلفة: $" . number_format($total_cost, 2);
-                    if ($external_id) $adminMsg .= "\n✅ **تم الإرسال للموقع برقم:** `$external_id`";
-                    else if ($api_service_id) $adminMsg .= "\n⚠️ **فشل الإرسال للموقع!** (راجع السجل)";
-                    sendMessage($token, $admin_chat_id, $adminMsg);
+                    // إرسال رسالة التأكيد النهائية
+                    $msg = "✅ **تم تأكيد طلبك بنجاح!** 🚀\n\n";
+                    $msg .= "طلبك الآن **قيد التنفيذ**.\n\n";
+                    $msg .= "🔧 **الخدمة:** " . ($data['type_label'] ?? '') . "\n";
+                    $msg .= "🔢 **العدد:** " . ($data['qty'] ?? 0) . "\n";
+                    $msg .= "🔗 **الرابط:** " . ($data['link'] ?? '') . "\n";
+                    if ($total_cost > 0) $msg .= "💰 **الرصيد المتبقي:** $" . number_format($new_balance, 2) . "\n";
+                    
+                    if ($procMsgId) deleteMessage($token, $chat_id, $procMsgId); // حذف رسالة المعالجة
+                    sendMessage($token, $chat_id, $msg);
+
+                } catch (Exception $e) {
+                    // في حال حدوث خطأ، نبلغ المستخدم ونحذف رسالة المعالجة
+                    if ($procMsgId) deleteMessage($token, $chat_id, $procMsgId);
+                    sendMessage($token, $chat_id, "⚠️ حدث خطأ أثناء معالجة طلبك، لكن قد يكون تم تنفيذه. يرجى مراجعة 'سجل طلباتي' أو التواصل مع الإدارة.");
                 }
-            
-            // إرسال رسالة التأكيد النهائية
-            $msg = "✅ **تم تأكيد طلبك بنجاح!** 🚀\n\n";
-            $msg .= "طلبك الآن **قيد التنفيذ**.\n\n";
-            $msg .= "🔧 **الخدمة:** " . ($data['type_label'] ?? '') . "\n";
-            $msg .= "🔢 **العدد:** " . ($data['qty'] ?? 0) . "\n";
-            $msg .= "🔗 **الرابط:** " . ($data['link'] ?? '') . "\n";
-            if ($total_cost > 0) $msg .= "💰 **الرصيد المتبقي:** $" . number_format($new_balance, 2) . "\n";
-            
-            if ($procMsgId) deleteMessage($token, $chat_id, $procMsgId); // حذف رسالة المعالجة
-            sendMessage($token, $chat_id, $msg);
             } else {
                 // الطلب مكرر وتمت معالجته بالفعل -> لا نفعل شيئاً
                 if ($procMsgId) deleteMessage($token, $chat_id, $procMsgId);
