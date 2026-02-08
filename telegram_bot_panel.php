@@ -286,8 +286,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $cost = $_POST['service_cost'];
         $category = $_POST['service_category'];
         $api_id = $_POST['api_service_id'];
-        $stmt = $pdo->prepare("INSERT INTO bot_services (name, price, description, category, cost, api_service_id) VALUES (?, '', ?, ?, ?, ?)");
-        $stmt->execute([$name, $desc, $category, $cost, $api_id]);
+        $min_qty = !empty($_POST['service_min_qty']) ? intval($_POST['service_min_qty']) : 500;
+        $stmt = $pdo->prepare("INSERT INTO bot_services (name, price, description, category, cost, api_service_id, min_qty) VALUES (?, '', ?, ?, ?, ?, ?)");
+        $stmt->execute([$name, $desc, $category, $cost, $api_id, $min_qty]);
         $message = "تم إضافة الخدمة للمتجر ✅";
         $msg_type = "success";
     }
@@ -305,7 +306,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $id = $_POST['service_id'];
         $new_cost = $_POST['new_cost'];
         $new_api_id = $_POST['new_api_id'];
-        $pdo->prepare("UPDATE bot_services SET cost = ?, api_service_id = ? WHERE id = ?")->execute([$new_cost, $new_api_id, $id]);
+        $new_min_qty = !empty($_POST['new_min_qty']) ? intval($_POST['new_min_qty']) : 500;
+        $pdo->prepare("UPDATE bot_services SET cost = ?, api_service_id = ?, min_qty = ? WHERE id = ?")->execute([$new_cost, $new_api_id, $new_min_qty, $id]);
         $message = "تم تحديث سعر وتكلفة الخدمة بنجاح 💰";
         $msg_type = "success";
     }
@@ -631,6 +633,7 @@ $services_list = $pdo->query("SELECT * FROM bot_services ORDER BY id DESC")->fet
                 <div class="form-group" style="display:flex; gap:10px;">
                     <input type="number" step="0.01" name="service_cost" placeholder="التكلفة الرقمية (لكل 1000)" style="flex:1;" title="السعر الرقمي للحساب (مثال: 5)" required>
                     <input type="number" name="api_service_id" placeholder="رقم الخدمة في الموقع (ID)" style="flex:1;" title="Service ID from SMM Provider">
+                    <input type="number" name="service_min_qty" placeholder="أقل كمية (مثال: 500)" style="flex:1;" value="500" title="Minimum Quantity">
                 </div>
                 <div class="form-group">
                     <input type="text" name="service_desc" placeholder="وصف قصير (اختياري)" style="flex:2;">
@@ -667,6 +670,7 @@ $services_list = $pdo->query("SELECT * FROM bot_services ORDER BY id DESC")->fet
                                 <input type="hidden" name="service_id" value="<?php echo $srv['id']; ?>">
                                 <input type="number" step="0.01" name="new_cost" value="<?php echo htmlspecialchars($srv['cost'] ?? 0); ?>" style="width:60px; padding:5px; font-size:0.8rem; border:1px solid #cbd5e1; border-radius:4px;" placeholder="التكلفة" title="التكلفة الرقمية">
                                 <input type="number" name="new_api_id" value="<?php echo htmlspecialchars($srv['api_service_id'] ?? ''); ?>" style="width:60px; padding:5px; font-size:0.8rem; border:1px solid #cbd5e1; border-radius:4px;" placeholder="ID الموقع" title="رقم الخدمة في SMM">
+                                <input type="number" name="new_min_qty" value="<?php echo htmlspecialchars($srv['min_qty'] ?? 500); ?>" style="width:60px; padding:5px; font-size:0.8rem; border:1px solid #cbd5e1; border-radius:4px;" placeholder="أقل كمية" title="أقل كمية للطلب">
                                 <button type="submit" name="update_service_price" class="btn" style="background:#0891b2; padding:5px 10px; font-size:0.8rem; width:auto;">تحديث</button>
                             </form>
                             

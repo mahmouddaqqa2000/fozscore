@@ -145,6 +145,13 @@ if (isset($update['message'])) {
                         $service = $stmtSrv->fetch(PDO::FETCH_ASSOC);
                         
                         if ($service) {
+                            // التحقق من الحد الأدنى للكمية
+                            $min_qty = $service['min_qty'] ?? 500;
+                            if ($qty < $min_qty) {
+                                sendMessage($token, $chat_id, "⚠️ **الكمية قليلة جداً!**\nأقل كمية مسموح بها لهذه الخدمة هي: **$min_qty**.\nيرجى إرسال رقم صحيح أكبر من أو يساوي $min_qty.");
+                                return;
+                            }
+
                             $cost_per_1k = floatval($service['cost'] ?? 0);
                             if ($cost_per_1k > 0) {
                                 $total_cost = ($qty / 1000) * $cost_per_1k;
@@ -454,7 +461,8 @@ if (isset($update['callback_query'])) {
 
             // حفظ الحالة مع service_id ليتم خصم الرصيد لاحقاً
             setUserState($pdo, $chat_id, 'WAITING_QTY', ['platform' => $service['category'], 'type_label' => $service['name'], 'service_id' => $service['id']]);
-            $msg = "🔢 **الكمية المطلوبة ({$service['name']}):**\n\nيرجى كتابة العدد الذي تريده (أرقام فقط).";
+            $min_qty = $service['min_qty'] ?? 500;
+            $msg = "🔢 **الكمية المطلوبة ({$service['name']}):**\n\nأقل كمية: $min_qty\nيرجى كتابة العدد الذي تريده (أرقام فقط).";
             sendMessage($token, $chat_id, $msg);
         }
     }
@@ -606,6 +614,7 @@ if (isset($update['callback_query'])) {
                         if ($smm_key) {
                             $res = placeOrderSMM($smm_url, $smm_key, $api_service_id, $data['link'], $data['qty']);
                             $api_response_json = json_encode($res);
+                        if ($api_response_json === false) $api_response_json = '{}'; // تجنب الخطأ في حال فشل التحويل
                             if (isset($res['order'])) $external_id = $res['order'];
                         }
                     }
@@ -643,7 +652,7 @@ if (isset($update['callback_query'])) {
                 } catch (Exception $e) {
                     // في حال حدوث خطأ، نبلغ المستخدم ونحذف رسالة المعالجة
                     if ($procMsgId) deleteMessage($token, $chat_id, $procMsgId);
-                    sendMessage($token, $chat_id, "⚠️ حدث خطأ أثناء معالجة طلبك، لكن قد يكون تم تنفيذه. يرجى مراجعة 'سجل طلباتي' أو التواصل مع الإدارة.");
+                    sendMessage($token, $chat_id, "⚠️ حدث خطأ فني: " . $e->getMessage());
                 }
             } else {
                 // الطلب مكرر وتمت معالجته بالفعل -> لا نفعل شيئاً
