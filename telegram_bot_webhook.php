@@ -688,7 +688,15 @@ if (isset($update['callback_query'])) {
         } else {
             $msg = "📜 **سجل آخر 10 طلبات:**\n\n";
             foreach ($orders as $order) {
-                $statusMap = ['pending' => 'قيد التنفيذ ⏳', 'completed' => 'مكتمل ✅', 'cancelled' => 'ملغي ❌'];
+                $statusMap = [
+                    'pending' => 'قيد الانتظار ⏳',
+                    'in_progress' => 'جاري التنفيذ 🚀',
+                    'processing' => 'قيد المعالجة ⚙️',
+                    'completed' => 'مكتمل ✅',
+                    'partial' => 'مكتمل جزئياً ⚠️',
+                    'canceled' => 'ملغي ❌',
+                    'cancelled' => 'ملغي ❌'
+                ];
                 $status = $statusMap[$order['status']] ?? $order['status'];
                 $date = date('Y-m-d', $order['created_at']);
                 
