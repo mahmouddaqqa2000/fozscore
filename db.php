@@ -7,6 +7,11 @@ date_default_timezone_set('Asia/Riyadh');
 $dir = __DIR__;
 $pdo = new PDO('sqlite:' . $dir . '/matches.sqlite');
 $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+
+// تحسينات لمنع خطأ "database is locked"
+$pdo->exec('PRAGMA journal_mode = WAL;'); // تفعيل وضع الكتابة المسبقة (أسرع ويدعم التزامن)
+$pdo->exec('PRAGMA busy_timeout = 10000;'); // انتظار حتى 10 ثوانٍ قبل إظهار الخطأ بدلاً من الفشل فوراً
+
 $pdo->exec("CREATE TABLE IF NOT EXISTS matches (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   match_date TEXT NOT NULL,
