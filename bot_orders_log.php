@@ -77,6 +77,14 @@ $stmt = $pdo->prepare("SELECT o.*, u.username
 $stmt->execute([$limit, $offset]);
 $orders = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+// إحصائيات عامة
+$stats_stmt = $pdo->query("SELECT 
+    COUNT(*) as total_all,
+    SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as total_completed,
+    SUM(CASE WHEN status = 'completed' THEN cost ELSE 0 END) as total_spent
+    FROM bot_orders");
+$stats = $stats_stmt->fetch(PDO::FETCH_ASSOC);
+
 // حساب عدد الصفحات
 $total_orders = $pdo->query("SELECT COUNT(*) FROM bot_orders")->fetchColumn();
 $total_pages = ceil($total_orders / $limit);
@@ -141,6 +149,22 @@ $total_pages = ceil($total_orders / $limit);
         <form method="post" style="margin-bottom: 20px;">
             <button type="submit" name="update_all_pending" class="back-btn" style="background: #0f172a; color: white; border: none; cursor: pointer;">🔄 تحديث حالة جميع الطلبات المعلقة</button>
         </form>
+
+        <!-- Statistics Cards -->
+        <div style="display: flex; gap: 20px; margin-bottom: 25px; flex-wrap: wrap;">
+            <div class="card" style="flex: 1; text-align: center; padding: 20px; margin-bottom: 0;">
+                <div style="font-size: 2rem; font-weight: 800; color: #2563eb;"><?php echo number_format($stats['total_all']); ?></div>
+                <div style="color: #64748b; font-weight: 600;">إجمالي الطلبات</div>
+            </div>
+            <div class="card" style="flex: 1; text-align: center; padding: 20px; margin-bottom: 0;">
+                <div style="font-size: 2rem; font-weight: 800; color: #16a34a;"><?php echo number_format($stats['total_completed']); ?></div>
+                <div style="color: #64748b; font-weight: 600;">الطلبات المكتملة</div>
+            </div>
+            <div class="card" style="flex: 1; text-align: center; padding: 20px; margin-bottom: 0;">
+                <div style="font-size: 2rem; font-weight: 800; color: #d97706;">$<?php echo number_format($stats['total_spent'] ?? 0, 2); ?></div>
+                <div style="color: #64748b; font-weight: 600;">إجمالي المصروفات (المكتملة)</div>
+            </div>
+        </div>
 
         <div class="card">
             <table>
