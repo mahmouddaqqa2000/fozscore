@@ -1,4 +1,7 @@
 <?php
+// إعدادات لمنع تكرار التنفيذ وإغلاق الاتصال بسرعة
+ignore_user_abort(true);
+set_time_limit(0);
 require_once __DIR__ . '/db.php';
 
 // دالة لجلب إعدادات البوت الجديد
@@ -254,7 +257,12 @@ if (isset($update['message'])) {
                 }
                 $msg .= "\n👇 **اضغط تأكيد لإتمام الطلب وخصم الرصيد:**";
                 
-                $keyboard = ['inline_keyboard' => [[['text' => '✅ تأكيد الطلب', 'callback_data' => 'confirm_order_final']]]];
+                $keyboard = ['inline_keyboard' => [
+                    [
+                        ['text' => '✅ تأكيد الطلب', 'callback_data' => 'confirm_order_final'],
+                        ['text' => '❌ إلغاء', 'callback_data' => 'cancel_order']
+                    ]
+                ]];
                 
                 setUserState($pdo, $chat_id, 'WAITING_FINAL_CONFIRMATION', $data);
                 sendMessage($token, $chat_id, $msg, $keyboard);
@@ -537,22 +545,50 @@ if (isset($update['callback_query'])) {
     if ($data === 'confirm_order_final') {
         $stateData = getUserState($pdo, $chat_id);
         if ($stateData && $stateData['state'] === 'WAITING_FINAL_CONFIRMATION') {
-            $data = $stateData['data'];
-            $total_cost = $data['total_cost'] ?? 0;
             
-            // خصم الرصيد
-            $stmtUser = $pdo->prepare("SELECT balance FROM bot_users WHERE chat_id = ?");
-            $stmtUser->execute([$chat_id]);
-            $current_balance = $stmtUser->fetchColumn();
+            // إرسال رسالة "جاري المعالجة"
+            $processingMsg = sendMessage($token, $chat_id, "⏳ **جاري معالجة طلبك...**");
+            $procMsgId = null;
+            if ($processingMsg) $procMsgId = json_decode($processingMsg, true)['result']['message_id'] ?? null;
+
+            // --- الحل الجذري للتكرار (Atomic Lock) ---
+            // نحاول حذف الحالة أولاً. إذا نجح الحذف (عدد الصفوف 1)، فهذا يعني أننا أول من يعالج الطلب.
+            // إذا فشل (عدد الصفوف 0)، فهذا يعني أن الطلب قيد المعالجة أو تم تنفيذه بالفعل.
+            $stmtDel = $pdo->prepare("DELETE FROM bot_users_state WHERE chat_id = ? AND state = 'WAITING_FINAL_CONFIRMATION'");
+            $stmtDel->execute([$chat_id]);
             
-            if ($total_cost > 0 && $current_balance < $total_cost) {
-                sendMessage($token, $chat_id, "🚫 رصيدك غير كافٍ لإتمام العملية.");
-                clearUserState($pdo, $chat_id);
-                return;
-            }
-            
-            $new_balance = $current_balance - $total_cost;
-            $pdo->prepare("UPDATE bot_users SET balance = ? WHERE chat_id = ?")->execute([$new_balance, $chat_id]);
+            if ($stmtDel->rowCount() > 0) {
+                // نحن في العملية الأولى والوحيدة -> ننفذ الطلب
+                $data = $stateData['data'];
+                $total_cost = $data['total_cost'] ?? 0;
+                
+                // خصم الرصيد
+                $stmtUser = $pdo->prepare("SELECT balance, username FROM bot_users WHERE chat_id = ?");
+                $stmtUser->execute([$chat_id]);
+                $userRow = $stmtUser->fetch(PDO::FETCH_ASSOC);
+                $current_balance = $userRow['balance'] ?? 0;
+                $username = $userRow['username'] ?? 'Unknown';
+                
+                if ($total_cost > 0 && $current_balance < $total_cost) {
+                    if ($procMsgId) deleteMessage($token, $chat_id, $procMsgId); // حذف رسالة المعالجة
+                    sendMessage($token, $chat_id, "🚫 رصيدك غير كافٍ لإتمام العملية.");
+                    return;
+                }
+                
+                $new_balance = $current_balance - $total_cost;
+                $pdo->prepare("UPDATE bot_users SET balance = ? WHERE chat_id = ?")->execute([$new_balance, $chat_id]);
+                
+                // تسجيل العملية في السجل المالي (بالسالب لأنها خصم)
+                $serviceName = $data['type_label'] ?? 'خدمة';
+                $pdo->prepare("INSERT INTO bot_transactions (chat_id, username, amount, stars, created_at) VALUES (?, ?, ?, 0, ?)")
+                    ->execute([$chat_id, $username, -$total_cost, time()]);
+                
+                // إشعار الإدارة بطلب جديد
+                $admin_chat_id = $settings['chat_id'] ?? '';
+                if ($admin_chat_id) {
+                    $adminMsg = "🔔 **طلب جديد!**\n\n👤 المستخدم: " . htmlspecialchars($username) . " (`$chat_id`)\n🔧 الخدمة: $serviceName\n🔢 العدد: {$data['qty']}\n🔗 الرابط: {$data['link']}\n💰 التكلفة: $" . number_format($total_cost, 2);
+                    sendMessage($token, $admin_chat_id, $adminMsg);
+                }
             
             // إرسال رسالة التأكيد النهائية
             $msg = "✅ **تم تأكيد طلبك بنجاح!** 🚀\n\n";
@@ -562,11 +598,23 @@ if (isset($update['callback_query'])) {
             $msg .= "🔗 **الرابط:** " . ($data['link'] ?? '') . "\n";
             if ($total_cost > 0) $msg .= "💰 **الرصيد المتبقي:** $" . number_format($new_balance, 2) . "\n";
             
-            clearUserState($pdo, $chat_id);
+            if ($procMsgId) deleteMessage($token, $chat_id, $procMsgId); // حذف رسالة المعالجة
             sendMessage($token, $chat_id, $msg);
+            } else {
+                // الطلب مكرر وتمت معالجته بالفعل -> لا نفعل شيئاً
+                if ($procMsgId) deleteMessage($token, $chat_id, $procMsgId);
+            }
         } else {
             sendMessage($token, $chat_id, "⚠️ انتهت صلاحية الجلسة، يرجى البدء من جديد.");
         }
+    }
+
+    // --- معالجة إلغاء الطلب ---
+    if ($data === 'cancel_order') {
+        clearUserState($pdo, $chat_id);
+        $msg = "❌ **تم إلغاء الطلب.**\nيمكنك البدء من جديد باختيار خدمة من القائمة.";
+        $keyboard = ['inline_keyboard' => [[['text' => '🔙 القائمة الرئيسية', 'callback_data' => 'back_to_main']]]];
+        sendMessage($token, $chat_id, $msg, $keyboard);
     }
 }
 
@@ -586,8 +634,9 @@ function sendMessage($token, $chat_id, $text, $keyboard = null) {
     curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-    curl_exec($ch);
+    $result = curl_exec($ch);
     curl_close($ch);
+    return $result;
 }
 
 function answerCallbackQuery($token, $callback_query_id) {
@@ -652,6 +701,18 @@ function answerPreCheckoutQuery($token, $pre_checkout_query_id, $ok, $error_mess
     curl_close($ch);
 }
 
+function deleteMessage($token, $chat_id, $message_id) {
+    $url = "https://api.telegram.org/bot$token/deleteMessage";
+    $data = ['chat_id' => $chat_id, 'message_id' => $message_id];
+    $ch = curl_init($url);
+    curl_setopt($ch, CURLOPT_POST, 1);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    curl_exec($ch);
+    curl_close($ch);
+}
+
 // --- دوال إدارة الحالة ---
 function getUserState($pdo, $chat_id) {
     $stmt = $pdo->prepare("SELECT state, data FROM bot_users_state WHERE chat_id = ?");
@@ -672,4 +733,7 @@ function clearUserState($pdo, $chat_id) {
     $stmt = $pdo->prepare("DELETE FROM bot_users_state WHERE chat_id = ?");
     $stmt->execute([$chat_id]);
 }
+
+// إنهاء الطلب بـ 200 OK لإيقاف محاولات تيليجرام
+http_response_code(200);
 ?>
