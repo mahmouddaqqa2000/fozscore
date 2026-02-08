@@ -557,6 +557,10 @@ $services_list = $pdo->query("SELECT * FROM bot_services ORDER BY id DESC")->fet
             </form>
         </div>
 
+        <div style="margin-bottom: 20px;">
+            <a href="bot_orders_log.php" class="btn" style="background:#6366f1; width:100%; text-align:center; display:block; text-decoration:none;">📜 عرض سجل الطلبات الكامل (الخدمات)</a>
+        </div>
+
         <!-- سجل عمليات الشحن -->
         <div class="card">
             <h2>📜 سجل عمليات الشحن (النجوم)</h2>
