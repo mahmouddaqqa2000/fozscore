@@ -21,7 +21,19 @@ if (isset($_POST['update_status'])) {
         if ($status) {
             // توحيد الحالة (lowercase)
             $new_status = strtolower($status);
+            
+            // جلب الحالة القديمة ومعلومات المستخدم لإرسال الإشعار
+            $stmtOld = $pdo->prepare("SELECT status, chat_id, service_name FROM bot_orders WHERE id = ?");
+            $stmtOld->execute([$order_id]);
+            $oldOrder = $stmtOld->fetch(PDO::FETCH_ASSOC);
+            
             $pdo->prepare("UPDATE bot_orders SET status = ? WHERE id = ?")->execute([$new_status, $order_id]);
+            
+            // إرسال إشعار إذا اكتمل الطلب
+            if ($oldOrder && $new_status === 'completed' && $oldOrder['status'] !== 'completed') {
+                sendOrderCompletedNotification($bot_settings['bot_token'], $oldOrder['chat_id'], $order_id, $oldOrder['service_name']);
+            }
+            
             $message = "✅ تم تحديث حالة الطلب #$order_id إلى: <b>$new_status</b>";
         } else {
             $error = "❌ فشل جلب الحالة من الموقع (تأكد من الإعدادات أو رقم الطلب).";
@@ -33,14 +45,19 @@ if (isset($_POST['update_status'])) {
 
 // معالجة تحديث جميع الطلبات المعلقة
 if (isset($_POST['update_all_pending'])) {
-    $stmtPending = $pdo->prepare("SELECT id, external_id FROM bot_orders WHERE status IN ('pending', 'in_progress', 'processing') AND external_id IS NOT NULL");
+    $stmtPending = $pdo->prepare("SELECT id, external_id, chat_id, service_name, status FROM bot_orders WHERE status IN ('pending', 'in_progress', 'processing') AND external_id IS NOT NULL");
     $stmtPending->execute();
     $pendingOrders = $stmtPending->fetchAll(PDO::FETCH_ASSOC);
     $updatedCount = 0;
     foreach ($pendingOrders as $pOrder) {
         $status = getSMMStatus($bot_settings['smm_api_url'], $bot_settings['smm_api_key'], $pOrder['external_id']);
         if ($status) {
-            $pdo->prepare("UPDATE bot_orders SET status = ? WHERE id = ?")->execute([strtolower($status), $pOrder['id']]);
+            $new_status = strtolower($status);
+            $pdo->prepare("UPDATE bot_orders SET status = ? WHERE id = ?")->execute([$new_status, $pOrder['id']]);
+            
+            if ($new_status === 'completed' && $pOrder['status'] !== 'completed') {
+                sendOrderCompletedNotification($bot_settings['bot_token'], $pOrder['chat_id'], $pOrder['id'], $pOrder['service_name']);
+            }
             $updatedCount++;
         }
     }
@@ -214,5 +231,25 @@ function getSMMStatus($url, $key, $order_id) {
     curl_close($ch);
     $json = json_decode($result, true);
     return $json['status'] ?? null;
+}
+
+function sendOrderCompletedNotification($token, $chat_id, $order_id, $service_name) {
+    if (empty($token) || empty($chat_id)) return;
+    
+    $msg = "✅ **تم اكتمال طلبك بنجاح!** 🚀\n\n";
+    $msg .= "🔹 الخدمة: " . htmlspecialchars($service_name) . "\n";
+    $msg .= "🆔 رقم الطلب: #$order_id\n";
+    $msg .= "شكراً لاستخدامك البوت! 🌹";
+    
+    $url = "https://api.telegram.org/bot$token/sendMessage";
+    $data = ['chat_id' => $chat_id, 'text' => $msg, 'parse_mode' => 'HTML'];
+    
+    $ch = curl_init($url);
+    curl_setopt($ch, CURLOPT_POST, 1);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    curl_exec($ch);
+    curl_close($ch);
 }
 ?>
