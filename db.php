@@ -146,6 +146,10 @@ $cols = $pdo->query("PRAGMA table_info(bot_services)")->fetchAll(PDO::FETCH_COLU
 if (!in_array('category', $cols)) {
     $pdo->exec("ALTER TABLE bot_services ADD COLUMN category TEXT");
 }
+// إضافة عمود رقم الخدمة في الموقع (api_service_id) للربط
+if (!in_array('api_service_id', $cols)) {
+    $pdo->exec("ALTER TABLE bot_services ADD COLUMN api_service_id INTEGER");
+}
 // إضافة عمود التكلفة الرقمية (cost) للحسابات
 if (!in_array('cost', $cols)) {
     $pdo->exec("ALTER TABLE bot_services ADD COLUMN cost REAL DEFAULT 0");
@@ -178,5 +182,26 @@ $pdo->exec("CREATE TABLE IF NOT EXISTS bot_transactions (
   stars INTEGER,
   created_at INTEGER
 )");
+
+// إنشاء جدول سجل الطلبات (للمستخدم)
+$pdo->exec("CREATE TABLE IF NOT EXISTS bot_orders (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  chat_id INTEGER,
+  service_name TEXT,
+  qty INTEGER,
+  link TEXT,
+  cost REAL,
+  status TEXT DEFAULT 'pending',
+  created_at INTEGER
+)");
+
+// إضافة أعمدة للربط مع API في جدول الطلبات
+$colsOrders = $pdo->query("PRAGMA table_info(bot_orders)")->fetchAll(PDO::FETCH_COLUMN, 1);
+if (!in_array('external_id', $colsOrders)) {
+    $pdo->exec("ALTER TABLE bot_orders ADD COLUMN external_id INTEGER");
+}
+if (!in_array('api_response', $colsOrders)) {
+    $pdo->exec("ALTER TABLE bot_orders ADD COLUMN api_response TEXT");
+}
 
 ?>

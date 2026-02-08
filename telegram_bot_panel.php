@@ -225,11 +225,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $token = trim($_POST['bot_token']);
         $chat_id = trim($_POST['chat_id']);
         $contact = trim($_POST['contact_user']);
+        $smm_url = trim($_POST['smm_api_url']);
+        $smm_key = trim($_POST['smm_api_key']);
         
         $stmt = $pdo->prepare("INSERT OR REPLACE INTO secondary_bot_settings (key_name, value) VALUES (?, ?)");
         $stmt->execute(['bot_token', $token]);
         $stmt->execute(['chat_id', $chat_id]);
         $stmt->execute(['contact_user', $contact]);
+        $stmt->execute(['smm_api_url', $smm_url]);
+        $stmt->execute(['smm_api_key', $smm_key]);
         
         $message = "تم حفظ إعدادات البوت بنجاح ✅";
         $msg_type = "success";
@@ -281,8 +285,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $desc = $_POST['service_desc'];
         $cost = $_POST['service_cost'];
         $category = $_POST['service_category'];
-        $stmt = $pdo->prepare("INSERT INTO bot_services (name, price, description, category, cost) VALUES (?, '', ?, ?, ?)");
-        $stmt->execute([$name, $desc, $category, $cost]);
+        $api_id = $_POST['api_service_id'];
+        $stmt = $pdo->prepare("INSERT INTO bot_services (name, price, description, category, cost, api_service_id) VALUES (?, '', ?, ?, ?, ?)");
+        $stmt->execute([$name, $desc, $category, $cost, $api_id]);
         $message = "تم إضافة الخدمة للمتجر ✅";
         $msg_type = "success";
     }
@@ -299,7 +304,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['update_service_price'])) {
         $id = $_POST['service_id'];
         $new_cost = $_POST['new_cost'];
-        $pdo->prepare("UPDATE bot_services SET cost = ? WHERE id = ?")->execute([$new_cost, $id]);
+        $new_api_id = $_POST['new_api_id'];
+        $pdo->prepare("UPDATE bot_services SET cost = ?, api_service_id = ? WHERE id = ?")->execute([$new_cost, $new_api_id, $id]);
         $message = "تم تحديث سعر وتكلفة الخدمة بنجاح 💰";
         $msg_type = "success";
     }
@@ -492,6 +498,17 @@ $services_list = $pdo->query("SELECT * FROM bot_services ORDER BY id DESC")->fet
                     <label>معرف التواصل (يظهر أسفل الرسالة)</label>
                     <input type="text" name="contact_user" value="<?php echo htmlspecialchars($settings['contact_user'] ?? ''); ?>" placeholder="@username">
                 </div>
+                
+                <h3 style="margin-top:20px; border-top:1px solid #eee; padding-top:10px;">🔌 ربط API (SMM Panel)</h3>
+                <div class="form-group">
+                    <label>API URL</label>
+                    <input type="text" name="smm_api_url" value="<?php echo htmlspecialchars($settings['smm_api_url'] ?? 'https://smmcost.com/api/v2'); ?>" placeholder="https://smmcost.com/api/v2">
+                </div>
+                <div class="form-group">
+                    <label>API Key</label>
+                    <input type="text" name="smm_api_key" value="<?php echo htmlspecialchars($settings['smm_api_key'] ?? ''); ?>" placeholder="Enter API Key">
+                </div>
+
                 <button type="submit" name="save_settings" class="btn btn-save">حفظ الإعدادات</button>
                 
                 <div style="margin-top: 15px; border-top: 1px solid #e2e8f0; padding-top: 15px;">
@@ -613,6 +630,7 @@ $services_list = $pdo->query("SELECT * FROM bot_services ORDER BY id DESC")->fet
                 </div>
                 <div class="form-group" style="display:flex; gap:10px;">
                     <input type="number" step="0.01" name="service_cost" placeholder="التكلفة الرقمية (لكل 1000)" style="flex:1;" title="السعر الرقمي للحساب (مثال: 5)" required>
+                    <input type="number" name="api_service_id" placeholder="رقم الخدمة في الموقع (ID)" style="flex:1;" title="Service ID from SMM Provider">
                 </div>
                 <div class="form-group">
                     <input type="text" name="service_desc" placeholder="وصف قصير (اختياري)" style="flex:2;">
@@ -648,6 +666,7 @@ $services_list = $pdo->query("SELECT * FROM bot_services ORDER BY id DESC")->fet
                             <form method="post" style="margin:0; display:flex; gap:5px; align-items:center;">
                                 <input type="hidden" name="service_id" value="<?php echo $srv['id']; ?>">
                                 <input type="number" step="0.01" name="new_cost" value="<?php echo htmlspecialchars($srv['cost'] ?? 0); ?>" style="width:60px; padding:5px; font-size:0.8rem; border:1px solid #cbd5e1; border-radius:4px;" placeholder="التكلفة" title="التكلفة الرقمية">
+                                <input type="number" name="new_api_id" value="<?php echo htmlspecialchars($srv['api_service_id'] ?? ''); ?>" style="width:60px; padding:5px; font-size:0.8rem; border:1px solid #cbd5e1; border-radius:4px;" placeholder="ID الموقع" title="رقم الخدمة في SMM">
                                 <button type="submit" name="update_service_price" class="btn" style="background:#0891b2; padding:5px 10px; font-size:0.8rem; width:auto;">تحديث</button>
                             </form>
                             

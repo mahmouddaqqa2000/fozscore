@@ -64,7 +64,8 @@ if (isset($update['message'])) {
         $keyboard = [
             'inline_keyboard' => [
                 [
-                    ['text' => '🔥 العروض الخاصة', 'callback_data' => 'platform_special_offers']
+                    ['text' => '⭐️ شحن الرصيد', 'callback_data' => 'recharge_stars_menu'],
+                    ['text' => '📜 سجل طلباتي', 'callback_data' => 'my_orders']
                 ],
                 [
                     ['text' => '📸 انستجرام', 'callback_data' => 'platform_instagram'],
@@ -485,7 +486,8 @@ if (isset($update['callback_query'])) {
         $keyboard = [
             'inline_keyboard' => [
                 [
-                    ['text' => '🔥 العروض الخاصة', 'callback_data' => 'platform_special_offers']
+                    ['text' => '⭐️ شحن الرصيد', 'callback_data' => 'recharge_stars_menu'],
+                    ['text' => '📜 سجل طلباتي', 'callback_data' => 'my_orders']
                 ],
                 [
                     ['text' => '📸 انستجرام', 'callback_data' => 'platform_instagram'],
@@ -543,6 +545,12 @@ if (isset($update['callback_query'])) {
 
     // --- معالجة تأكيد الطلب النهائي ---
     if ($data === 'confirm_order_final') {
+        // حذف رسالة التأكيد (التي تحتوي على الأزرار) فوراً لمنع التكرار أو الإلغاء
+        $confirmMsgId = $update['callback_query']['message']['message_id'] ?? null;
+        if ($confirmMsgId) {
+            deleteMessage($token, $chat_id, $confirmMsgId);
+        }
+
         $stateData = getUserState($pdo, $chat_id);
         if ($stateData && $stateData['state'] === 'WAITING_FINAL_CONFIRMATION') {
             
@@ -578,15 +586,44 @@ if (isset($update['callback_query'])) {
                 $new_balance = $current_balance - $total_cost;
                 $pdo->prepare("UPDATE bot_users SET balance = ? WHERE chat_id = ?")->execute([$new_balance, $chat_id]);
                 
+                // --- إرسال الطلب إلى SMM API ---
+                $external_id = null;
+                $api_response_json = null;
+                
+                // جلب رقم الخدمة في الموقع
+                $service_id_local = $data['service_id'] ?? 0;
+                $stmtSrv = $pdo->prepare("SELECT api_service_id FROM bot_services WHERE id = ?");
+                $stmtSrv->execute([$service_id_local]);
+                $srv = $stmtSrv->fetch(PDO::FETCH_ASSOC);
+                $api_service_id = $srv['api_service_id'] ?? null;
+                
+                if ($api_service_id) {
+                    $smm_url = $settings['smm_api_url'] ?? 'https://smmcost.com/api/v2';
+                    $smm_key = $settings['smm_api_key'] ?? '';
+                    
+                    if ($smm_key) {
+                        $res = placeOrderSMM($smm_url, $smm_key, $api_service_id, $data['link'], $data['qty']);
+                        $api_response_json = json_encode($res);
+                        if (isset($res['order'])) $external_id = $res['order'];
+                    }
+                }
+                // --------------------------------
+
                 // تسجيل العملية في السجل المالي (بالسالب لأنها خصم)
                 $serviceName = $data['type_label'] ?? 'خدمة';
                 $pdo->prepare("INSERT INTO bot_transactions (chat_id, username, amount, stars, created_at) VALUES (?, ?, ?, 0, ?)")
                     ->execute([$chat_id, $username, -$total_cost, time()]);
                 
+                // تسجيل الطلب في سجل الطلبات (للمستخدم)
+                $pdo->prepare("INSERT INTO bot_orders (chat_id, service_name, qty, link, cost, status, created_at, external_id, api_response) VALUES (?, ?, ?, ?, ?, 'pending', ?, ?, ?)")
+                    ->execute([$chat_id, $serviceName, $data['qty'], $data['link'], $total_cost, time(), $external_id, $api_response_json]);
+                
                 // إشعار الإدارة بطلب جديد
                 $admin_chat_id = $settings['chat_id'] ?? '';
                 if ($admin_chat_id) {
                     $adminMsg = "🔔 **طلب جديد!**\n\n👤 المستخدم: " . htmlspecialchars($username) . " (`$chat_id`)\n🔧 الخدمة: $serviceName\n🔢 العدد: {$data['qty']}\n🔗 الرابط: {$data['link']}\n💰 التكلفة: $" . number_format($total_cost, 2);
+                    if ($external_id) $adminMsg .= "\n✅ **تم الإرسال للموقع برقم:** `$external_id`";
+                    else if ($api_service_id) $adminMsg .= "\n⚠️ **فشل الإرسال للموقع!** (راجع السجل)";
                     sendMessage($token, $admin_chat_id, $adminMsg);
                 }
             
@@ -611,9 +648,41 @@ if (isset($update['callback_query'])) {
 
     // --- معالجة إلغاء الطلب ---
     if ($data === 'cancel_order') {
+        // حذف رسالة التأكيد عند الإلغاء لتنظيف المحادثة
+        $confirmMsgId = $update['callback_query']['message']['message_id'] ?? null;
+        if ($confirmMsgId) {
+            deleteMessage($token, $chat_id, $confirmMsgId);
+        }
+
         clearUserState($pdo, $chat_id);
         $msg = "❌ **تم إلغاء الطلب.**\nيمكنك البدء من جديد باختيار خدمة من القائمة.";
         $keyboard = ['inline_keyboard' => [[['text' => '🔙 القائمة الرئيسية', 'callback_data' => 'back_to_main']]]];
+        sendMessage($token, $chat_id, $msg, $keyboard);
+    }
+
+    // --- عرض سجل الطلبات ---
+    if ($data === 'my_orders') {
+        $stmt = $pdo->prepare("SELECT * FROM bot_orders WHERE chat_id = ? ORDER BY id DESC LIMIT 10");
+        $stmt->execute([$chat_id]);
+        $orders = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        if (empty($orders)) {
+            $msg = "📭 **لا توجد طلبات سابقة.**";
+        } else {
+            $msg = "📜 **سجل آخر 10 طلبات:**\n\n";
+            foreach ($orders as $order) {
+                $statusMap = ['pending' => 'قيد التنفيذ ⏳', 'completed' => 'مكتمل ✅', 'cancelled' => 'ملغي ❌'];
+                $status = $statusMap[$order['status']] ?? $order['status'];
+                $date = date('Y-m-d', $order['created_at']);
+                
+                $msg .= "🔹 **{$order['service_name']}**\n";
+                $msg .= "🔢 العدد: {$order['qty']} | 💰 {$order['cost']}$\n";
+                $msg .= "📅 $date | الحالة: $status\n";
+                $msg .= "🔗 " . substr($order['link'], 0, 25) . "...\n";
+                $msg .= "------------------\n";
+            }
+        }
+        $keyboard = ['inline_keyboard' => [[['text' => '🔙 رجوع', 'callback_data' => 'back_to_main']]]];
         sendMessage($token, $chat_id, $msg, $keyboard);
     }
 }
@@ -711,6 +780,24 @@ function deleteMessage($token, $chat_id, $message_id) {
     curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
     curl_exec($ch);
     curl_close($ch);
+}
+
+function placeOrderSMM($url, $key, $service, $link, $quantity) {
+    $post = [
+        'key' => $key,
+        'action' => 'add',
+        'service' => $service,
+        'link' => $link,
+        'quantity' => $quantity
+    ];
+
+    $ch = curl_init($url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, $post);
+    $result = curl_exec($ch);
+    curl_close($ch);
+    return json_decode($result, true);
 }
 
 // --- دوال إدارة الحالة ---
